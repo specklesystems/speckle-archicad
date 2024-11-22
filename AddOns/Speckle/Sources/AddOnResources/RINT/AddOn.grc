@@ -1,0 +1,24 @@
+﻿/* Add-On Information */
+
+'STR#' 32000 "Information" {
+/* [  1] */	"Speckle ArchiCAD Connector"
+/* [  2] */	"This Add-On is an ArchiCAD Connector."
+}
+
+/* Text appearing in the menu */
+
+'STR#' 32500 "Menu strings" {
+/* [   ] */	"Speckle"
+/* [  1] */	"Connector"
+/* [  2] */	"Browser^E3^ED^EW^ES^EE^EI^EL^ET^EM^R"
+}
+
+/* --- Dockable browser palette ----------------------------------------------*/
+
+'GDLG'  32500    Palette | topCaption | close | grow   0   0  450  150  "Selection Handler"  {
+/* [  1] */ Browser			0   0  450  150
+}
+
+'DLGH'  32500  DLG_32500_Browser_Palette {
+1	"Browser Control"		Browser_0
+}
