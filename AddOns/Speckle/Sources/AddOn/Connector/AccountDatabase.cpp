@@ -9,10 +9,7 @@ AccountDatabase::AccountDatabase()
 
 void AccountDatabase::InitData()
 {
-    accountsData = R"([
-        {"id":"56CEDA5BBD148EA03214D2E8A59B3EB8", "token" : "e2a025001a55d70bfc43d8aa0c8f6e497898371d95", "refreshToken" : "89035e3fd8bc66b754026c54dd6d1ec725fc31bf5a", "isDefault" : true, "isOnline" : true, "serverInfo" : {"name":"Speckle", "company" : "AEC Systems Ltd.", "version" : "2.22.2", "adminContact" : "office@speckle.systems", "description" : "The Official Speckle Server - Empowering Your Design and Construction Data.", "frontend2" : true, "url" : "https://app.speckle.systems", "migration" : {"movedTo":null, "movedFrom" : "https://speckle.xyz/"}}, "userInfo" : {"id":"95449dbbad", "name" : "David Kekesi", "email" : "david@speckle.systems", "company" : null, "avatar" : null, "streams" : {"totalCount":6}, "commits" : {"totalCount":393}} },
-		{"id":"F7408EBF9F5A4604D8781898234F1994", "token" : "3b2aa790d886241e4b8829a230679b9f2fa04b4721", "refreshToken" : "2aaf45814fc65e220c0dc92af985969ee10a8f4cb8", "isDefault" : false, "isOnline" : true, "serverInfo" : {"name":"Latest", "company":"AEC Systems","version":"2.22.3-alpha.228564","adminContact":"devops@speckle.systems","description":"This a test deployment of a Speckle Server.","frontend2":true,"url":"https://latest.speckle.systems","migration":{"movedTo":null,"movedFrom":"https://latest.speckle.dev/"}},"userInfo":{"id":"f159d23159","name":"David Kekesi","email":"david@speckle.systems","company":null,"avatar":null,"streams":{"totalCount":3},"commits":{"totalCount":4}}}
-    ])";
+    accountsData = R"([])";
 }
 
 nlohmann::json AccountDatabase::GetAccounts() const 
