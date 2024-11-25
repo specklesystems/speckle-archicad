@@ -22,7 +22,7 @@ namespace
         return narrowString;
     }
 
-    // Function to get the dynamic path
+    // Function to get the dynamic DB path
     const char* GetAccountsDatabasePath() 
     {
         static char resultPath[MAX_PATH];
@@ -81,9 +81,6 @@ void AccountDatabase::LoadAccountsFromDB()
     sqlite3* db;
     sqlite3_stmt* stmt;
     int rc;
-
-    // TODO: change this to actual appdata
-    //const char* dbPath = "C:/Users/david/AppData/Roaming/Speckle/Accounts.db";
 
     // Open the database (or create it if it doesn’t exist)
     rc = sqlite3_open(GetAccountsDatabasePath(), &db);

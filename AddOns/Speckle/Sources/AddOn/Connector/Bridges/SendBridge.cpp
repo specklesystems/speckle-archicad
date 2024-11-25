@@ -1,5 +1,4 @@
 #include "SendBridge.h"
-#include "LoggerFactory.h"
 #include "SendViaBrowserArgs.h"
 #include "RootObject.h"
 #include "Material.h"
@@ -37,7 +36,7 @@ void SendBridge::OnRunMethod(const RunMethodEventArgs& args)
     }
     else
     {
-        GET_LOGGER("SendBridge")->Info("Invalid method name");
+        // TODO: throw
     }
 }
 
@@ -47,6 +46,7 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
     filter.typeDiscriminator = "ArchicadSelectionFilter";
     filter.name = "Selection";
     filter.selectedObjectIds = CONNECTOR.hostToSpeckleConverter->GetSelection();
+    // TODO summary
     filter.summary = "Hello World";
 
     nlohmann::json sendFilters;
@@ -71,41 +71,44 @@ void SendBridge::Send(const RunMethodEventArgs& args)
         std::string id = nlohmann::json::parse(rawString).get<std::string>();
         SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
 
+
         nlohmann::json sendObj;
+        // TODO: do i need this?
         sendObj["id"] = "";
+
+        // building the rootObject
         RootObject rootObject;
 
         std::vector<ElementBody> bodies;
         for (const auto& elemId : modelCard.sendFilter.selectedObjectIds)
         {
-            auto body = CONNECTOR.hostToSpeckleConverter->GetElementMesh(elemId);
+            auto body = CONNECTOR.hostToSpeckleConverter->GetElementBody(elemId);
             bodies.push_back(body);
-            ModelElement me;
-            me.displayValue = body;
-            rootObject.elements.push_back(me);
+            ModelElement modelElement;
+            modelElement.displayValue = body;
+            rootObject.elements.push_back(modelElement);
         }
 
         std::map<int, RenderMaterialProxy> collectedProxies;
-        for (const auto& b : bodies)
+        for (const auto& body : bodies)
         {
-            for (const auto& m : b.meshes)
+            for (const auto& mesh : body.meshes)
             {
-                int mind = m.second.materialIndex;
-                if (collectedProxies.find(mind) == collectedProxies.end())
+                int materialIndex = mesh.second.materialIndex;
+                if (collectedProxies.find(materialIndex) == collectedProxies.end())
                 {
-                    auto mat = CONNECTOR.hostToSpeckleConverter->GetModelMaterial(mind);
-                    RenderMaterialProxy rmp;
-                    rmp.value = mat;
-                    collectedProxies[mind] = rmp;
+                    RenderMaterialProxy renderMaterialProxy;
+                    renderMaterialProxy.value = CONNECTOR.hostToSpeckleConverter->GetModelMaterial(materialIndex);
+                    collectedProxies[materialIndex] = renderMaterialProxy;
                 }
                 
-                collectedProxies[mind].objects.push_back(m.second.applicationId);
+                collectedProxies[materialIndex].objects.push_back(mesh.second.applicationId);
             }
         }
 
-        for (const auto& r : collectedProxies)
+        for (const auto& renderMaterialProxy : collectedProxies)
         {
-            rootObject.renderMaterialProxies.push_back(r.second);
+            rootObject.renderMaterialProxies.push_back(renderMaterialProxy.second);
         }
 
         sendObj["rootObject"] = rootObject;
@@ -116,6 +119,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
         sendArgs.token = CONNECTOR.accountDatabase->GetTokenByAccountId(modelCard.accountId);
         sendArgs.serverUrl = modelCard.serverUrl;
         sendArgs.accountId = modelCard.accountId;
+        // TODO: message
         sendArgs.message = "Hello World: Sending data from ArchiCAD";
         sendArgs.sendObject = sendObj;
         sendArgs.sendConversionResults = nlohmann::json::array();
@@ -131,9 +135,6 @@ void SendBridge::Send(const RunMethodEventArgs& args)
         std::string methodName = "sendByBrowser";
         std::string guid = Utils::GenerateGUID64();
         std::string methodId = guid + "_" + methodName;
-
-
-        auto start = std::chrono::high_resolution_clock::now();
 
         //args.eventSource->CacheResult(methodId, sendArgs);
         //auto argsPtr = std::make_unique<nlohmann::json>(sendArgs);

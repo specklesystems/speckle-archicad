@@ -97,7 +97,7 @@ std::vector<std::string> HostToSpeckleConverter::GetSelection()
 	return selectedElements;
 }
 
-ElementBody HostToSpeckleConverter::GetElementMesh(const std::string& elemId)
+ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 {
 	// POC move the get sight part to a function, it's repeated code
 	

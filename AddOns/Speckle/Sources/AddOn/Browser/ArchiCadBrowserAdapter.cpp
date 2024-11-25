@@ -80,10 +80,8 @@ void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 			resultJson = result->dump();
 		}
 		binding->ClearResult(methodIdCstr);
-		//auto resultJson = result->dump();
-		//return ConvertToJavaScriptVariable(resultJson.c_str());
-		auto jsval = new JS::Value(resultJson.c_str());
 
+		auto jsval = new JS::Value(resultJson.c_str());
 		return jsval;
 	}));
 
