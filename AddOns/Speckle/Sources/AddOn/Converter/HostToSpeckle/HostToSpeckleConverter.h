@@ -10,4 +10,6 @@ public:
 	std::vector<std::string> GetSelection() override;
 	ElementBody GetElementBody(const std::string& elemId) override;
 	Material GetModelMaterial(int materialIndex) override;
+	std::string GetElementLevel(const std::string& elemId) override;
+	std::string GetElementType(const std::string& elemId) override;
 };

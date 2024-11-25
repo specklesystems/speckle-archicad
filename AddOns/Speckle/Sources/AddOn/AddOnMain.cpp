@@ -67,6 +67,8 @@ static void InitConnector()
 	CONNECTOR.speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
 	CONNECTOR.hostAppEvents = std::make_unique<HostAppEvents>();
 	CONNECTOR.dataStorage = std::make_unique<ArchiCadDataStorage>();
+	// TODO do i need this call
+	// i should notify the UI instead, that the cards are loaded and it should refresh (documentchanged)
 	LoadModelCardData();
 	CONNECTOR.hostAppEvents->ProjectOpened += []() { LoadModelCardData(); };
 	CONNECTOR.hostAppEvents->ProjectSaved += []() { SaveModelCardData(); };

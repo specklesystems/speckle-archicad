@@ -1,17 +1,25 @@
 #include "RootObject.h"
 
-void to_json(nlohmann::json& j, const RootObject& elem)
+void to_json(nlohmann::json& j, const RootObject& rootObject)
 {
-    j["speckle_type"] = elem.speckle_type;
-    j["name"] = elem.name;
-    j["elements"] = elem.elements;
-    j["renderMaterialProxies"] = elem.renderMaterialProxies;
+    j["speckle_type"] = rootObject.speckle_type;
+    j["name"] = rootObject.name;
+
+    std::vector<Level> levels;
+    for (const auto& e : rootObject.elements)
+    {
+        levels.push_back(e.second);
+    }
+
+    j["elements"] = levels;
+    //j["elements"] = rootObject.elements;
+    j["renderMaterialProxies"] = rootObject.renderMaterialProxies;
 }
 
-void from_json(const nlohmann::json& j, RootObject& elem)
+void from_json(const nlohmann::json& j, RootObject& rootObject)
 {
-    elem.speckle_type = j.at("speckle_type").get<std::string>();
-    elem.name = j.at("name").get<std::string>();
-    elem.elements = j.at("elements").get<std::vector<ModelElement>>();
+    rootObject.speckle_type = j.at("speckle_type").get<std::string>();
+    rootObject.name = j.at("name").get<std::string>();
+    // rootObject.elements = j.at("elements").get<std::vector<ModelElement>>();
     // TODO: renderMaterialProxies
 }

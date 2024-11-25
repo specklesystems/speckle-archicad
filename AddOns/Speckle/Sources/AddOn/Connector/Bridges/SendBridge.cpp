@@ -3,7 +3,7 @@
 #include "RootObject.h"
 #include "Material.h"
 #include "Connector.h"
-
+#include "RootObjectBuilder.h"
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
@@ -59,8 +59,7 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
     filter.typeDiscriminator = "ArchicadSelectionFilter";
     filter.name = "Selection";
     filter.selectedObjectIds = CONNECTOR.hostToSpeckleConverter->GetSelection();
-    // TODO summary
-    filter.summary = "Hello World";
+    filter.summary = std::to_string(filter.selectedObjectIds.size()) + " objects selected";
 
     nlohmann::json sendFilters;
     sendFilters.push_back(filter);
@@ -85,43 +84,9 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     nlohmann::json sendObj;
     // TODO: do i need this?
     sendObj["id"] = "";
-
-    // building the rootObject
-    RootObject rootObject;
-
-    std::vector<ElementBody> bodies;
-    for (const auto& elemId : modelCard.sendFilter.selectedObjectIds)
-    {
-        auto body = CONNECTOR.hostToSpeckleConverter->GetElementBody(elemId);
-        bodies.push_back(body);
-        ModelElement modelElement;
-        modelElement.displayValue = body;
-        rootObject.elements.push_back(modelElement);
-    }
-
-    std::map<int, RenderMaterialProxy> collectedProxies;
-    for (const auto& body : bodies)
-    {
-        for (const auto& mesh : body.meshes)
-        {
-            int materialIndex = mesh.second.materialIndex;
-            if (collectedProxies.find(materialIndex) == collectedProxies.end())
-            {
-                RenderMaterialProxy renderMaterialProxy;
-                renderMaterialProxy.value = CONNECTOR.hostToSpeckleConverter->GetModelMaterial(materialIndex);
-                collectedProxies[materialIndex] = renderMaterialProxy;
-            }
-
-            collectedProxies[materialIndex].objects.push_back(mesh.second.applicationId);
-        }
-    }
-
-    for (const auto& renderMaterialProxy : collectedProxies)
-    {
-        rootObject.renderMaterialProxies.push_back(renderMaterialProxy.second);
-    }
-
-    sendObj["rootObject"] = rootObject;
+    
+    RootObjectBuilder rootObjectBuilder{};
+    sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds);
 
     sendArgs.modelCardId = modelCard.modelCardId;
     sendArgs.projectId = modelCard.projectId;
@@ -130,7 +95,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.serverUrl = modelCard.serverUrl;
     sendArgs.accountId = modelCard.accountId;
     // TODO: message
-    sendArgs.message = "Hello World: Sending data from ArchiCAD";
+    sendArgs.message = "Sending data from ArchiCAD";
     sendArgs.sendObject = sendObj;
     sendArgs.sendConversionResults = nlohmann::json::array();
 
