@@ -1,9 +1,46 @@
 #include "AccountDatabase.h"
 #include "sqlite3.h"
 #include <iostream>
+#include <windows.h>
+#include <shlobj.h>
 
 static const int ACCOUNT_ID_COLUMN = 0;
 static const int ACCOUNT_DATA_COLUMN = 1;
+
+namespace
+{
+    // Function to convert wide string to narrow string
+    std::string WideStringToString(const std::wstring& wideString) 
+    {
+        int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, wideString.c_str(), -1, NULL, 0, NULL, NULL);
+        if (sizeNeeded <= 0) 
+        {
+            throw std::runtime_error("WideCharToMultiByte conversion failed");
+        }
+        std::string narrowString(sizeNeeded, 0);
+        WideCharToMultiByte(CP_UTF8, 0, wideString.c_str(), -1, &narrowString[0], sizeNeeded, NULL, NULL);
+        return narrowString;
+    }
+
+    // Function to get the dynamic path
+    const char* GetAccountsDatabasePath() 
+    {
+        static char resultPath[MAX_PATH];
+        wchar_t appDataPath[MAX_PATH];
+        if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) 
+        {
+            std::wstring wideDbPath = std::wstring(appDataPath) + L"\\Speckle\\Accounts.db";
+            std::string dbPath = WideStringToString(wideDbPath);
+            strncpy_s(resultPath, dbPath.c_str(), MAX_PATH - 1);
+            resultPath[MAX_PATH - 1] = '\0'; // Ensure null-termination
+            return resultPath;
+        }
+        else 
+        {
+            throw std::runtime_error("Failed to get AppData path");
+        }
+    }
+}
 
 AccountDatabase::AccountDatabase() 
 {
@@ -46,10 +83,10 @@ void AccountDatabase::LoadAccountsFromDB()
     int rc;
 
     // TODO: change this to actual appdata
-    const char* dbPath = "C:/Users/david/AppData/Roaming/Speckle/Accounts.db";
+    //const char* dbPath = "C:/Users/david/AppData/Roaming/Speckle/Accounts.db";
 
     // Open the database (or create it if it doesn’t exist)
-    rc = sqlite3_open(dbPath, &db);
+    rc = sqlite3_open(GetAccountsDatabasePath(), &db);
     if (rc != SQLITE_OK)
     {
         std::cerr << "Error opening database: " << sqlite3_errmsg(db) << std::endl;

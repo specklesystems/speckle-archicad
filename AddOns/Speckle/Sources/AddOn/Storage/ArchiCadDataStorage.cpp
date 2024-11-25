@@ -6,18 +6,21 @@
 #include "ArchiCadDataStorage.h"
 
 
-static API_Guid GetApiObjectGuidByName(const std::string& dataName)
+namespace
 {
-	API_Guid apiGuid{};
-	CHECK_ERROR(ACAPI_AddOnObject_GetUniqueObjectGuidFromName(dataName.c_str(), &apiGuid));
+	API_Guid GetApiObjectGuidByName(const std::string& dataName)
+	{
+		API_Guid apiGuid{};
+		CHECK_ERROR(ACAPI_AddOnObject_GetUniqueObjectGuidFromName(dataName.c_str(), &apiGuid));
 
-	if (apiGuid == APINULLGuid)
-		CHECK_ERROR(ACAPI_AddOnObject_CreateUniqueObject(dataName.c_str(), &apiGuid));
+		if (apiGuid == APINULLGuid)
+			CHECK_ERROR(ACAPI_AddOnObject_CreateUniqueObject(dataName.c_str(), &apiGuid));
 
-	if (apiGuid == APINULLGuid)
-		throw "Could not find ApiObjec guid by name";
+		if (apiGuid == APINULLGuid)
+			throw "Could not find ApiObjec guid by name";
 
-	return apiGuid;
+		return apiGuid;
+	}
 }
 
 void ArchiCadDataStorage::SaveData(const nlohmann::json& data, const std::string& dataName)
