@@ -2,22 +2,16 @@
 #include "sqlite3.h"
 #include <iostream>
 
+static const int ACCOUNT_ID_COLUMN = 0;
+static const int ACCOUNT_DATA_COLUMN = 1;
+
 AccountDatabase::AccountDatabase() 
 {
     LoadAccountsFromDB();
 }
 
-
 nlohmann::json AccountDatabase::GetAccounts() const 
 {
-    /*try
-    {
-        return nlohmann::json::parse(accountsData);
-    }
-    catch (...)
-    {
-        return nlohmann::json::object();
-    }*/
     auto accounts = nlohmann::json::array();
     for (const auto& [id, account] : _accountsData)
         accounts.push_back(account);
@@ -27,14 +21,6 @@ nlohmann::json AccountDatabase::GetAccounts() const
 
 nlohmann::json AccountDatabase::GetAccount(const std::string& id) const 
 {
-    /*for (const auto& account : GetAccounts())
-    {
-        if (account["id"] == id) 
-        {
-            return account;
-        }
-    }
-    return nlohmann::json::object();*/
     try
     {
         return _accountsData.at(id);
@@ -85,9 +71,8 @@ void AccountDatabase::LoadAccountsFromDB()
     {
         try
         {
-            // TODO: magic numbers
-            const char* id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-            const char* account = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+            const char* id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, ACCOUNT_ID_COLUMN));
+            const char* account = reinterpret_cast<const char*>(sqlite3_column_text(stmt, ACCOUNT_DATA_COLUMN));
             _accountsData[id] = nlohmann::json::parse(account);
         }
         catch (...)

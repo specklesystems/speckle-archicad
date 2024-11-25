@@ -1,14 +1,9 @@
 #include "SendBridge.h"
 #include "LoggerFactory.h"
-//#include "DummyArchicad.h"
-//#include "ModelCardDatabase.h"
 #include "SendViaBrowserArgs.h"
-//#include "AccountDatabase.h"
 #include "RootObject.h"
 #include "Material.h"
 #include "Connector.h"
-
-#include <chrono>
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
@@ -66,8 +61,6 @@ void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 
 void SendBridge::Send(const RunMethodEventArgs& args)
 {
-    
-
     // try create sendargs
     SendViaBrowserArgs sendArgs;
     try
@@ -88,7 +81,6 @@ void SendBridge::Send(const RunMethodEventArgs& args)
             auto body = CONNECTOR.hostToSpeckleConverter->GetElementMesh(elemId);
             bodies.push_back(body);
             ModelElement me;
-            //me.displayValue = body.GetDisplayValue();
             me.displayValue = body;
             rootObject.elements.push_back(me);
         }
@@ -130,10 +122,8 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     }
     catch (...)
     {
-         // no good  
+         // TODO 
     }
-
-    //Utils::WriteJsonToFile(sendArgs, "C:\\tmp\\sendArgs.json");
     
     // trysend
     try
@@ -146,21 +136,16 @@ void SendBridge::Send(const RunMethodEventArgs& args)
         auto start = std::chrono::high_resolution_clock::now();
 
         //args.eventSource->CacheResult(methodId, sendArgs);
-
         //auto argsPtr = std::make_unique<nlohmann::json>(sendArgs);
+
         auto js = nlohmann::json(sendArgs);
-        //Utils::WriteJsonToFile(js, "C:\\tmp\\sendArgs.json");
         auto argsPtr = std::make_unique<nlohmann::json>(js);
         args.eventSource->CacheResult(methodId, std::move(argsPtr));
-
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-
         args.eventSource->EmitResponseReady(methodName, methodId);
         args.eventSource->ResponseReady(args.methodId);
     }
     catch (...)
     {
-        // whatever
+        // TODO
     }  
 }

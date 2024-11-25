@@ -57,5 +57,4 @@ void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
 void ConfigBridge::UpdateConfig(const RunMethodEventArgs& args)
 {
     GET_LOGGER("ConfigBridge")->Info(args.methodName + " called");
-    // Logic to update the configuration data goes here
 }

@@ -4,9 +4,7 @@
 #include <MemoryIChannel32.hpp>
 #include "CheckError.h"
 #include "ArchiCadDataStorage.h"
-#include "Utils.h"
 
-#include <iostream>
 
 static API_Guid GetApiObjectGuidByName(const std::string& dataName)
 {
@@ -35,9 +33,7 @@ void ArchiCadDataStorage::SaveData(const nlohmann::json& data, const std::string
 		return;
 	}
 
-	//auto dataString = data.dump().c_str();
 	std::string dataString = data.dump();
-	//dataString = "Apple";
 	GS::MemoryOChannel32 memChannel(GS::MemoryOChannel32::BMAllocation);
 	CHECK_ERROR(GS::UniString(dataString).Write(memChannel));
 	GSHandle content = nullptr;
@@ -72,26 +68,6 @@ nlohmann::json ArchiCadDataStorage::LoadData(const std::string& dataName)
 
 	std::string stdDataString = dataString.ToCStr().Get();
 	
-	
-
-	try
-	{
-		auto jsonData = nlohmann::json::parse(stdDataString);
-		Utils::WriteJsonToFile(jsonData, "C:\\tmp\\modelCards.json");
-		return jsonData;
-	}
-	catch (nlohmann::json::parse_error& e)
-	{
-		std::cout << e.what();
-	}
-	catch (std::exception& e)
-	{
-		std::cout << e.what();
-	}
-	catch (...)
-	{
-		// wtf
-	}
-
-	return {};
+	auto jsonData = nlohmann::json::parse(stdDataString);
+	return jsonData;
 }

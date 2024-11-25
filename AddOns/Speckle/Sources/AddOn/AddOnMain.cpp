@@ -9,6 +9,9 @@
 #include "ArchiCadDataStorage.h"
 
 
+static const std::string MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v1";
+
+
 static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*param*/)
 {
 	switch (notifID) 
@@ -90,13 +93,13 @@ GSErrCode __ACENV_CALL Initialize(void)
 	CONNECTOR.dataStorage = std::make_unique<ArchiCadDataStorage>();
 
 	// TODO make a function of this
-	auto data = CONNECTOR.dataStorage->LoadData("ModelCardData");
+	auto data = CONNECTOR.dataStorage->LoadData(MODELCARD_ADDONOBJECT_NAME);
 	CONNECTOR.modelCardDatabase->LoadModelsFromJson(data);
 
 	CONNECTOR.hostAppEvents->ProjectOpened += []()
 	{
 		// TODO: data name string to const var
-		auto data = CONNECTOR.dataStorage->LoadData("ModelCardData");
+		auto data = CONNECTOR.dataStorage->LoadData(MODELCARD_ADDONOBJECT_NAME);
 		CONNECTOR.modelCardDatabase->LoadModelsFromJson(data);
 	};
 
@@ -104,7 +107,7 @@ GSErrCode __ACENV_CALL Initialize(void)
 	{
 		// TODO: data name string to const var
 		auto data = CONNECTOR.modelCardDatabase->GetModelsAsJson();
-		CONNECTOR.dataStorage->SaveData(data, "ModelCardData");
+		CONNECTOR.dataStorage->SaveData(data, MODELCARD_ADDONOBJECT_NAME);
 	};
 
 	// TODO error handling

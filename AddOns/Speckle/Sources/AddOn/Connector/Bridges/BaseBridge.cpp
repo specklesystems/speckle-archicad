@@ -1,7 +1,5 @@
 #include "BaseBridge.h"
 #include "LoggerFactory.h"
-//#include "DummyArchicad.h"
-//#include "ModelCardDatabase.h"
 #include "Connector.h"
 
 BaseBridge::BaseBridge(IBrowserAdapter* browser)
