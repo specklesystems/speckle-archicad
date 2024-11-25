@@ -3,19 +3,15 @@
 #include "APIEnvir.h"
 #include "ACAPinc.h"
 #include "CheckError.h"
+#include "ConverterUtils.h"
 
-#include <exp.h>
 #include <AttributeIndex.hpp>
 #include <ConvexPolygon.hpp>
 #include <Model.hpp>
 #include <ModelElement.hpp>
-#include <ModelMaterial.hpp>
 #include <ModelMeshBody.hpp>
-#include <Sight.hpp>
 
 #include <set>
-
-// POC organize method implementations of the HostToSpeckleConverter into separate files
 
 namespace
 {
@@ -81,50 +77,14 @@ namespace
 	}
 }
 
-std::vector<std::string> HostToSpeckleConverter::GetSelection()
-{
-	std::vector<std::string> selectedElements;
-	API_SelectionInfo selectionInfo{};
-	GS::Array<API_Neig> selection;
-	if (auto err = ACAPI_Selection_Get(&selectionInfo, &selection, true); err == NoError)
-	{
-		for (const auto& item : selection)
-		{
-			std::string guid = APIGuidToString(item.guid).ToCStr().Get();
-			selectedElements.push_back(guid);
-		}
-	}
-	return selectedElements;
-}
-
 ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 {
-	// POC move the get sight part to a function, it's repeated code
-	
-	//*******************************************************************
-
-	void* dummy = nullptr;
-	GSErrCode err = ACAPI_Sight_GetCurrentWindowSight(&dummy);
-	if (err != NoError) {
-		// TODO: should this throw?
-	}
-	Modeler::SightPtr currentSightPtr((Modeler::Sight*)dummy); // init the shared ptr with the raw pointer
-	ModelerAPI::Model acModel;
-	Modeler::IAttributeReader* attrReader = ACAPI_Attribute_GetCurrentAttributeSetReader();
-	err = EXPGetModel(currentSightPtr, &acModel, attrReader);
-	if (err != NoError) {
-		// TODO: should this throw?
-	}
-	//*******************************************************************
-
-	// Get AC element by id
-	API_Element apiElem{};
-	apiElem.header.guid = APIGuidFromString(elemId.c_str());
-	ACAPI_Element_Get(&apiElem);
-
+	auto acModel = ConverterUtils::GetArchiCadModel();
+	auto apiElem = ConverterUtils::GetElement(elemId);
 	auto partIDs = CollectPartIDs(apiElem.header.guid, apiElem.header.type.typeID);
 
-	ElementBody elementBody;
+	// the body to return
+	ElementBody elementBody{};
 
 	//Get elements
 	Int32 nElements = acModel.GetElementCount();
@@ -182,36 +142,4 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 	}
 
 	return elementBody;
-}
-
-Material HostToSpeckleConverter::GetModelMaterial(int materialIndex)
-{
-	// POC move the get sight part to a function, it's repeated code
-
-	//*******************************************************************
-	void* dummy = nullptr;
-	GSErrCode err = ACAPI_Sight_GetCurrentWindowSight(&dummy);
-	if (err != NoError) {
-		// TODO: should this throw?
-	}
-	Modeler::SightPtr currentSightPtr((Modeler::Sight*)dummy); // init the shared ptr with the raw pointer
-	ModelerAPI::Model acModel;
-	Modeler::IAttributeReader* attrReader = ACAPI_Attribute_GetCurrentAttributeSetReader();
-	err = EXPGetModel(currentSightPtr, &acModel, attrReader);
-	if (err != NoError) {
-		// TODO: should this throw?
-	}
-	//*******************************************************************
-
-	ModelerAPI::AttributeIndex matIdx(ModelerAPI::AttributeIndex::MaterialIndex, materialIndex);
-	ModelerAPI::Material material{};
-	acModel.GetMaterial(matIdx, &material);
-
-	auto c = material.GetSurfaceColor();
-	Material m;
-	m.diffuse = Utils::PackARGB(1.0, c.red, c.green, c.blue);
-	m.opacity = 1.0 - (static_cast<double>(material.GetTransparency()) / 100.0);
-	m.roughness = 1.0 - (static_cast<double>(material.GetShining()) / 10000.0);
-
-	return m;
 }

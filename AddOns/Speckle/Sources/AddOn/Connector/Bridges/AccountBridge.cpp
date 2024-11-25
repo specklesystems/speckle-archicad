@@ -3,11 +3,6 @@
 
 AccountBridge::AccountBridge(IBrowserAdapter* browser)
 {
-	Init(browser);
-}
-
-void AccountBridge::Init(IBrowserAdapter* browser)
-{
 	accountsBinding = std::make_unique<Binding>(
 		"accountsBinding",
 		std::vector<std::string>{ "GetAccounts" },
@@ -17,6 +12,24 @@ void AccountBridge::Init(IBrowserAdapter* browser)
 }
 
 void AccountBridge::OnRunMethod(const RunMethodEventArgs& args)
+{
+	try
+	{
+		RunMethod(args);
+	}
+	catch (const std::exception& e)
+	{
+		// TODO: pass message to browser
+		std::string msg = e.what();
+		std::cout << msg;
+	}
+	catch (...)
+	{
+		// no good
+	}
+}
+
+void AccountBridge::RunMethod(const RunMethodEventArgs& args)
 {
 	if (args.methodName == "GetAccounts")
 	{

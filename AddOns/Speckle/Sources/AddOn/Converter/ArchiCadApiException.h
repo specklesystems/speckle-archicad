@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <string>
+#include "ErrorMessages.h"
 
 class ArchiCadApiException : public std::exception
 {
@@ -10,7 +11,8 @@ private:
     std::string message;
 
 public:
-    ArchiCadApiException(int code) : errorCode(code), message("ArchiCad API Exception: Error code " + std::to_string(errorCode)) {}
+    ArchiCadApiException(int code) 
+        : errorCode(code), message(ErrorMessages::Get(code)) {}
 
     virtual const char* what() const noexcept override
     {

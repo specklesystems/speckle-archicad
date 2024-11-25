@@ -3,7 +3,8 @@
 #include <string>
 #include "json.hpp"
 
-class Utils {
+class Utils 
+{
 public:
     static std::string GenerateGUID();
     static std::string GenerateGUID64();

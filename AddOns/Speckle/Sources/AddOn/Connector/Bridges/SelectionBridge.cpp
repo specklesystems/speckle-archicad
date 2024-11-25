@@ -4,11 +4,6 @@
 
 SelectionBridge::SelectionBridge(IBrowserAdapter* browser)
 {
-    Init(browser);
-}
-
-void SelectionBridge::Init(IBrowserAdapter* browser)
-{
     selectionBinding = std::make_unique<Binding>(
         "selectionBinding",
         std::vector<std::string>{ "GetSelection" },
@@ -20,13 +15,31 @@ void SelectionBridge::Init(IBrowserAdapter* browser)
 
 void SelectionBridge::OnRunMethod(const RunMethodEventArgs& args)
 {
+    try
+    {
+        RunMethod(args);
+    }
+    catch (const std::exception& e)
+    {
+        // TODO: pass message to browser
+        std::string msg = e.what();
+        std::cout << msg;
+    }
+    catch (...)
+    {
+        // no good
+    }
+}
+
+void SelectionBridge::RunMethod(const RunMethodEventArgs& args)
+{
     if (args.methodName == "GetSelection")
     {
         GetSelection(args);
     }
     else
     {
-        GET_LOGGER("SelectionBridge")->Info("Invalid method name");
+        // TODO throw
     }
 }
 
@@ -34,13 +47,13 @@ void SelectionBridge::GetSelection(const RunMethodEventArgs& args)
 {
     nlohmann::json selection;
     selection["selectedObjectIds"] = CONNECTOR.hostToSpeckleConverter->GetSelection();
-    // TODO
+    // TODO summary
     selection["summary"] = "Hello World!";
     args.eventSource->SetResult(args.methodId, selection);
 }
 
 void SelectionBridge::SelectionChanged()
 {
-    // TODO
+    // TODO implement
     std::cout << "selection changed";
 }

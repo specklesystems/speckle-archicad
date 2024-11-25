@@ -4,11 +4,6 @@
 
 ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
 {
-    Init(browser);
-}
-
-void ConfigBridge::Init(IBrowserAdapter* browser)
-{
     configBinding = std::make_unique<Binding>(
         "configBinding",
         std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig" },
@@ -19,6 +14,24 @@ void ConfigBridge::Init(IBrowserAdapter* browser)
 }
 
 void ConfigBridge::OnRunMethod(const RunMethodEventArgs& args)
+{
+    try
+    {
+        RunMethod(args);
+    }
+    catch (const std::exception& e)
+    {
+        // TODO: pass message to browser
+        std::string msg = e.what();
+        std::cout << msg;
+    }
+    catch (...)
+    {
+        // no good
+    }
+}
+
+void ConfigBridge::RunMethod(const RunMethodEventArgs& args)
 {
     if (args.methodName == "GetConfig")
     {
@@ -49,12 +62,12 @@ void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
 
 void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
 {
-    GET_LOGGER("ConfigBridge")->Info(args.methodName + " called");
-
+    // TODO implement
     args.eventSource->SetResult(args.methodId, true);
 }
 
 void ConfigBridge::UpdateConfig(const RunMethodEventArgs& args)
 {
+    // TODO implement
     GET_LOGGER("ConfigBridge")->Info(args.methodName + " called");
 }

@@ -5,9 +5,9 @@
 #include "CheckError.h"
 #include "ArchiCadDataStorage.h"
 
-
 namespace
 {
+	// this function should always be called in a try-catch block
 	API_Guid GetApiObjectGuidByName(const std::string& dataName)
 	{
 		API_Guid apiGuid{};
@@ -17,12 +17,13 @@ namespace
 			CHECK_ERROR(ACAPI_AddOnObject_CreateUniqueObject(dataName.c_str(), &apiGuid));
 
 		if (apiGuid == APINULLGuid)
-			throw "Could not find ApiObjec guid by name";
+			throw "Could not find ApiObject guid by name";
 
 		return apiGuid;
 	}
 }
 
+// TODO handle exceptions from CHECK_ERROR somewhere
 void ArchiCadDataStorage::SaveData(const nlohmann::json& data, const std::string& dataName)
 {
 	API_Guid apiGuid{};
@@ -45,6 +46,7 @@ void ArchiCadDataStorage::SaveData(const nlohmann::json& data, const std::string
 	BMKillHandle(&content);
 }
 
+// TODO handle exceptions from CHECK_ERROR somewhere
 nlohmann::json ArchiCadDataStorage::LoadData(const std::string& dataName)
 {
 	API_Guid apiGuid{};

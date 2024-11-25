@@ -12,8 +12,8 @@ public:
 private:
     std::unique_ptr<Binding> configBinding;
 
-    void Init(IBrowserAdapter* browser);
     void OnRunMethod(const RunMethodEventArgs& args);
+    void RunMethod(const RunMethodEventArgs& args);
 
     void GetConfig(const RunMethodEventArgs& args);
     void GetIsDevMode(const RunMethodEventArgs& args);

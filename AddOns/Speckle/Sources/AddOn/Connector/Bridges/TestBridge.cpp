@@ -3,11 +3,6 @@
 
 TestBridge::TestBridge(IBrowserAdapter* browser)
 {
-    Init(browser);
-}
-
-void TestBridge::Init(IBrowserAdapter* browser)
-{
     testBinding = std::make_unique<Binding>(
         "testBinding",
         std::vector<std::string>{ "GetComplexType", "GoAway", "SayHi", "TriggerEvent" },
@@ -17,6 +12,24 @@ void TestBridge::Init(IBrowserAdapter* browser)
 }
 
 void TestBridge::OnRunMethod(const RunMethodEventArgs& args)
+{
+    try
+    {
+        RunMethod(args);
+    }
+    catch (const std::exception& e)
+    {
+        // TODO: pass message to browser
+        std::string msg = e.what();
+        std::cout << msg;
+    }
+    catch (...)
+    {
+        // no good
+    }
+}
+
+void TestBridge::RunMethod(const RunMethodEventArgs& args)
 {
     if (args.methodName == "GetComplexType")
     {

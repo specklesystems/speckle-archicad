@@ -12,8 +12,8 @@ public:
 private:
     std::unique_ptr<Binding> baseBinding;
 
-    void Init(IBrowserAdapter* browser);
     void OnRunMethod(const RunMethodEventArgs& args);
+    void RunMethod(const RunMethodEventArgs& args);
 
     void AddModel(const RunMethodEventArgs& args);
     void GetConnectorVersion(const RunMethodEventArgs& args);

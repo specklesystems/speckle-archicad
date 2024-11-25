@@ -12,8 +12,8 @@ public:
 private:
     std::unique_ptr<Binding> testBinding;
 
-    void Init(IBrowserAdapter* browser);
     void OnRunMethod(const RunMethodEventArgs& args);
+    void RunMethod(const RunMethodEventArgs& args);
 
     void GetComplexType(const RunMethodEventArgs& args);
     void GoAway(const RunMethodEventArgs& args);

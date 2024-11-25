@@ -12,8 +12,8 @@ public:
 private:
     std::unique_ptr<Binding> selectionBinding;
 
-    void Init(IBrowserAdapter* browser);
     void OnRunMethod(const RunMethodEventArgs& args);
+    void RunMethod(const RunMethodEventArgs& args);
 
     void GetSelection(const RunMethodEventArgs& args);
     void SelectionChanged();

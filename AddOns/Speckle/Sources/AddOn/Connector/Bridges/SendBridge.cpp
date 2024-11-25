@@ -7,11 +7,6 @@
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
-    Init(browser);
-}
-
-void SendBridge::Init(IBrowserAdapter* browser)
-{
     sendBinding = std::make_unique<Binding>(
         "sendBinding",
         std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send" },
@@ -21,6 +16,24 @@ void SendBridge::Init(IBrowserAdapter* browser)
 }
 
 void SendBridge::OnRunMethod(const RunMethodEventArgs& args)
+{
+    try
+    {
+        RunMethod(args);
+    }
+    catch (const std::exception& e)
+    {
+        // TODO: pass message to browser
+        std::string msg = e.what();
+        std::cout << msg;
+    }
+    catch (...)
+    {
+        // no good
+    }
+}
+
+void SendBridge::RunMethod(const RunMethodEventArgs& args)
 {
     if (args.methodName == "GetSendFilters")
     {
@@ -61,92 +74,76 @@ void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 
 void SendBridge::Send(const RunMethodEventArgs& args)
 {
-    // try create sendargs
     SendViaBrowserArgs sendArgs;
-    try
+    // get the modelcard by id
+    nlohmann::json parsedJson = nlohmann::json::parse(args.args);
+    std::string rawString = parsedJson[0];
+    std::string id = nlohmann::json::parse(rawString).get<std::string>();
+    SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
+
+
+    nlohmann::json sendObj;
+    // TODO: do i need this?
+    sendObj["id"] = "";
+
+    // building the rootObject
+    RootObject rootObject;
+
+    std::vector<ElementBody> bodies;
+    for (const auto& elemId : modelCard.sendFilter.selectedObjectIds)
     {
-        // get the modelcard by id
-        nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-        std::string rawString = parsedJson[0];
-        std::string id = nlohmann::json::parse(rawString).get<std::string>();
-        SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
+        auto body = CONNECTOR.hostToSpeckleConverter->GetElementBody(elemId);
+        bodies.push_back(body);
+        ModelElement modelElement;
+        modelElement.displayValue = body;
+        rootObject.elements.push_back(modelElement);
+    }
 
-
-        nlohmann::json sendObj;
-        // TODO: do i need this?
-        sendObj["id"] = "";
-
-        // building the rootObject
-        RootObject rootObject;
-
-        std::vector<ElementBody> bodies;
-        for (const auto& elemId : modelCard.sendFilter.selectedObjectIds)
+    std::map<int, RenderMaterialProxy> collectedProxies;
+    for (const auto& body : bodies)
+    {
+        for (const auto& mesh : body.meshes)
         {
-            auto body = CONNECTOR.hostToSpeckleConverter->GetElementBody(elemId);
-            bodies.push_back(body);
-            ModelElement modelElement;
-            modelElement.displayValue = body;
-            rootObject.elements.push_back(modelElement);
-        }
-
-        std::map<int, RenderMaterialProxy> collectedProxies;
-        for (const auto& body : bodies)
-        {
-            for (const auto& mesh : body.meshes)
+            int materialIndex = mesh.second.materialIndex;
+            if (collectedProxies.find(materialIndex) == collectedProxies.end())
             {
-                int materialIndex = mesh.second.materialIndex;
-                if (collectedProxies.find(materialIndex) == collectedProxies.end())
-                {
-                    RenderMaterialProxy renderMaterialProxy;
-                    renderMaterialProxy.value = CONNECTOR.hostToSpeckleConverter->GetModelMaterial(materialIndex);
-                    collectedProxies[materialIndex] = renderMaterialProxy;
-                }
-                
-                collectedProxies[materialIndex].objects.push_back(mesh.second.applicationId);
+                RenderMaterialProxy renderMaterialProxy;
+                renderMaterialProxy.value = CONNECTOR.hostToSpeckleConverter->GetModelMaterial(materialIndex);
+                collectedProxies[materialIndex] = renderMaterialProxy;
             }
+
+            collectedProxies[materialIndex].objects.push_back(mesh.second.applicationId);
         }
-
-        for (const auto& renderMaterialProxy : collectedProxies)
-        {
-            rootObject.renderMaterialProxies.push_back(renderMaterialProxy.second);
-        }
-
-        sendObj["rootObject"] = rootObject;
-        
-        sendArgs.modelCardId = modelCard.modelCardId;
-        sendArgs.projectId = modelCard.projectId;
-        sendArgs.modelId = modelCard.modelId;
-        sendArgs.token = CONNECTOR.accountDatabase->GetTokenByAccountId(modelCard.accountId);
-        sendArgs.serverUrl = modelCard.serverUrl;
-        sendArgs.accountId = modelCard.accountId;
-        // TODO: message
-        sendArgs.message = "Hello World: Sending data from ArchiCAD";
-        sendArgs.sendObject = sendObj;
-        sendArgs.sendConversionResults = nlohmann::json::array();
     }
-    catch (...)
-    {
-         // TODO 
-    }
-    
-    // trysend
-    try
-    {
-        std::string methodName = "sendByBrowser";
-        std::string guid = Utils::GenerateGUID64();
-        std::string methodId = guid + "_" + methodName;
 
-        //args.eventSource->CacheResult(methodId, sendArgs);
-        //auto argsPtr = std::make_unique<nlohmann::json>(sendArgs);
-
-        auto js = nlohmann::json(sendArgs);
-        auto argsPtr = std::make_unique<nlohmann::json>(js);
-        args.eventSource->CacheResult(methodId, std::move(argsPtr));
-        args.eventSource->EmitResponseReady(methodName, methodId);
-        args.eventSource->ResponseReady(args.methodId);
-    }
-    catch (...)
+    for (const auto& renderMaterialProxy : collectedProxies)
     {
-        // TODO
-    }  
+        rootObject.renderMaterialProxies.push_back(renderMaterialProxy.second);
+    }
+
+    sendObj["rootObject"] = rootObject;
+
+    sendArgs.modelCardId = modelCard.modelCardId;
+    sendArgs.projectId = modelCard.projectId;
+    sendArgs.modelId = modelCard.modelId;
+    sendArgs.token = CONNECTOR.accountDatabase->GetTokenByAccountId(modelCard.accountId);
+    sendArgs.serverUrl = modelCard.serverUrl;
+    sendArgs.accountId = modelCard.accountId;
+    // TODO: message
+    sendArgs.message = "Hello World: Sending data from ArchiCAD";
+    sendArgs.sendObject = sendObj;
+    sendArgs.sendConversionResults = nlohmann::json::array();
+
+    std::string methodName = "sendByBrowser";
+    std::string guid = Utils::GenerateGUID64();
+    std::string methodId = guid + "_" + methodName;
+
+    //args.eventSource->CacheResult(methodId, sendArgs);
+    //auto argsPtr = std::make_unique<nlohmann::json>(sendArgs);
+
+    auto js = nlohmann::json(sendArgs);
+    auto argsPtr = std::make_unique<nlohmann::json>(js);
+    args.eventSource->CacheResult(methodId, std::move(argsPtr));
+    args.eventSource->EmitResponseReady(methodName, methodId);
+    args.eventSource->ResponseReady(args.methodId);
 }

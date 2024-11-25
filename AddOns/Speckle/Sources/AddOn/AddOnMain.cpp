@@ -7,7 +7,7 @@
 #include "HostToSpeckleConverter.h"
 #include "SpeckleToHostConverter.h"
 #include "ArchiCadDataStorage.h"
-
+#include "CheckError.h"
 
 static const std::string MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v1";
 
@@ -44,6 +44,32 @@ static void	ShowOrHideBrowserPalette()
 		}
 		BrowserPalette::GetInstance().Show();
 	}
+}
+
+static void LoadModelCardData()
+{
+	auto data = CONNECTOR.dataStorage->LoadData(MODELCARD_ADDONOBJECT_NAME);
+	CONNECTOR.modelCardDatabase->LoadModelsFromJson(data);
+}
+
+static void SaveModelCardData()
+{
+	auto data = CONNECTOR.modelCardDatabase->GetModelsAsJson();
+	CONNECTOR.dataStorage->SaveData(data, MODELCARD_ADDONOBJECT_NAME);
+}
+
+static void InitConnector()
+{
+	// TODO: make these safer to use, throw exception on nullptr
+	CONNECTOR.accountDatabase = std::make_unique<AccountDatabase>();
+	CONNECTOR.modelCardDatabase = std::make_unique<ModelCardDatabase>();
+	CONNECTOR.hostToSpeckleConverter = std::make_unique<HostToSpeckleConverter>();
+	CONNECTOR.speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
+	CONNECTOR.hostAppEvents = std::make_unique<HostAppEvents>();
+	CONNECTOR.dataStorage = std::make_unique<ArchiCadDataStorage>();
+	LoadModelCardData();
+	CONNECTOR.hostAppEvents->ProjectOpened += []() { LoadModelCardData(); };
+	CONNECTOR.hostAppEvents->ProjectSaved += []() { SaveModelCardData(); };
 }
 
 GSErrCode __ACENV_CALL MenuCommandHandler(const API_MenuParams *menuParams)
@@ -84,44 +110,39 @@ GSErrCode __ACENV_CALL RegisterInterface(void)
 
 GSErrCode __ACENV_CALL Initialize(void)
 {
-	// TODO: make these safer to use, throw exception on nullptr
-	CONNECTOR.accountDatabase = std::make_unique<AccountDatabase>();
-	CONNECTOR.modelCardDatabase = std::make_unique<ModelCardDatabase>();
-	CONNECTOR.hostToSpeckleConverter = std::make_unique<HostToSpeckleConverter>();
-	CONNECTOR.speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
-	CONNECTOR.hostAppEvents = std::make_unique<HostAppEvents>();
-	CONNECTOR.dataStorage = std::make_unique<ArchiCadDataStorage>();
-
-	// TODO make a function of this
-	auto data = CONNECTOR.dataStorage->LoadData(MODELCARD_ADDONOBJECT_NAME);
-	CONNECTOR.modelCardDatabase->LoadModelsFromJson(data);
-
-	CONNECTOR.hostAppEvents->ProjectOpened += []()
+	try
 	{
-		// TODO: data name string to const var
-		auto data = CONNECTOR.dataStorage->LoadData(MODELCARD_ADDONOBJECT_NAME);
-		CONNECTOR.modelCardDatabase->LoadModelsFromJson(data);
-	};
-
-	CONNECTOR.hostAppEvents->ProjectSaved += []()
+		InitConnector();
+	}
+	catch (...)
 	{
-		// TODO: data name string to const var
-		auto data = CONNECTOR.modelCardDatabase->GetModelsAsJson();
-		CONNECTOR.dataStorage->SaveData(data, MODELCARD_ADDONOBJECT_NAME);
-	};
+		// failed to init Connector
+		// TODO send a message to the browser
+	}
 
-	// TODO error handling
-	GSErrCode err;
+	GSErrCode err = NoError;
+
 	err = ACAPI_MenuItem_InstallMenuHandler(BrowserPaletteMenuResId, MenuCommandHandler);
+	if (err != NoError)
+		return err;
+
 	err = BrowserPalette::RegisterPaletteControlCallBack();
+	if (err != NoError)
+		return err;
+
 	err = ACAPI_ProjectOperation_CatchProjectEvent(API_AllProjectNotificationMask, ProjectNotificationHandler);
+	if (err != NoError)
+		return err;
+
 	err = ACAPI_Notification_CatchSelectionChange(SelectionChangeHandler);
+	if (err != NoError)
+		return err;
 
 	// this call is necessary to subscribe event listeners in the bridge constructors
 	// call this after CONNECTOR.hostAppEvents is initialized
 	BrowserPalette::CreateInstance();
 
-	return err;
+	return NoError;
 }
 
 GSErrCode __ACENV_CALL	FreeData(void)
