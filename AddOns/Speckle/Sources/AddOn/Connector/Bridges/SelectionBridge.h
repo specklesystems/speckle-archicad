@@ -16,5 +16,5 @@ private:
     void OnRunMethod(const RunMethodEventArgs& args);
 
     void GetSelection(const RunMethodEventArgs& args);
-    void SelectionChanged(const std::string& message);
+    void SelectionChanged();
 };

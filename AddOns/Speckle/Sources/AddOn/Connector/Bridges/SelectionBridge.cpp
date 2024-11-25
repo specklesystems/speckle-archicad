@@ -15,7 +15,7 @@ void SelectionBridge::Init(IBrowserAdapter* browser)
         browser);
 
     selectionBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
-    CONNECTOR.hostAppEvents->SelectionChanged += [this](const std::string& msg) { SelectionChanged(msg); };
+    CONNECTOR.hostAppEvents->SelectionChanged += [this]() { SelectionChanged(); };
 }
 
 void SelectionBridge::OnRunMethod(const RunMethodEventArgs& args)
@@ -39,8 +39,8 @@ void SelectionBridge::GetSelection(const RunMethodEventArgs& args)
     args.eventSource->SetResult(args.methodId, selection);
 }
 
-void SelectionBridge::SelectionChanged(const std::string& message)
+void SelectionBridge::SelectionChanged()
 {
     // TODO
-    std::cout << message;
+    std::cout << "selection changed";
 }

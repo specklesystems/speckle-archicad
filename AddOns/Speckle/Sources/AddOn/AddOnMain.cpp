@@ -6,14 +6,15 @@
 #include "ModelCardDatabase.h"
 #include "HostToSpeckleConverter.h"
 #include "SpeckleToHostConverter.h"
+#include "ArchiCadDataStorage.h"
 
 
-static GSErrCode NotificationHandler(API_NotifyEventID notifID, Int32 /*param*/)
+static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*param*/)
 {
 	switch (notifID) 
 	{
-		// TODO
-		case APINotify_Open: CONNECTOR.hostAppEvents->ProjectOpened("Apple"); break;
+		case APINotify_Open: CONNECTOR.hostAppEvents->ProjectOpened(); break;
+		case APINotify_PreSave: CONNECTOR.hostAppEvents->ProjectSaved(); break;
 	}
 
 	return NoError;
@@ -21,8 +22,7 @@ static GSErrCode NotificationHandler(API_NotifyEventID notifID, Int32 /*param*/)
 
 static GSErrCode SelectionChangeHandler(const API_Neig* /*selElemNeig*/)
 {
-	// TODO
-	CONNECTOR.hostAppEvents->SelectionChanged("Banana");
+	CONNECTOR.hostAppEvents->SelectionChanged();
 
 	return NoError;
 }
@@ -87,12 +87,35 @@ GSErrCode __ACENV_CALL Initialize(void)
 	CONNECTOR.hostToSpeckleConverter = std::make_unique<HostToSpeckleConverter>();
 	CONNECTOR.speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
 	CONNECTOR.hostAppEvents = std::make_unique<HostAppEvents>();
+	CONNECTOR.dataStorage = std::make_unique<ArchiCadDataStorage>();
 
-	GSErrCode err = ACAPI_MenuItem_InstallMenuHandler(BrowserPaletteMenuResId, MenuCommandHandler);
+	// TODO make a function of this
+	auto data = CONNECTOR.dataStorage->LoadData("ModelCardData");
+	CONNECTOR.modelCardDatabase->LoadModelsFromJson(data);
+
+	CONNECTOR.hostAppEvents->ProjectOpened += []()
+	{
+		// TODO: data name string to const var
+		auto data = CONNECTOR.dataStorage->LoadData("ModelCardData");
+		CONNECTOR.modelCardDatabase->LoadModelsFromJson(data);
+	};
+
+	CONNECTOR.hostAppEvents->ProjectSaved += []()
+	{
+		// TODO: data name string to const var
+		auto data = CONNECTOR.modelCardDatabase->GetModelsAsJson();
+		CONNECTOR.dataStorage->SaveData(data, "ModelCardData");
+	};
+
+	// TODO error handling
+	GSErrCode err;
+	err = ACAPI_MenuItem_InstallMenuHandler(BrowserPaletteMenuResId, MenuCommandHandler);
 	err = BrowserPalette::RegisterPaletteControlCallBack();
-	err = ACAPI_ProjectOperation_CatchProjectEvent(API_AllProjectNotificationMask, NotificationHandler);
+	err = ACAPI_ProjectOperation_CatchProjectEvent(API_AllProjectNotificationMask, ProjectNotificationHandler);
 	err = ACAPI_Notification_CatchSelectionChange(SelectionChangeHandler);
 
+	// this call is necessary to subscribe event listeners in the bridge constructors
+	// call this after CONNECTOR.hostAppEvents is initialized
 	BrowserPalette::CreateInstance();
 
 	return err;

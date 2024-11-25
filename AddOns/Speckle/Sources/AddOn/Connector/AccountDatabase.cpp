@@ -4,36 +4,46 @@
 
 AccountDatabase::AccountDatabase() 
 {
-    InitData();
+    LoadAccountsFromDB();
 }
 
-void AccountDatabase::InitData()
-{
-    accountsData = R"([])";
-}
 
 nlohmann::json AccountDatabase::GetAccounts() const 
 {
-    try
+    /*try
     {
         return nlohmann::json::parse(accountsData);
     }
     catch (...)
     {
         return nlohmann::json::object();
-    }
+    }*/
+    auto accounts = nlohmann::json::array();
+    for (const auto& [id, account] : _accountsData)
+        accounts.push_back(account);
+
+    return accounts;
 }
 
 nlohmann::json AccountDatabase::GetAccount(const std::string& id) const 
 {
-    for (const auto& account : GetAccounts()) 
+    /*for (const auto& account : GetAccounts())
     {
         if (account["id"] == id) 
         {
             return account;
         }
     }
-    return nlohmann::json::object();
+    return nlohmann::json::object();*/
+    try
+    {
+        return _accountsData.at(id);
+    }
+    catch (const std::exception&)
+    {
+        // TODO
+        return {};
+    }
 }
 
 std::string AccountDatabase::GetTokenByAccountId(const std::string& id) const
@@ -43,7 +53,7 @@ std::string AccountDatabase::GetTokenByAccountId(const std::string& id) const
     return token;
 }
 
-std::string AccountDatabase::GetAccountsFromDB() const
+void AccountDatabase::LoadAccountsFromDB()
 {
     sqlite3* db;
     sqlite3_stmt* stmt;
@@ -70,28 +80,23 @@ std::string AccountDatabase::GetAccountsFromDB() const
         sqlite3_close(db);
     }
 
-    // String to collect the results
-    std::ostringstream resultStream;
-
     // Execute the query and collect results
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        int columnCount = sqlite3_column_count(stmt);
-        for (int i = 0; i < columnCount; ++i)
+        try
         {
-            const char* columnText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
-            resultStream << (columnText ? columnText : "NULL");
-            if (i < columnCount - 1)
-            {
-                resultStream << ", "; // Add a comma between column values
-            }
+            // TODO: magic numbers
+            const char* id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+            const char* account = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+            _accountsData[id] = nlohmann::json::parse(account);
         }
-        resultStream << "\n"; // Add a newline after each row
+        catch (...)
+        {
+            // TODO
+        }
     }
 
     // Finalize the statement and close the database
     sqlite3_finalize(stmt);
     sqlite3_close(db);
-
-    return resultStream.str();
 }

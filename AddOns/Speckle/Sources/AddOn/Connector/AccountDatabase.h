@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IAccountDatabase.h"
+#include <map>
 
 class AccountDatabase : public IAccountDatabase
 {
@@ -10,9 +11,8 @@ public:
     nlohmann::json GetAccounts() const override;
     nlohmann::json GetAccount(const std::string& id) const override;
     std::string GetTokenByAccountId(const std::string& id) const override;
-    std::string GetAccountsFromDB() const;
 
 private:
-    void InitData();
-    std::string accountsData;
+    std::map<std::string, nlohmann::json> _accountsData;
+    void LoadAccountsFromDB();
 };

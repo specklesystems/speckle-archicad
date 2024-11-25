@@ -7,6 +7,7 @@
 #include "IHostToSpeckleConverter.h"
 #include "ISpeckleToHostConverter.h"
 #include "HostAppEvents.h"
+#include "IDataStorage.h"
 
 #include <memory>
 
@@ -27,4 +28,5 @@ public:
 	std::unique_ptr<IHostToSpeckleConverter> hostToSpeckleConverter;
 	std::unique_ptr<ISpeckleToHostConverter> speckleToHostConverter;
 	std::unique_ptr<HostAppEvents> hostAppEvents;
+	std::unique_ptr<IDataStorage> dataStorage;
 };
