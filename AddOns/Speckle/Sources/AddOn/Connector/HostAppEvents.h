@@ -8,5 +8,6 @@ public:
 	HostAppEvents() = default;
 	Event<> SelectionChanged;
 	Event<> ProjectOpened;
-	Event<> ProjectSaved;
+	Event<> ProjectClosed;
+	Event<> ProjectSaving;
 };

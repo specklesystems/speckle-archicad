@@ -113,9 +113,7 @@ void BaseBridge::GetDocumentInfo(const RunMethodEventArgs& args)
 
 void BaseBridge::GetDocumentState(const RunMethodEventArgs& args) 
 {
-    auto models = CONNECTOR.modelCardDatabase->GetModels();
-    nlohmann::json modelsJson;
-    modelsJson["models"] = models;
+    auto modelsJson = CONNECTOR.modelCardDatabase->GetModelsAsJson();
     args.eventSource->SetResult(args.methodId, modelsJson);
 }
 
@@ -160,4 +158,9 @@ void BaseBridge::UpdateModel(const RunMethodEventArgs& args)
     SendModelCard modelCard = args.data.get<SendModelCard>();
     CONNECTOR.modelCardDatabase->AddModel(modelCard);
     args.eventSource->ResponseReady(args.methodId);
+}
+
+void BaseBridge::OnDocumentChanged()
+{
+    baseBinding->Emit("documentChanged");
 }

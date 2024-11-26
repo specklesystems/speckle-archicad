@@ -17,4 +17,5 @@ public:
     virtual void AddModel(const SendModelCard& modelCard) = 0;
     virtual void UpdateModel(const SendModelCard& modelCard) = 0;
     virtual void RemoveModel(const std::string& modelCardId) = 0;
+    virtual void ClearModels() = 0;
 };

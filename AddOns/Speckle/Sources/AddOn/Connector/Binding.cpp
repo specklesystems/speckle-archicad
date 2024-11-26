@@ -71,6 +71,7 @@ void Binding::EmitResponseReady(const std::string methodName, const std::string 
 void Binding::Emit(const std::string eventName)
 {
 	std::string command = _name + ".emit('" + eventName + "')";
+	_browserAdapter->ExecuteJS(command.c_str());
 }
 
 void Binding::ClearResult(const std::string& methodId)

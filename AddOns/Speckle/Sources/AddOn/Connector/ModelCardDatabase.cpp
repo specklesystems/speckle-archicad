@@ -3,6 +3,8 @@
 
 void ModelCardDatabase::LoadModelsFromJson(const nlohmann::json j)
 {
+    ClearModels();
+
     if (!j.empty() && j.contains("models"))
     {
         for (const auto& model : j["models"])
@@ -56,4 +58,9 @@ void ModelCardDatabase::UpdateModel(const SendModelCard& modelCard)
 void ModelCardDatabase::RemoveModel(const std::string& modelCardId)
 {
     modelCards.erase(modelCardId);
+}
+
+void ModelCardDatabase::ClearModels()
+{
+    modelCards.clear();
 }

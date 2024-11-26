@@ -16,6 +16,7 @@ public:
     void AddModel(const SendModelCard& modelCard) override;
     void UpdateModel(const SendModelCard& modelCard) override;
     void RemoveModel(const std::string& modelCardId) override;
+    void ClearModels() override;
 
 private:
     std::map<std::string, SendModelCard> modelCards;

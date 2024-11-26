@@ -26,4 +26,7 @@ private:
     void OpenUrl(const RunMethodEventArgs& args);
     void RemoveModel(const RunMethodEventArgs& args);
     void UpdateModel(const RunMethodEventArgs& args);
+
+public:
+    void OnDocumentChanged();
 };

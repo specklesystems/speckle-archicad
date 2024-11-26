@@ -18,7 +18,8 @@ static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*p
 	switch (notifID) 
 	{
 		case APINotify_Open: CONNECTOR.hostAppEvents->ProjectOpened(); break;
-		case APINotify_PreSave: CONNECTOR.hostAppEvents->ProjectSaved(); break;
+		case APINotify_Close: CONNECTOR.hostAppEvents->ProjectClosed(); break;
+		case APINotify_PreSave: CONNECTOR.hostAppEvents->ProjectSaving(); break;
 	}
 
 	return NoError;
@@ -143,11 +144,15 @@ GSErrCode __ACENV_CALL Initialize(void)
 
 	CONNECTOR.hostAppEvents->ProjectOpened += []() { 
 		LoadModelCardData();
-		// TODO make sure that modelCards are reloaded on UI after LoadModelCardData() call
-		//BROWSERBRIDGE.LoadUI();
+		BROWSERBRIDGE.baseBridge->OnDocumentChanged();
 	};
 
-	CONNECTOR.hostAppEvents->ProjectSaved += []() { 
+	CONNECTOR.hostAppEvents->ProjectClosed += []() {
+		CONNECTOR.modelCardDatabase->ClearModels();
+		BROWSERBRIDGE.baseBridge->OnDocumentChanged();
+	};
+
+	CONNECTOR.hostAppEvents->ProjectSaving += []() { 
 		SaveModelCardData(); 
 	};
 
