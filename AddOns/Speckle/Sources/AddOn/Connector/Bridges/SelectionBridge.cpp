@@ -67,7 +67,6 @@ void SelectionBridge::SelectionChanged()
     std::string guid = Base64GuidGenerator::NewGuid();
     std::string methodId = guid + "_" + methodName;
 
-    auto argsPtr = std::make_unique<nlohmann::json>(selection);
-    selectionBinding->CacheResult(methodId, std::move(argsPtr));
+    selectionBinding->CacheResult(methodId, selection);
     selectionBinding->EmitResponseReady(methodName, methodId);
 }

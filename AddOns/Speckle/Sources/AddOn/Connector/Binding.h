@@ -17,7 +17,7 @@ private:
     // without needing to include GS dependencies to DG::Browser in the Binding class
     IBrowserAdapter* _browserAdapter;
 
-    std::map<std::string, std::unique_ptr<nlohmann::json>> results;
+    std::map<std::string, nlohmann::json> results;
 
 public:
     Binding() = default;
@@ -27,9 +27,9 @@ public:
     std::string GetName() const;
     std::vector<std::string> GetMethodNames() const;
 
-    std::unique_ptr <nlohmann::json> GetResult(const std::string& key);
+    nlohmann::json GetResult(const std::string& key);
     void SetResult(const std::string& key, nlohmann::json value);
-    void CacheResult(const std::string& key, std::unique_ptr<nlohmann::json>);
+    void CacheResult(const std::string& key, const nlohmann::json& result);
     void ResponseReady(const std::string methodId);
     void EmitResponseReady(const std::string methodName, const std::string methodId);
     void Emit(const std::string eventName);

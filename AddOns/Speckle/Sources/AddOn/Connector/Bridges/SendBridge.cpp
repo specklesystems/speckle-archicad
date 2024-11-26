@@ -80,10 +80,8 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     std::string id = args.data.get<std::string>();
     SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
 
-    SendViaBrowserArgs sendArgs;
+    SendViaBrowserArgs sendArgs{};
     nlohmann::json sendObj;
-    // TODO: do i need this?
-    sendObj["id"] = "";
     
     RootObjectBuilder rootObjectBuilder{};
     sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds);
@@ -104,11 +102,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     std::string guid = Base64GuidGenerator::NewGuid();
     std::string methodId = guid + "_" + methodName;
 
-    //args.eventSource->CacheResult(methodId, sendArgs);
-
-    auto js = nlohmann::json(sendArgs);
-    auto argsPtr = std::make_unique<nlohmann::json>(js);
-    args.eventSource->CacheResult(methodId, std::move(argsPtr));
+    args.eventSource->CacheResult(methodId, sendArgs);
     args.eventSource->EmitResponseReady(methodName, methodId);
     args.eventSource->ResponseReady(args.methodId);
 }

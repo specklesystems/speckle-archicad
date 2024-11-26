@@ -138,10 +138,13 @@ GSErrCode __ACENV_CALL Initialize(void)
 	
 	BrowserPalette::CreateInstance();
 	BROWSERBRIDGE.InitBrowserBridge(BrowserPalette::GetInstance().GetBrowserAdapter());
+	BROWSERBRIDGE.LoadUI();
+
 
 	CONNECTOR.hostAppEvents->ProjectOpened += []() { 
 		LoadModelCardData();
-		BROWSERBRIDGE.LoadUI();
+		// TODO make sure that modelCards are reloaded on UI after LoadModelCardData() call
+		//BROWSERBRIDGE.LoadUI();
 	};
 
 	CONNECTOR.hostAppEvents->ProjectSaved += []() { 

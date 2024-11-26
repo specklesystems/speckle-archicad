@@ -90,14 +90,8 @@ void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 		auto methodId = GetStringFromJavaScriptVariable(param);
 		auto methodIdCstr = methodId.ToCStr().Get();
 		auto result = binding->GetResult(methodIdCstr);
-
-		std::string resultJson = "";
-		if (result != nullptr)
-		{
-			resultJson = result->dump();
-		}
+		std::string resultJson = result.dump();
 		binding->ClearResult(methodIdCstr);
-
 		auto jsval = new JS::Value(resultJson.c_str());
 		return jsval;
 	}));

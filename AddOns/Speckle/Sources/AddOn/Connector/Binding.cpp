@@ -19,25 +19,25 @@ std::vector<std::string> Binding::GetMethodNames() const
 
 void Binding::SetResult(const std::string& key, nlohmann::json value)
 {
-	CacheResult(key, std::make_unique<nlohmann::json>(value));
+	CacheResult(key, value);
 	ResponseReady(key);
 }
 
-std::unique_ptr<nlohmann::json> Binding::GetResult(const std::string& key)
+nlohmann::json Binding::GetResult(const std::string& key)
 {
 	try
 	{
-		return std::move(results.at(key));
+		return results.at(key);
 	}
 	catch (const std::exception&)
 	{
-		return nullptr;
+		return {};
 	}
 }
 
-void Binding::CacheResult(const std::string& key, std::unique_ptr<nlohmann::json> value)
+void Binding::CacheResult(const std::string& key, const nlohmann::json& result)
 {
-	results[key] = std::move(value);
+	results[key] = result;
 }
 
 void Binding::ResponseReady(const std::string methodId)
@@ -59,6 +59,5 @@ void Binding::Emit(const std::string eventName)
 
 void Binding::ClearResult(const std::string& key)
 {
-	results[key].release();
 	results.erase(key);
 }
