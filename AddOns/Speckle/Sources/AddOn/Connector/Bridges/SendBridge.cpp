@@ -68,6 +68,7 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
 
 void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 {
+    // TODO implement
     args.eventSource->SetResult(args.methodId, nlohmann::json::array());
 }
 

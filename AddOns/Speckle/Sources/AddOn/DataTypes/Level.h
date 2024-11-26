@@ -12,4 +12,3 @@ struct Level
 };
 
 void to_json(nlohmann::json& j, const Level& level);
-void from_json(const nlohmann::json& j, Level& level);

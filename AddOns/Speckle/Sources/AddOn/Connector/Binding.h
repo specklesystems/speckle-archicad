@@ -32,5 +32,6 @@ public:
     void CacheResult(const std::string& key, std::unique_ptr<nlohmann::json>);
     void ResponseReady(const std::string methodId);
     void EmitResponseReady(const std::string methodName, const std::string methodId);
+    void Emit(const std::string eventName);
     void ClearResult(const std::string& key);
 };

@@ -12,4 +12,3 @@ struct ElementTypeCollection
 };
 
 void to_json(nlohmann::json& j, const ElementTypeCollection& elementType);
-void from_json(const nlohmann::json& j, ElementTypeCollection& elementType);

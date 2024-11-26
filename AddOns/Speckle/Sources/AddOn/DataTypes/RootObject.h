@@ -2,7 +2,6 @@
 
 #include "json.hpp"
 #include <map>
-#include "ModelElement.h"
 #include "Level.h"
 #include "RenderMaterialProxy.h"
 
@@ -15,4 +14,3 @@ struct RootObject
 };
 
 void to_json(nlohmann::json& j, const RootObject& rootObject);
-void from_json(const nlohmann::json& j, RootObject& rootObject);
