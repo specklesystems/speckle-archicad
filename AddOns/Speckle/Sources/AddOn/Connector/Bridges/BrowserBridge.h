@@ -1,5 +1,7 @@
 #pragma once
 
+#define BROWSERBRIDGE BrowserBridge::GetInstance()
+
 #include "IBrowserAdapter.h"
 #include "IHostToSpeckleConverter.h"
 #include "ISpeckleToHostConverter.h"
@@ -16,10 +18,20 @@
 
 class BrowserBridge
 {
-public:
-	BrowserBridge(IBrowserAdapter* browserAdapter);
-	
 private:
+	BrowserBridge() {};
+	static std::unique_ptr<BrowserBridge> instance;
+	IBrowserAdapter* _browserAdapter;
+
+public:
+	BrowserBridge(BrowserBridge& other) = delete;
+	void operator=(const BrowserBridge&) = delete;
+
+	static BrowserBridge& GetInstance();
+
+	void InitBrowserBridge(IBrowserAdapter* browserAdapter);
+	void LoadUI();
+	
 	std::unique_ptr<AccountBridge> accountsBridge;
 	std::unique_ptr<BaseBridge> baseBridge;
 	std::unique_ptr<ConfigBridge> configBridge;

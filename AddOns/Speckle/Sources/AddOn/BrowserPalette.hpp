@@ -6,7 +6,6 @@
 #include "DGBrowser.hpp"
 
 #include "IBrowserAdapter.h"
-#include "BrowserBridge.h"
 
 #include <memory>
 
@@ -25,7 +24,6 @@ protected:
 	// this adapter will provide an interface for Bindings to register their JSObjects, and function names
 	// without needing to include GS dependencies in the Binding class
 	std::unique_ptr<IBrowserAdapter> browserAdapter;
-	std::unique_ptr<BrowserBridge> browserBridge;
 
 	void SetMenuItemCheckedState (bool);
 	virtual void PanelResized (const DG::PanelResizeEvent& ev) override;

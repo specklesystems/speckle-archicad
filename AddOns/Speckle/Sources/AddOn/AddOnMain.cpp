@@ -8,6 +8,7 @@
 #include "SpeckleToHostConverter.h"
 #include "ArchiCadDataStorage.h"
 #include "CheckError.h"
+#include "BrowserBridge.h"
 
 static const std::string MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v1";
 
@@ -67,11 +68,6 @@ static void InitConnector()
 	CONNECTOR.speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
 	CONNECTOR.hostAppEvents = std::make_unique<HostAppEvents>();
 	CONNECTOR.dataStorage = std::make_unique<ArchiCadDataStorage>();
-	// TODO do i need this call
-	// i should notify the UI instead, that the cards are loaded and it should refresh (documentchanged)
-	LoadModelCardData();
-	CONNECTOR.hostAppEvents->ProjectOpened += []() { LoadModelCardData(); };
-	CONNECTOR.hostAppEvents->ProjectSaved += []() { SaveModelCardData(); };
 }
 
 GSErrCode __ACENV_CALL MenuCommandHandler(const API_MenuParams *menuParams)
@@ -139,10 +135,18 @@ GSErrCode __ACENV_CALL Initialize(void)
 	err = ACAPI_Notification_CatchSelectionChange(SelectionChangeHandler);
 	if (err != NoError)
 		return err;
-
-	// this call is necessary to subscribe event listeners in the bridge constructors
-	// call this after CONNECTOR.hostAppEvents is initialized
+	
 	BrowserPalette::CreateInstance();
+	BROWSERBRIDGE.InitBrowserBridge(BrowserPalette::GetInstance().GetBrowserAdapter());
+
+	CONNECTOR.hostAppEvents->ProjectOpened += []() { 
+		LoadModelCardData();
+		BROWSERBRIDGE.LoadUI();
+	};
+
+	CONNECTOR.hostAppEvents->ProjectSaved += []() { 
+		SaveModelCardData(); 
+	};
 
 	return NoError;
 }

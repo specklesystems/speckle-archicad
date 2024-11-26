@@ -25,7 +25,6 @@ BrowserPalette::BrowserPalette () :
 	Attach (*this);
 	BeginEventProcessing ();
 	browserAdapter = std::make_unique<ArchiCadBrowserAdapter>(&dgBrowser);
-	browserBridge = std::make_unique<BrowserBridge>(browserAdapter.get());
 }
 
 BrowserPalette::~BrowserPalette ()
