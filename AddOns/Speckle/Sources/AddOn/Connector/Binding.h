@@ -4,6 +4,7 @@
 #include "RunMethodEventArgs.h"
 #include "json.hpp"
 #include "IBrowserAdapter.h"
+#include "ToastNotification.h"
 
 class Binding {
 public:
@@ -37,4 +38,6 @@ public:
     void EmitResponseReady(const std::string methodName, const std::string methodId);
     void Emit(const std::string eventName);
     void ClearResult(const std::string& methodId);
+
+    void SetToastNotification(const ToastNotification& toast);
 };

@@ -1,6 +1,7 @@
 #include "BaseBridge.h"
 #include "Connector.h"
 #include "InvalidMethodNameException.h"
+#include "ArchiCadApiException.h"
 
 
 BaseBridge::BaseBridge(IBrowserAdapter* browser)
@@ -24,15 +25,28 @@ void BaseBridge::OnRunMethod(const RunMethodEventArgs& args)
     {
         RunMethod(args);
     }
-    catch (const std::exception& e)
+    catch (const ArchiCadApiException& acex)
     {
-        // TODO: pass message to browser
-        std::string msg = e.what();
-        std::cout << msg;
+        ToastNotification toast;
+        toast.title = "Exception occured in the ArhciCAD API";
+        toast.description = acex.what();
+        toast.type = ToastNotificationType::DANGER;
+        baseBinding->SetToastNotification(toast);
+    }
+    catch (const std::exception& stdex)
+    {
+        ToastNotification toast;
+        toast.title = "Exception occured";
+        toast.description = stdex.what();
+        toast.type = ToastNotificationType::DANGER;
+        baseBinding->SetToastNotification(toast);
     }
     catch (...)
     {
-        // no good
+        ToastNotification toast;
+        toast.title = "Unknown exception occured";
+        toast.type = ToastNotificationType::DANGER;
+        baseBinding->SetToastNotification(toast);
     }
 }
 
@@ -97,8 +111,8 @@ void BaseBridge::AddModel(const RunMethodEventArgs& args)
 
 void BaseBridge::GetConnectorVersion(const RunMethodEventArgs& args) 
 {
-    // TODO implement
-    args.eventSource->SetResult(args.methodId, "1.2.3");
+    // TODO what should this number be?
+    args.eventSource->SetResult(args.methodId, "3.0.0");
 }
 
 void BaseBridge::GetDocumentInfo(const RunMethodEventArgs& args) 

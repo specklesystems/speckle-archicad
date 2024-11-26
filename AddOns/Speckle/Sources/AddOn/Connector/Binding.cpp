@@ -78,3 +78,8 @@ void Binding::ClearResult(const std::string& methodId)
 {
 	results.erase(methodId);
 }
+
+void Binding::SetToastNotification(const ToastNotification& toast)
+{
+	Send("setGlobalNotification", toast);
+}

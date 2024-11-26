@@ -12,7 +12,7 @@ void ModelCardDatabase::LoadModelsFromJson(const nlohmann::json j)
     }
     else
     {
-        // TODO
+        // TODO throw?
     }
 }
 
