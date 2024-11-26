@@ -1,6 +1,8 @@
 #include "SelectionBridge.h"
-#include "LoggerFactory.h"
 #include "Connector.h"
+#include "InvalidMethodNameException.h"
+#include "Base64GuidGenerator.h"
+
 
 SelectionBridge::SelectionBridge(IBrowserAdapter* browser)
 {
@@ -40,15 +42,16 @@ void SelectionBridge::RunMethod(const RunMethodEventArgs& args)
     }
     else
     {
-        // TODO throw
+        throw InvalidMethodNameException(args.methodName);
     }
 }
 
 void SelectionBridge::GetSelection(const RunMethodEventArgs& args)
 {
     nlohmann::json selection;
+    auto selectedElements = CONNECTOR.hostToSpeckleConverter->GetSelection();
     selection["selectedObjectIds"] = CONNECTOR.hostToSpeckleConverter->GetSelection();
-    selection["summary"] = std::to_string(selection.size()) + " objects selected";
+    selection["summary"] = std::to_string(selectedElements.size()) + " objects selected";
     args.eventSource->SetResult(args.methodId, selection);
 }
 
@@ -61,12 +64,10 @@ void SelectionBridge::SelectionChanged()
     selection["summary"] = std::to_string(selectedElements.size()) + " objects selected";
 
     std::string methodName = "setSelection";
-    std::string guid = Utils::GenerateGUID64();
+    std::string guid = Base64GuidGenerator::NewGuid();
     std::string methodId = guid + "_" + methodName;
 
-    //auto js = nlohmann::json(selection);
     auto argsPtr = std::make_unique<nlohmann::json>(selection);
     selectionBinding->CacheResult(methodId, std::move(argsPtr));
     selectionBinding->EmitResponseReady(methodName, methodId);
-    //selectionBinding->ResponseReady(args.methodId);
 }

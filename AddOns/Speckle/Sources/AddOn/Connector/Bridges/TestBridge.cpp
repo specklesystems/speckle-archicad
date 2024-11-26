@@ -1,5 +1,7 @@
 #include "TestBridge.h"
 #include "LoggerFactory.h"
+#include "InvalidMethodNameException.h"
+
 
 TestBridge::TestBridge(IBrowserAdapter* browser)
 {
@@ -49,7 +51,7 @@ void TestBridge::RunMethod(const RunMethodEventArgs& args)
     }
     else
     {
-        GET_LOGGER("TestBridge")->Info("Invalid method name");
+        throw InvalidMethodNameException(args.methodName);
     }
 }
 

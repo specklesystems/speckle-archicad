@@ -1,6 +1,6 @@
 #include "HostToSpeckleConverter.h"
 #include "ConverterUtils.h"
-
+#include "ARGBColorConverter.h"
 #include "APIEnvir.h"
 #include "ACAPinc.h"
 #include "CheckError.h"
@@ -18,7 +18,7 @@ Material HostToSpeckleConverter::GetModelMaterial(int materialIndex)
 
 	auto color = modelerMaterial.GetSurfaceColor();
 	Material material;
-	material.diffuse = Utils::PackARGB(1.0, color.red, color.green, color.blue);
+	material.diffuse = ARGBColorConverter::PackARGB(1.0, color.red, color.green, color.blue);
 	material.opacity = 1.0 - (static_cast<double>(modelerMaterial.GetTransparency()) / 100.0);
 	material.roughness = 1.0 - (static_cast<double>(modelerMaterial.GetShining()) / 10000.0);
 

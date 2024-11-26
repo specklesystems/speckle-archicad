@@ -1,5 +1,7 @@
 ﻿#include "AccountBridge.h"
 #include "Connector.h"
+#include "InvalidMethodNameException.h"
+
 
 AccountBridge::AccountBridge(IBrowserAdapter* browser)
 {
@@ -37,7 +39,7 @@ void AccountBridge::RunMethod(const RunMethodEventArgs& args)
 	}
 	else
 	{
-		// TODO?
+		throw InvalidMethodNameException(args.methodName);
 	}
 }
 

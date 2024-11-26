@@ -1,13 +1,13 @@
 #pragma once
 
 #include "json.hpp"
-#include "Utils.h"
 #include "Material.h"
+#include "GuidGenerator.h"
 
 struct RenderMaterialProxy
 {
     std::string speckle_type = "Objects.Other.RenderMaterialProxy";
-    std::string applicationId = Utils::GenerateGUID();
+    std::string applicationId = GuidGenerator::NewGuid();
     Material value;
     std::vector<std::string> objects;
 };

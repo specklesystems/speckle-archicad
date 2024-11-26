@@ -1,5 +1,6 @@
 #include "ConfigBridge.h"
 #include "LoggerFactory.h"
+#include "InvalidMethodNameException.h"
 
 
 ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
@@ -47,14 +48,12 @@ void ConfigBridge::RunMethod(const RunMethodEventArgs& args)
     }
     else
     {
-        GET_LOGGER("ConfigBridge")->Info("Invalid method name");
+        throw InvalidMethodNameException(args.methodName);
     }
 }
 
 void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
-{
-    GET_LOGGER("ConfigBridge")->Info(args.methodName + " called");
-    
+{    
     nlohmann::json res;
     res["darkTheme"] = true;
     args.eventSource->SetResult(args.methodId, res);

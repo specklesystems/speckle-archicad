@@ -1,6 +1,8 @@
 #include "BaseBridge.h"
 #include "LoggerFactory.h"
 #include "Connector.h"
+#include "InvalidMethodNameException.h"
+
 
 BaseBridge::BaseBridge(IBrowserAdapter* browser)
 {
@@ -83,7 +85,7 @@ void BaseBridge::RunMethod(const RunMethodEventArgs& args)
     }
     else 
     {
-        // TODO throw exception
+        throw InvalidMethodNameException(args.methodName);
     }
 }
 

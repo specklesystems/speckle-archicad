@@ -4,6 +4,9 @@
 #include "Material.h"
 #include "Connector.h"
 #include "RootObjectBuilder.h"
+#include "InvalidMethodNameException.h"
+#include "Base64GuidGenerator.h"
+
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
@@ -49,7 +52,7 @@ void SendBridge::RunMethod(const RunMethodEventArgs& args)
     }
     else
     {
-        // TODO: throw
+        throw InvalidMethodNameException(args.methodName);
     }
 }
 
@@ -102,11 +105,10 @@ void SendBridge::Send(const RunMethodEventArgs& args)
 
     // TODO move methodId generation to Binding
     std::string methodName = "sendByBrowser";
-    std::string guid = Utils::GenerateGUID64();
+    std::string guid = Base64GuidGenerator::NewGuid();
     std::string methodId = guid + "_" + methodName;
 
     //args.eventSource->CacheResult(methodId, sendArgs);
-    //auto argsPtr = std::make_unique<nlohmann::json>(sendArgs);
 
     auto js = nlohmann::json(sendArgs);
     auto argsPtr = std::make_unique<nlohmann::json>(js);
