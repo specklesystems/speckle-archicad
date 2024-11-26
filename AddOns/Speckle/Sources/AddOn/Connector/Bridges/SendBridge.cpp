@@ -100,6 +100,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.sendObject = sendObj;
     sendArgs.sendConversionResults = nlohmann::json::array();
 
+    // TODO move methodId generation to Binding
     std::string methodName = "sendByBrowser";
     std::string guid = Utils::GenerateGUID64();
     std::string methodId = guid + "_" + methodName;

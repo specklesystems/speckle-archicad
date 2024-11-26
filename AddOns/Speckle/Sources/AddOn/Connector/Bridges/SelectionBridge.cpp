@@ -10,6 +10,7 @@ SelectionBridge::SelectionBridge(IBrowserAdapter* browser)
         browser);
 
     selectionBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
+    // TODO move subscription to AddOnMain initialize?
     CONNECTOR.hostAppEvents->SelectionChanged += [this]() { SelectionChanged(); };
 }
 
@@ -47,13 +48,25 @@ void SelectionBridge::GetSelection(const RunMethodEventArgs& args)
 {
     nlohmann::json selection;
     selection["selectedObjectIds"] = CONNECTOR.hostToSpeckleConverter->GetSelection();
-    // TODO summary
-    selection["summary"] = "Hello World!";
+    selection["summary"] = std::to_string(selection.size()) + " objects selected";
     args.eventSource->SetResult(args.methodId, selection);
 }
 
 void SelectionBridge::SelectionChanged()
 {
-    // TODO implement
-    std::cout << "selection changed";
+    // TODO refactor, remove code duplications
+    nlohmann::json selection;
+    auto selectedElements = CONNECTOR.hostToSpeckleConverter->GetSelection();
+    selection["selectedObjectIds"] = selectedElements;
+    selection["summary"] = std::to_string(selectedElements.size()) + " objects selected";
+
+    std::string methodName = "setSelection";
+    std::string guid = Utils::GenerateGUID64();
+    std::string methodId = guid + "_" + methodName;
+
+    //auto js = nlohmann::json(selection);
+    auto argsPtr = std::make_unique<nlohmann::json>(selection);
+    selectionBinding->CacheResult(methodId, std::move(argsPtr));
+    selectionBinding->EmitResponseReady(methodName, methodId);
+    //selectionBinding->ResponseReady(args.methodId);
 }
