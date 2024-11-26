@@ -65,7 +65,24 @@ void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 
 	jsObject->AddItem(new JS::Function("RunMethod", [this, binding](GS::Ref<JS::Base> param) {
 		auto args = GetStringArrayFromJavaScriptArray(param);
-		binding->RunMethodRequested(RunMethodEventArgs(binding, args[0], args[1], args[2]));
+
+		nlohmann::json data{};
+		try
+		{
+			auto parsedJson = nlohmann::json::parse(args[2]);
+			if (parsedJson.size() > 0)
+			{
+				std::string rawString = parsedJson[0];
+				data = nlohmann::json::parse(rawString);
+			}
+		}
+		catch (...)
+		{
+			// failed to parse json
+			// data will be an empty json object
+		}
+
+		binding->RunMethodRequested(RunMethodEventArgs(binding, args[0], args[1], data));
 		return ConvertToJavaScriptVariable(true);
 	}));
 

@@ -14,7 +14,7 @@ private:
     std::vector<std::string> _methodNames;
 
     // this adapter will provide an interface for Bindings to register their JSObjects, and function names
-    // without needing to include GS dependencies in the Binding class
+    // without needing to include GS dependencies to DG::Browser in the Binding class
     IBrowserAdapter* _browserAdapter;
 
     std::map<std::string, std::unique_ptr<nlohmann::json>> results;

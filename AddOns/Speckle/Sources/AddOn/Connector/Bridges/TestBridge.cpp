@@ -1,5 +1,4 @@
 #include "TestBridge.h"
-#include "LoggerFactory.h"
 #include "InvalidMethodNameException.h"
 
 
@@ -55,22 +54,22 @@ void TestBridge::RunMethod(const RunMethodEventArgs& args)
     }
 }
 
-void TestBridge::GetComplexType(const RunMethodEventArgs& args)
+void TestBridge::GetComplexType(const RunMethodEventArgs& /*args*/)
 {
-    GET_LOGGER("TestBridge")->Info(args.methodName + " called");
+    // TODO implement
 }
 
-void TestBridge::GoAway(const RunMethodEventArgs& args)
+void TestBridge::GoAway(const RunMethodEventArgs& /*args*/)
 {
-    GET_LOGGER("TestBridge")->Info(args.methodName + " called");
+    // TODO implement
 }
 
-void TestBridge::SayHi(const RunMethodEventArgs& args)
+void TestBridge::SayHi(const RunMethodEventArgs& /*args*/)
 {
-    GET_LOGGER("TestBridge")->Info(args.methodName + " called");
+    // TODO implement
 }
 
-void TestBridge::TriggerEvent(const RunMethodEventArgs& args)
+void TestBridge::TriggerEvent(const RunMethodEventArgs& /*args*/)
 {
-    GET_LOGGER("TestBridge")->Info(args.methodName + " called");
+    // TODO implement
 }

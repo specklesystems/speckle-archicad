@@ -1,5 +1,4 @@
 #include "BaseBridge.h"
-#include "LoggerFactory.h"
 #include "Connector.h"
 #include "InvalidMethodNameException.h"
 
@@ -91,10 +90,7 @@ void BaseBridge::RunMethod(const RunMethodEventArgs& args)
 
 void BaseBridge::AddModel(const RunMethodEventArgs& args) 
 {
-    nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-    std::string rawString = parsedJson[0];
-    auto model = nlohmann::json::parse(rawString);
-    SendModelCard modelCard = model.get<SendModelCard>();
+    SendModelCard modelCard = args.data.get<SendModelCard>();
     CONNECTOR.modelCardDatabase->AddModel(modelCard);
     args.eventSource->ResponseReady(args.methodId);
 }
@@ -136,41 +132,32 @@ void BaseBridge::GetSourceApplicationVersion(const RunMethodEventArgs& args)
 
 void BaseBridge::HighlightModel(const RunMethodEventArgs& args) 
 {
-    // get the modelcard by id
-    nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-    std::string rawString = parsedJson[0];
-    std::string id = nlohmann::json::parse(rawString).get<std::string>();
+    auto id = args.data.get<std::string>();
     SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
     auto selection = modelCard.sendFilter.selectedObjectIds;
     CONNECTOR.speckleToHostConverter->SetSelection(selection);
 }
 
-void BaseBridge::HighlightObjects(const RunMethodEventArgs& args) 
+void BaseBridge::HighlightObjects(const RunMethodEventArgs& /*args*/) 
 {
     // TODO implement
-    GET_LOGGER("BaseBridge")->Info(args.methodName + " called with args:" + args.args);
 }
 
 void BaseBridge::OpenUrl(const RunMethodEventArgs& args) 
 {
-    nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-    std::string rawString = parsedJson[0];
-    std::string url = nlohmann::json::parse(rawString).get<std::string>();
-
+    std::string url = args.data.get<std::string>();
     std::string command = "start " + url;
     system(command.c_str());
 }
 
-void BaseBridge::RemoveModel(const RunMethodEventArgs& args) 
+void BaseBridge::RemoveModel(const RunMethodEventArgs& /*args*/) 
 {
-    GET_LOGGER("BaseBridge")->Info(args.methodName + " called with args:" + args.args);
+    // TODO implement
 }
 
 void BaseBridge::UpdateModel(const RunMethodEventArgs& args) 
 {
-    nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-    std::string rawString = parsedJson[0];
-    auto model = nlohmann::json::parse(rawString);
-    CONNECTOR.modelCardDatabase->AddModel(model);
+    SendModelCard modelCard = args.data.get<SendModelCard>();
+    CONNECTOR.modelCardDatabase->AddModel(modelCard);
     args.eventSource->ResponseReady(args.methodId);
 }

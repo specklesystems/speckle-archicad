@@ -77,14 +77,10 @@ void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 
 void SendBridge::Send(const RunMethodEventArgs& args)
 {
-    SendViaBrowserArgs sendArgs;
-    // get the modelcard by id
-    nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-    std::string rawString = parsedJson[0];
-    std::string id = nlohmann::json::parse(rawString).get<std::string>();
+    std::string id = args.data.get<std::string>();
     SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
 
-
+    SendViaBrowserArgs sendArgs;
     nlohmann::json sendObj;
     // TODO: do i need this?
     sendObj["id"] = "";

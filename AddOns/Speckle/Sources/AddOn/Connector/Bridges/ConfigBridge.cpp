@@ -1,5 +1,4 @@
 #include "ConfigBridge.h"
-#include "LoggerFactory.h"
 #include "InvalidMethodNameException.h"
 
 
@@ -65,8 +64,7 @@ void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
     args.eventSource->SetResult(args.methodId, true);
 }
 
-void ConfigBridge::UpdateConfig(const RunMethodEventArgs& args)
+void ConfigBridge::UpdateConfig(const RunMethodEventArgs& /*args*/)
 {
     // TODO implement
-    GET_LOGGER("ConfigBridge")->Info(args.methodName + " called");
 }
