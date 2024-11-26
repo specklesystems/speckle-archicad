@@ -5,7 +5,6 @@
 #include "Connector.h"
 #include "RootObjectBuilder.h"
 #include "InvalidMethodNameException.h"
-#include "Base64GuidGenerator.h"
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
@@ -81,28 +80,20 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
 
     SendViaBrowserArgs sendArgs{};
-    nlohmann::json sendObj;
-    
-    RootObjectBuilder rootObjectBuilder{};
-    sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds);
-
     sendArgs.modelCardId = modelCard.modelCardId;
     sendArgs.projectId = modelCard.projectId;
     sendArgs.modelId = modelCard.modelId;
-    sendArgs.token = CONNECTOR.accountDatabase->GetTokenByAccountId(modelCard.accountId);
     sendArgs.serverUrl = modelCard.serverUrl;
     sendArgs.accountId = modelCard.accountId;
+    sendArgs.token = CONNECTOR.accountDatabase->GetTokenByAccountId(modelCard.accountId);
     // TODO: message
     sendArgs.message = "Sending data from ArchiCAD";
-    sendArgs.sendObject = sendObj;
     sendArgs.sendConversionResults = nlohmann::json::array();
 
-    // TODO move methodId generation to Binding
-    std::string methodName = "sendByBrowser";
-    std::string guid = Base64GuidGenerator::NewGuid();
-    std::string methodId = guid + "_" + methodName;
+    nlohmann::json sendObj;
+    RootObjectBuilder rootObjectBuilder{};
+    sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds);
+    sendArgs.sendObject = sendObj;
 
-    args.eventSource->CacheResult(methodId, sendArgs);
-    args.eventSource->EmitResponseReady(methodName, methodId);
-    args.eventSource->ResponseReady(args.methodId);
+    args.eventSource->SendByBrowser(args.methodId, sendArgs);
 }

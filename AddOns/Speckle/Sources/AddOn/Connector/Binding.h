@@ -27,11 +27,14 @@ public:
     std::string GetName() const;
     std::vector<std::string> GetMethodNames() const;
 
-    nlohmann::json GetResult(const std::string& key);
-    void SetResult(const std::string& key, nlohmann::json value);
-    void CacheResult(const std::string& key, const nlohmann::json& result);
+    nlohmann::json GetResult(const std::string& methodId);
+    void SetResult(const std::string& methodId, const nlohmann::json& data);
+    void Send(const std::string& methodName, const nlohmann::json& data);
+    void SendByBrowser(const std::string& sendMethodId, const nlohmann::json& data);
+
+    void CacheResult(const std::string& methodId, const nlohmann::json& result);
     void ResponseReady(const std::string methodId);
     void EmitResponseReady(const std::string methodName, const std::string methodId);
     void Emit(const std::string eventName);
-    void ClearResult(const std::string& key);
+    void ClearResult(const std::string& methodId);
 };

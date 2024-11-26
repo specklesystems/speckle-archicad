@@ -16,5 +16,7 @@ private:
     void RunMethod(const RunMethodEventArgs& args);
 
     void GetSelection(const RunMethodEventArgs& args);
-    void SelectionChanged();
+
+public:
+    void OnSelectionChanged();
 };

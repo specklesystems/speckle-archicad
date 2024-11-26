@@ -151,6 +151,10 @@ GSErrCode __ACENV_CALL Initialize(void)
 		SaveModelCardData(); 
 	};
 
+	CONNECTOR.hostAppEvents->SelectionChanged += []() {
+		BROWSERBRIDGE.selectionBridge->OnSelectionChanged();
+	};
+
 	return NoError;
 }
 

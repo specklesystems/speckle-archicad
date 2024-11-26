@@ -1,4 +1,5 @@
 #include "Binding.h"
+#include "Base64GuidGenerator.h"
 
 
 Binding::Binding(const std::string& name, const std::vector<std::string>& methodNames, IBrowserAdapter* browserAdapter)
@@ -17,17 +18,32 @@ std::vector<std::string> Binding::GetMethodNames() const
 	return _methodNames;
 }
 
-void Binding::SetResult(const std::string& key, nlohmann::json value)
+void Binding::SetResult(const std::string& methodId, const nlohmann::json& data)
 {
-	CacheResult(key, value);
-	ResponseReady(key);
+	CacheResult(methodId, data);
+	ResponseReady(methodId);
 }
 
-nlohmann::json Binding::GetResult(const std::string& key)
+void Binding::Send(const std::string& methodName, const nlohmann::json& data)
+{
+	std::string guid = Base64GuidGenerator::NewGuid();
+	std::string methodId = guid + "_" + methodName;
+
+	CacheResult(methodId, data);
+	EmitResponseReady(methodName, methodId);
+}
+
+void Binding::SendByBrowser(const std::string& sendMethodId, const nlohmann::json& data)
+{
+	Send("sendByBrowser", data);
+	ResponseReady(sendMethodId);
+}
+
+nlohmann::json Binding::GetResult(const std::string& methodId)
 {
 	try
 	{
-		return results.at(key);
+		return results.at(methodId);
 	}
 	catch (const std::exception&)
 	{
@@ -35,9 +51,9 @@ nlohmann::json Binding::GetResult(const std::string& key)
 	}
 }
 
-void Binding::CacheResult(const std::string& key, const nlohmann::json& result)
+void Binding::CacheResult(const std::string& methodId, const nlohmann::json& result)
 {
-	results[key] = result;
+	results[methodId] = result;
 }
 
 void Binding::ResponseReady(const std::string methodId)
@@ -57,7 +73,7 @@ void Binding::Emit(const std::string eventName)
 	std::string command = _name + ".emit('" + eventName + "')";
 }
 
-void Binding::ClearResult(const std::string& key)
+void Binding::ClearResult(const std::string& methodId)
 {
-	results.erase(key);
+	results.erase(methodId);
 }
