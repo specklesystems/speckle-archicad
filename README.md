@@ -49,8 +49,8 @@ How to build the AddOn on Windows and **Visual Studio 2022**
 - After modifying the installation, a restart may be necessary
 
 ![VS 2022 Components](images/vs_2022_install.PNG)
-- Open the project root and run 'generate_project.bat'
-- This will create the build folder and you will find the 'archicad-speckle.sln' in it
+- Open the project root and run ```generate_project.bat```
+- This will create the build folder and you will find the ```archicad-speckle.sln``` in it
 - Open the solution file in Visual Studio 2022 and build the project
 
 More Help
@@ -63,7 +63,7 @@ More Help
 - Browse ```./build/Int/Debug/Speckle.apx```
 
 ### Debugging
-- Right-click SpeckleAddOn in the solution explorer
+- Right-click SpeckleAddOn in the Visual Studio solution explorer
 - Click 'Set as Startup Project'
 - Click run (Local Windows Debugger)
 - By default it will start ArchiCAD 27, make sure that it's installed on your machine
