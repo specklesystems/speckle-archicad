@@ -129,12 +129,12 @@ GSErrCode __ACENV_CALL Initialize(void)
 
 	CONNECTOR.GetHostAppEvents().ProjectOpened += []() {
 		LoadModelCardData();
-		BROWSERBRIDGE.baseBridge->OnDocumentChanged();
+		BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
 	};
 
 	CONNECTOR.GetHostAppEvents().ProjectClosed += []() {
 		CONNECTOR.GetModelCardDatabase().ClearModels();
-		BROWSERBRIDGE.baseBridge->OnDocumentChanged();
+		BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
 	};
 
 	CONNECTOR.GetHostAppEvents().ProjectSaving += []() {
@@ -142,7 +142,7 @@ GSErrCode __ACENV_CALL Initialize(void)
 	};
 
 	CONNECTOR.GetHostAppEvents().SelectionChanged += []() {
-		BROWSERBRIDGE.selectionBridge->OnSelectionChanged();
+		BROWSERBRIDGE.GetSelectionBridge().OnSelectionChanged();
 	};
 
 	return NoError;

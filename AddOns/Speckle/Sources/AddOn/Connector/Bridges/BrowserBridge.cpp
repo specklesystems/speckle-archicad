@@ -26,3 +26,51 @@ void BrowserBridge::LoadUI()
 {
 	_browserAdapter->LoadURL("https://boisterous-douhua-e3cefb.netlify.app/");
 }
+
+AccountBridge& BrowserBridge::GetAccountBridge()
+{
+    if (!accountsBridge)
+        throw std::runtime_error("AccountBridge not initialized");
+
+    return *accountsBridge;
+}
+
+BaseBridge& BrowserBridge::GetBaseBridge()
+{
+    if (!baseBridge)
+        throw std::runtime_error("BaseBridge not initialized");
+
+    return *baseBridge;
+}
+
+ConfigBridge& BrowserBridge::GetConfigBridge()
+{
+    if (!configBridge)
+        throw std::runtime_error("ConfigBridge not initialized");
+
+    return *configBridge;
+}
+
+SelectionBridge& BrowserBridge::GetSelectionBridge()
+{
+    if (!selectionBridge)
+        throw std::runtime_error("SelectionBridge not initialized");
+
+    return *selectionBridge;
+}
+
+SendBridge& BrowserBridge::GetSendBridge()
+{
+    if (!sendBridge)
+        throw std::runtime_error("SendBridge not initialized");
+
+    return *sendBridge;
+}
+
+TestBridge& BrowserBridge::GetTestBridge()
+{
+    if (!testBridge)
+        throw std::runtime_error("TestBridge not initialized");
+
+    return *testBridge;
+}
