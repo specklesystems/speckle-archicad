@@ -95,12 +95,14 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.token = CONNECTOR.accountDatabase->GetTokenByAccountId(modelCard.accountId);
     // TODO: message
     sendArgs.message = "Sending data from ArchiCAD";
-    sendArgs.sendConversionResults = nlohmann::json::array();
+    //sendArgs.sendConversionResults = nlohmann::json::array();
 
     nlohmann::json sendObj;
     RootObjectBuilder rootObjectBuilder{};
-    sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds);
+    std::vector<SendConversionResult> conversionResults;
+    sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResults);
     sendArgs.sendObject = sendObj;
+    sendArgs.sendConversionResults = conversionResults;
 
     args.eventSource->SendByBrowser(args.methodId, sendArgs);
 }

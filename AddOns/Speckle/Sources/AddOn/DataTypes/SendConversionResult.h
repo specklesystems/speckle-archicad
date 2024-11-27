@@ -3,7 +3,7 @@
 #include "json.hpp"
 #include "ConversionError.h"
 
-enum ConversionResultStatus
+enum class ConversionResultStatus
 {
     NONE = 0, // Do not use
     SUCCESS = 1,

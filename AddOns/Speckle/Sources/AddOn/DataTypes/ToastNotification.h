@@ -2,7 +2,7 @@
 
 #include "json.hpp"
 
-enum ToastNotificationType 
+enum class ToastNotificationType 
 {
     SUCCESS,
     WARNING,

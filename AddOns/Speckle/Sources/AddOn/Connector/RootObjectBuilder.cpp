@@ -1,16 +1,38 @@
 #include "RootObjectBuilder.h"
 #include "Connector.h"
+#include "ArchiCadApiException.h"
 
-RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elementIds)
+
+RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elementIds, std::vector<SendConversionResult>& conversionResults)
 {	
     RootObject rootObject;
     std::vector<ElementBody> bodies;
 
     for (const auto& elemId : elementIds)
     {
-        auto body = CONNECTOR.hostToSpeckleConverter->GetElementBody(elemId);
-        auto levelName = CONNECTOR.hostToSpeckleConverter->GetElementLevel(elemId);
-        auto elementType = CONNECTOR.hostToSpeckleConverter->GetElementType(elemId);
+        SendConversionResult conversionResult{};
+        
+
+        ElementBody body{};
+        std::string levelName;
+        std::string elementType;
+
+        try
+        {
+            conversionResult.sourceId = elemId;
+            elementType = CONNECTOR.hostToSpeckleConverter->GetElementType(elemId);
+            conversionResult.sourceType = elementType;
+            body = CONNECTOR.hostToSpeckleConverter->GetElementBody(elemId);
+            // TODO resultType, resultId
+            conversionResult.resultType = "Mesh";
+            conversionResult.resultId = "0";
+            levelName = CONNECTOR.hostToSpeckleConverter->GetElementLevel(elemId);
+        }
+        catch (const ArchiCadApiException& e)
+        {
+            conversionResult.status = ConversionResultStatus::ERROR;
+            conversionResult.error.message = e.what();
+        }
 
         bodies.push_back(body);
         ModelElement modelElement;
@@ -33,6 +55,8 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
 
         ElementTypeCollection& elementTypeCollection = level.elements[elementType];
         elementTypeCollection.elements.push_back(modelElement);
+
+        conversionResults.push_back(conversionResult);
     }
 
     std::map<int, RenderMaterialProxy> collectedProxies;
