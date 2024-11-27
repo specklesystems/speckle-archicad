@@ -2,11 +2,8 @@
 #include "ACAPinc.h"
 #include "BrowserPalette.hpp"
 #include "Connector.h"
-
 #include "CheckError.h"
 #include "BrowserBridge.h"
-
-static const std::string MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v1";
 
 
 static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*param*/)
@@ -46,14 +43,14 @@ static void	ShowOrHideBrowserPalette()
 
 static void LoadModelCardData()
 {
-	auto data = CONNECTOR.GetDataStorage().LoadData(MODELCARD_ADDONOBJECT_NAME);
+	auto data = CONNECTOR.GetDataStorage().LoadData(Connector::MODELCARD_ADDONOBJECT_NAME);
 	CONNECTOR.GetModelCardDatabase().LoadModelsFromJson(data);
 }
 
 static void SaveModelCardData()
 {
 	auto data = CONNECTOR.GetModelCardDatabase().GetModelsAsJson();
-	CONNECTOR.GetDataStorage().SaveData(data, MODELCARD_ADDONOBJECT_NAME);
+	CONNECTOR.GetDataStorage().SaveData(data, Connector::MODELCARD_ADDONOBJECT_NAME);
 }
 
 GSErrCode __ACENV_CALL MenuCommandHandler(const API_MenuParams *menuParams)
@@ -122,28 +119,43 @@ GSErrCode __ACENV_CALL Initialize(void)
 	if (err != NoError)
 		return err;
 	
-	BrowserPalette::CreateInstance();
-	BROWSERBRIDGE.InitBrowserBridge(BrowserPalette::GetInstance().GetBrowserAdapter());
-	BROWSERBRIDGE.LoadUI();
+	try
+	{
+		BrowserPalette::CreateInstance();
+		BROWSERBRIDGE.InitBrowserBridge(BrowserPalette::GetInstance().GetBrowserAdapter());
+		BROWSERBRIDGE.LoadUI();
+	}
+	catch (...)
+	{
+		// failed to init BrowserBridge
+		// TODO send a message to the browser
+	}
 
+	try
+	{
+		CONNECTOR.GetHostAppEvents().ProjectOpened += []() {
+			LoadModelCardData();
+			BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
+		};
 
-	CONNECTOR.GetHostAppEvents().ProjectOpened += []() {
-		LoadModelCardData();
-		BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
-	};
+		CONNECTOR.GetHostAppEvents().ProjectClosed += []() {
+			CONNECTOR.GetModelCardDatabase().ClearModels();
+			BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
+		};
 
-	CONNECTOR.GetHostAppEvents().ProjectClosed += []() {
-		CONNECTOR.GetModelCardDatabase().ClearModels();
-		BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
-	};
+		CONNECTOR.GetHostAppEvents().ProjectSaving += []() {
+			SaveModelCardData();
+		};
 
-	CONNECTOR.GetHostAppEvents().ProjectSaving += []() {
-		SaveModelCardData(); 
-	};
-
-	CONNECTOR.GetHostAppEvents().SelectionChanged += []() {
-		BROWSERBRIDGE.GetSelectionBridge().OnSelectionChanged();
-	};
+		CONNECTOR.GetHostAppEvents().SelectionChanged += []() {
+			BROWSERBRIDGE.GetSelectionBridge().OnSelectionChanged();
+		};
+	}
+	catch (...)
+	{
+		// failed to setup Connector event handlers
+		// TODO send a message to the browser
+	}
 
 	return NoError;
 }

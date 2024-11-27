@@ -9,4 +9,5 @@ public:
 
 	void SaveData(const nlohmann::json& data, const std::string& dataId) override;
 	nlohmann::json LoadData(const std::string& dataId) override;
+	std::string GetDataStorageId(const std::string& dataId) override;
 };

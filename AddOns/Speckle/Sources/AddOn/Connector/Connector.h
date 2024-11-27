@@ -25,6 +25,8 @@ private:
 	std::unique_ptr<IDataStorage> dataStorage;
 
 public:
+	static const std::string MODELCARD_ADDONOBJECT_NAME;
+
 	Connector(Connector& other) = delete;
 	void operator=(const Connector&) = delete;
 	static Connector& GetInstance();

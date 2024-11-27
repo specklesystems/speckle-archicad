@@ -110,11 +110,8 @@ void BaseBridge::GetConnectorVersion(const RunMethodEventArgs& args)
 
 void BaseBridge::GetDocumentInfo(const RunMethodEventArgs& args) 
 {
-    // TODO implement
-    nlohmann::json documentInfo;
-    documentInfo["location"] = "C:\\Users\\david\\Desktop\\A.pln";
-    documentInfo["name"] = "A";
-    documentInfo["id"] = "123456";
+    auto documentInfo = CONNECTOR.GetHostToSpeckleConverter().GetProjectInfo();
+    documentInfo.id = CONNECTOR.GetDataStorage().GetDataStorageId(Connector::MODELCARD_ADDONOBJECT_NAME);
     args.eventSource->SetResult(args.methodId, documentInfo);
 }
 
@@ -132,6 +129,7 @@ void BaseBridge::GetSourceApplicationName(const RunMethodEventArgs& args)
 void BaseBridge::GetSourceApplicationVersion(const RunMethodEventArgs& args) 
 {
     // TODO implement
+    // ACAPI_GetReleaseNumber
     args.eventSource->SetResult(args.methodId, "27");
 }
 

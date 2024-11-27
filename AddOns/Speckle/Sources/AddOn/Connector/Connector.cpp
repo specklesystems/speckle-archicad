@@ -6,6 +6,7 @@
 #include "ArchiCadDataStorage.h"
 
 std::unique_ptr<Connector> Connector::instance = nullptr;
+const std::string Connector::MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v123";
 
 Connector& Connector::GetInstance()
 {

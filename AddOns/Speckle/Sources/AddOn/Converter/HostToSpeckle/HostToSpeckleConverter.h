@@ -12,4 +12,5 @@ public:
 	Material GetModelMaterial(int materialIndex) override;
 	std::string GetElementLevel(const std::string& elemId) override;
 	std::string GetElementType(const std::string& elemId) override;
+	ProjectInfo GetProjectInfo() override;
 };

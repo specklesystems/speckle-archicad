@@ -23,7 +23,6 @@ namespace
 	}
 }
 
-// TODO handle exceptions from CHECK_ERROR somewhere
 void ArchiCadDataStorage::SaveData(const nlohmann::json& data, const std::string& dataName)
 {
 	API_Guid apiGuid{};
@@ -46,13 +45,12 @@ void ArchiCadDataStorage::SaveData(const nlohmann::json& data, const std::string
 	BMKillHandle(&content);
 }
 
-// TODO handle exceptions from CHECK_ERROR somewhere
-nlohmann::json ArchiCadDataStorage::LoadData(const std::string& dataName)
+nlohmann::json ArchiCadDataStorage::LoadData(const std::string& dataId)
 {
 	API_Guid apiGuid{};
 	try
 	{
-		apiGuid = GetApiObjectGuidByName(dataName);
+		apiGuid = GetApiObjectGuidByName(dataId);
 	}
 	catch (...)
 	{
@@ -75,4 +73,10 @@ nlohmann::json ArchiCadDataStorage::LoadData(const std::string& dataName)
 	
 	auto jsonData = nlohmann::json::parse(stdDataString);
 	return jsonData;
+}
+
+std::string ArchiCadDataStorage::GetDataStorageId(const std::string& dataId)
+{
+	auto apiGuid = GetApiObjectGuidByName(dataId);
+	return APIGuidToString(apiGuid).ToCStr().Get();
 }

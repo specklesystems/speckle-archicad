@@ -2,6 +2,7 @@
 
 #include "ElementBody.h"
 #include "Material.h"
+#include "ProjectInfo.h"
 
 class IHostToSpeckleConverter 
 {
@@ -13,4 +14,5 @@ public:
 	virtual Material GetModelMaterial(int materialIndex) = 0;
 	virtual std::string GetElementLevel(const std::string& elemId) = 0;
 	virtual std::string GetElementType(const std::string& elemId) = 0;
+	virtual ProjectInfo GetProjectInfo() = 0;
 };
