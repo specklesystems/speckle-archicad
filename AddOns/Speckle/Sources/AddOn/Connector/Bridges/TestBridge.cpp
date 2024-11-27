@@ -1,5 +1,6 @@
 #include "TestBridge.h"
 #include "InvalidMethodNameException.h"
+#include "ArchiCadApiException.h"
 
 
 TestBridge::TestBridge(IBrowserAdapter* browser)
@@ -18,15 +19,20 @@ void TestBridge::OnRunMethod(const RunMethodEventArgs& args)
     {
         RunMethod(args);
     }
-    catch (const std::exception& e)
+    catch (const ArchiCadApiException& acex)
     {
-        // TODO: pass message to browser
-        std::string msg = e.what();
-        std::cout << msg;
+        testBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+    }
+    catch (const std::exception& stdex)
+    {
+        testBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
     }
     catch (...)
     {
-        // no good
+        testBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
     }
 }
 

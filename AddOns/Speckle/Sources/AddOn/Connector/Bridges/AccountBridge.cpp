@@ -1,6 +1,7 @@
 ﻿#include "AccountBridge.h"
 #include "Connector.h"
 #include "InvalidMethodNameException.h"
+#include "ArchiCadApiException.h"
 
 
 AccountBridge::AccountBridge(IBrowserAdapter* browser)
@@ -15,20 +16,25 @@ AccountBridge::AccountBridge(IBrowserAdapter* browser)
 
 void AccountBridge::OnRunMethod(const RunMethodEventArgs& args)
 {
-	try
-	{
-		RunMethod(args);
-	}
-	catch (const std::exception& e)
-	{
-		// TODO: pass message to browser
-		std::string msg = e.what();
-		std::cout << msg;
-	}
-	catch (...)
-	{
-		// no good
-	}
+    try
+    {
+        RunMethod(args);
+    }
+    catch (const ArchiCadApiException& acex)
+    {
+        accountsBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+    }
+    catch (const std::exception& stdex)
+    {
+        accountsBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
+    }
+    catch (...)
+    {
+        accountsBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
+    }
 }
 
 void AccountBridge::RunMethod(const RunMethodEventArgs& args)

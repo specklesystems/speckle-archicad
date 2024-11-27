@@ -6,7 +6,9 @@
 #include "IBrowserAdapter.h"
 #include "ToastNotification.h"
 
-class Binding {
+
+class Binding 
+{
 public:
     Event<const RunMethodEventArgs&> RunMethodRequested;
 

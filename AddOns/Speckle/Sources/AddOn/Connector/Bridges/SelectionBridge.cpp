@@ -23,26 +23,18 @@ void SelectionBridge::OnRunMethod(const RunMethodEventArgs& args)
     }
     catch (const ArchiCadApiException& acex)
     {
-        ToastNotification toast;
-        toast.title = "Exception occured in the ArhciCAD API";
-        toast.description = acex.what();
-        toast.type = ToastNotificationType::DANGER;
-        selectionBinding->SetToastNotification(toast);
+        selectionBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false});
     }
     catch (const std::exception& stdex)
     {
-        ToastNotification toast;
-        toast.title = "Exception occured";
-        toast.description = stdex.what();
-        toast.type = ToastNotificationType::DANGER;
-        selectionBinding->SetToastNotification(toast);
+        selectionBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
     }
     catch (...)
     {
-        ToastNotification toast;
-        toast.title = "Unknown exception occured";
-        toast.type = ToastNotificationType::DANGER;
-        selectionBinding->SetToastNotification(toast);
+        selectionBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
     }
 }
 
