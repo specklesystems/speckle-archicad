@@ -2,11 +2,7 @@
 #include "ACAPinc.h"
 #include "BrowserPalette.hpp"
 #include "Connector.h"
-#include "AccountDatabase.h"
-#include "ModelCardDatabase.h"
-#include "HostToSpeckleConverter.h"
-#include "SpeckleToHostConverter.h"
-#include "ArchiCadDataStorage.h"
+
 #include "CheckError.h"
 #include "BrowserBridge.h"
 
@@ -17,9 +13,9 @@ static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*p
 {
 	switch (notifID) 
 	{
-		case APINotify_Open: CONNECTOR.hostAppEvents->ProjectOpened(); break;
-		case APINotify_Close: CONNECTOR.hostAppEvents->ProjectClosed(); break;
-		case APINotify_PreSave: CONNECTOR.hostAppEvents->ProjectSaving(); break;
+		case APINotify_Open: CONNECTOR.GetHostAppEvents().ProjectOpened(); break;
+		case APINotify_Close: CONNECTOR.GetHostAppEvents().ProjectClosed(); break;
+		case APINotify_PreSave: CONNECTOR.GetHostAppEvents().ProjectSaving(); break;
 	}
 
 	return NoError;
@@ -27,7 +23,7 @@ static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*p
 
 static GSErrCode SelectionChangeHandler(const API_Neig* /*selElemNeig*/)
 {
-	CONNECTOR.hostAppEvents->SelectionChanged();
+	CONNECTOR.GetHostAppEvents().SelectionChanged();
 
 	return NoError;
 }
@@ -50,25 +46,14 @@ static void	ShowOrHideBrowserPalette()
 
 static void LoadModelCardData()
 {
-	auto data = CONNECTOR.dataStorage->LoadData(MODELCARD_ADDONOBJECT_NAME);
-	CONNECTOR.modelCardDatabase->LoadModelsFromJson(data);
+	auto data = CONNECTOR.GetDataStorage().LoadData(MODELCARD_ADDONOBJECT_NAME);
+	CONNECTOR.GetModelCardDatabase().LoadModelsFromJson(data);
 }
 
 static void SaveModelCardData()
 {
-	auto data = CONNECTOR.modelCardDatabase->GetModelsAsJson();
-	CONNECTOR.dataStorage->SaveData(data, MODELCARD_ADDONOBJECT_NAME);
-}
-
-static void InitConnector()
-{
-	// TODO: make these safer to use, throw exception on nullptr
-	CONNECTOR.accountDatabase = std::make_unique<AccountDatabase>();
-	CONNECTOR.modelCardDatabase = std::make_unique<ModelCardDatabase>();
-	CONNECTOR.hostToSpeckleConverter = std::make_unique<HostToSpeckleConverter>();
-	CONNECTOR.speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
-	CONNECTOR.hostAppEvents = std::make_unique<HostAppEvents>();
-	CONNECTOR.dataStorage = std::make_unique<ArchiCadDataStorage>();
+	auto data = CONNECTOR.GetModelCardDatabase().GetModelsAsJson();
+	CONNECTOR.GetDataStorage().SaveData(data, MODELCARD_ADDONOBJECT_NAME);
 }
 
 GSErrCode __ACENV_CALL MenuCommandHandler(const API_MenuParams *menuParams)
@@ -111,7 +96,7 @@ GSErrCode __ACENV_CALL Initialize(void)
 {
 	try
 	{
-		InitConnector();
+		CONNECTOR.InitConnector();
 	}
 	catch (...)
 	{
@@ -142,21 +127,21 @@ GSErrCode __ACENV_CALL Initialize(void)
 	BROWSERBRIDGE.LoadUI();
 
 
-	CONNECTOR.hostAppEvents->ProjectOpened += []() { 
+	CONNECTOR.GetHostAppEvents().ProjectOpened += []() {
 		LoadModelCardData();
 		BROWSERBRIDGE.baseBridge->OnDocumentChanged();
 	};
 
-	CONNECTOR.hostAppEvents->ProjectClosed += []() {
-		CONNECTOR.modelCardDatabase->ClearModels();
+	CONNECTOR.GetHostAppEvents().ProjectClosed += []() {
+		CONNECTOR.GetModelCardDatabase().ClearModels();
 		BROWSERBRIDGE.baseBridge->OnDocumentChanged();
 	};
 
-	CONNECTOR.hostAppEvents->ProjectSaving += []() { 
+	CONNECTOR.GetHostAppEvents().ProjectSaving += []() {
 		SaveModelCardData(); 
 	};
 
-	CONNECTOR.hostAppEvents->SelectionChanged += []() {
+	CONNECTOR.GetHostAppEvents().SelectionChanged += []() {
 		BROWSERBRIDGE.selectionBridge->OnSelectionChanged();
 	};
 

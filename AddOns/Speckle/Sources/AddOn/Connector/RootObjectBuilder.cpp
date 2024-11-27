@@ -10,8 +10,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
 
     for (const auto& elemId : elementIds)
     {
-        SendConversionResult conversionResult{};
-        
+        SendConversionResult conversionResult{};   
 
         ElementBody body{};
         std::string levelName;
@@ -20,13 +19,12 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         try
         {
             conversionResult.sourceId = elemId;
-            elementType = CONNECTOR.hostToSpeckleConverter->GetElementType(elemId);
+            elementType = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
             conversionResult.sourceType = elementType;
-            body = CONNECTOR.hostToSpeckleConverter->GetElementBody(elemId);
-            // TODO resultType, resultId
+            body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
             conversionResult.resultType = "Mesh";
-            conversionResult.resultId = "0";
-            levelName = CONNECTOR.hostToSpeckleConverter->GetElementLevel(elemId);
+            conversionResult.resultId = "";
+            levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
         }
         catch (const ArchiCadApiException& e)
         {
@@ -68,7 +66,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             if (collectedProxies.find(materialIndex) == collectedProxies.end())
             {
                 RenderMaterialProxy renderMaterialProxy;
-                renderMaterialProxy.value = CONNECTOR.hostToSpeckleConverter->GetModelMaterial(materialIndex);
+                renderMaterialProxy.value = CONNECTOR.GetHostToSpeckleConverter().GetModelMaterial(materialIndex);
                 collectedProxies[materialIndex] = renderMaterialProxy;
             }
 

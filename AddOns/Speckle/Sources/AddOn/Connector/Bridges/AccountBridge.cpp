@@ -52,6 +52,6 @@ void AccountBridge::RunMethod(const RunMethodEventArgs& args)
 
 void AccountBridge::GetAccounts(const RunMethodEventArgs& args)
 {
-	auto accounts = CONNECTOR.accountDatabase->GetAccounts();
+	auto accounts = CONNECTOR.GetAccountDatabase().GetAccounts();
 	args.eventSource->SetResult(args.methodId, accounts);
 }

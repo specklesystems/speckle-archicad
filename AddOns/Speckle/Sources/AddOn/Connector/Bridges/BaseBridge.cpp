@@ -98,7 +98,7 @@ void BaseBridge::RunMethod(const RunMethodEventArgs& args)
 void BaseBridge::AddModel(const RunMethodEventArgs& args) 
 {
     SendModelCard modelCard = args.data.get<SendModelCard>();
-    CONNECTOR.modelCardDatabase->AddModel(modelCard);
+    CONNECTOR.GetModelCardDatabase().AddModel(modelCard);
     args.eventSource->ResponseReady(args.methodId);
 }
 
@@ -120,7 +120,7 @@ void BaseBridge::GetDocumentInfo(const RunMethodEventArgs& args)
 
 void BaseBridge::GetDocumentState(const RunMethodEventArgs& args) 
 {
-    auto modelsJson = CONNECTOR.modelCardDatabase->GetModelsAsJson();
+    auto modelsJson = CONNECTOR.GetModelCardDatabase().GetModelsAsJson();
     args.eventSource->SetResult(args.methodId, modelsJson);
 }
 
@@ -138,9 +138,9 @@ void BaseBridge::GetSourceApplicationVersion(const RunMethodEventArgs& args)
 void BaseBridge::HighlightModel(const RunMethodEventArgs& args) 
 {
     auto id = args.data.get<std::string>();
-    SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
+    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
     auto selection = modelCard.sendFilter.selectedObjectIds;
-    CONNECTOR.speckleToHostConverter->SetSelection(selection);
+    CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
 }
 
 void BaseBridge::HighlightObjects(const RunMethodEventArgs& /*args*/) 
@@ -163,7 +163,7 @@ void BaseBridge::RemoveModel(const RunMethodEventArgs& /*args*/)
 void BaseBridge::UpdateModel(const RunMethodEventArgs& args) 
 {
     SendModelCard modelCard = args.data.get<SendModelCard>();
-    CONNECTOR.modelCardDatabase->AddModel(modelCard);
+    CONNECTOR.GetModelCardDatabase().AddModel(modelCard);
     args.eventSource->ResponseReady(args.methodId);
 }
 

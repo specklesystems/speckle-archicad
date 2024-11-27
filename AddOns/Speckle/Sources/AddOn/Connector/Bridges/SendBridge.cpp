@@ -67,7 +67,7 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
     SendFilter filter;
     filter.typeDiscriminator = "ArchicadSelectionFilter";
     filter.name = "Selection";
-    filter.selectedObjectIds = CONNECTOR.hostToSpeckleConverter->GetSelection();
+    filter.selectedObjectIds = CONNECTOR.GetHostToSpeckleConverter().GetSelection();
     filter.summary = std::to_string(filter.selectedObjectIds.size()) + " objects selected";
 
     nlohmann::json sendFilters;
@@ -84,7 +84,7 @@ void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 void SendBridge::Send(const RunMethodEventArgs& args)
 {
     std::string id = args.data.get<std::string>();
-    SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
+    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
 
     SendViaBrowserArgs sendArgs{};
     sendArgs.modelCardId = modelCard.modelCardId;
@@ -92,7 +92,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.modelId = modelCard.modelId;
     sendArgs.serverUrl = modelCard.serverUrl;
     sendArgs.accountId = modelCard.accountId;
-    sendArgs.token = CONNECTOR.accountDatabase->GetTokenByAccountId(modelCard.accountId);
+    sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
     // TODO: message
     sendArgs.message = "Sending data from ArchiCAD";
     //sendArgs.sendConversionResults = nlohmann::json::array();

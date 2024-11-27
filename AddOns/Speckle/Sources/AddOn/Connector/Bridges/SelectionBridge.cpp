@@ -54,7 +54,7 @@ void SelectionBridge::RunMethod(const RunMethodEventArgs& args)
 static nlohmann::json GetSelectionAsJson()
 {
     nlohmann::json selection;
-    auto selectedElements = CONNECTOR.hostToSpeckleConverter->GetSelection();
+    auto selectedElements = CONNECTOR.GetHostToSpeckleConverter().GetSelection();
     selection["selectedObjectIds"] = selectedElements;
     selection["summary"] = std::to_string(selectedElements.size()) + " objects selected";
 
