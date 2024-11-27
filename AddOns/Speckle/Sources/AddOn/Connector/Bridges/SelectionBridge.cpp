@@ -15,6 +15,7 @@ SelectionBridge::SelectionBridge(IBrowserAdapter* browser)
     selectionBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }
 
+// POC duplicated code, move try catch logic to Binding
 void SelectionBridge::OnRunMethod(const RunMethodEventArgs& args)
 {
     try

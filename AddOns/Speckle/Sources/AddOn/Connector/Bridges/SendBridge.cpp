@@ -18,6 +18,7 @@ SendBridge::SendBridge(IBrowserAdapter* browser)
     sendBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }
 
+// POC duplicated code, move try catch logic to Binding
 void SendBridge::OnRunMethod(const RunMethodEventArgs& args)
 {
     try

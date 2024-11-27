@@ -13,6 +13,7 @@ TestBridge::TestBridge(IBrowserAdapter* browser)
     testBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }
 
+// POC duplicated code, move try catch logic to Binding
 void TestBridge::OnRunMethod(const RunMethodEventArgs& args)
 {
     try

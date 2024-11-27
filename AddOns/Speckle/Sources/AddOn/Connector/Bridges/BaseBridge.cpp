@@ -19,6 +19,7 @@ BaseBridge::BaseBridge(IBrowserAdapter* browser)
     baseBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }
 
+// POC duplicated code, move try catch logic to Binding
 void BaseBridge::OnRunMethod(const RunMethodEventArgs& args)
 {
     try
