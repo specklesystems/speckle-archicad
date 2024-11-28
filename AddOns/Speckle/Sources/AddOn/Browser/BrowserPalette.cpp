@@ -1,12 +1,11 @@
-#include "BrowserPalette.hpp"
+#include "BrowserPalette.h"
 #include "ArchiCadBrowserAdapter.h"
-
 
 static const GS::Guid	paletteGuid ("{B8461D5C-DB5C-45EB-9047-3303212F04AD}");
 GS::Ref<BrowserPalette>	BrowserPalette::instance;
 
 
-static GSErrCode __ACENV_CALL NotificationHandler (API_NotifyEventID notifID, Int32 /*param*/)
+static GSErrCode ACENV NotificationHandler (API_NotifyEventID notifID, Int32 /*param*/)
 {
 	switch (notifID) {
 		case APINotify_Quit:
@@ -74,11 +73,13 @@ void BrowserPalette::SetMenuItemCheckedState (bool isChecked)
 	itemRef.itemIndex = BrowserPaletteMenuItemIndex;
 
 	ACAPI_MenuItem_GetMenuItemFlags (&itemRef, &itemFlags);
+	//ACAPI_Interface(APIIo_GetMenuItemFlagsID, &itemRef, &itemFlags); //26
 	if (isChecked)
 		itemFlags |= API_MenuItemChecked;
 	else
 		itemFlags &= ~API_MenuItemChecked;
 	ACAPI_MenuItem_SetMenuItemFlags (&itemRef, &itemFlags);
+	//ACAPI_Interface(APIIo_SetMenuItemFlagsID, &itemRef, &itemFlags); //26
 }
 
 void BrowserPalette::PanelResized (const DG::PanelResizeEvent& ev)
@@ -99,7 +100,7 @@ IBrowserAdapter* BrowserPalette::GetBrowserAdapter()
 	return browserAdapter.get();
 }
 
-GSErrCode __ACENV_CALL	BrowserPalette::PaletteControlCallBack (Int32, API_PaletteMessageID messageID, GS::IntPtr param)
+GSErrCode ACENV	BrowserPalette::PaletteControlCallBack (Int32, API_PaletteMessageID messageID, GS::IntPtr param)
 {
 	switch (messageID) {
 		case APIPalMsg_OpenPalette:

@@ -1,6 +1,6 @@
 #include "APIEnvir.h"
 #include "ACAPinc.h"
-#include "BrowserPalette.hpp"
+#include "BrowserPalette.h"
 #include "Connector.h"
 #include "CheckError.h"
 #include "BrowserBridge.h"
@@ -53,7 +53,7 @@ static void SaveModelCardData()
 	CONNECTOR.GetDataStorage().SaveData(data, Connector::MODELCARD_ADDONOBJECT_NAME);
 }
 
-GSErrCode __ACENV_CALL MenuCommandHandler(const API_MenuParams *menuParams)
+GSErrCode ACENV MenuCommandHandler(const API_MenuParams *menuParams)
 {
 	switch (menuParams->menuItemRef.menuResID) 
 	{
@@ -74,7 +74,7 @@ GSErrCode __ACENV_CALL MenuCommandHandler(const API_MenuParams *menuParams)
 	return NoError;
 }
 
-API_AddonType __ACENV_CALL CheckEnvironment(API_EnvirParams* envir)
+API_AddonType ACENV CheckEnvironment(API_EnvirParams* envir)
 {
 	RSGetIndString(&envir->addOnInfo.name, 32000, 1, ACAPI_GetOwnResModule());
 	RSGetIndString(&envir->addOnInfo.description, 32000, 2, ACAPI_GetOwnResModule());
@@ -82,14 +82,14 @@ API_AddonType __ACENV_CALL CheckEnvironment(API_EnvirParams* envir)
 	return APIAddon_Preload;
 }
 
-GSErrCode __ACENV_CALL RegisterInterface(void)
+GSErrCode ACENV RegisterInterface(void)
 {
 	GSErrCode err = ACAPI_MenuItem_RegisterMenu(BrowserPaletteMenuResId, 0, MenuCode_UserDef, MenuFlag_Default);
 
 	return err;
 }
 
-GSErrCode __ACENV_CALL Initialize(void)
+GSErrCode ACENV Initialize(void)
 {
 	try
 	{
@@ -160,7 +160,7 @@ GSErrCode __ACENV_CALL Initialize(void)
 	return NoError;
 }
 
-GSErrCode __ACENV_CALL	FreeData(void)
+GSErrCode ACENV	FreeData(void)
 {
 	return NoError;
 }

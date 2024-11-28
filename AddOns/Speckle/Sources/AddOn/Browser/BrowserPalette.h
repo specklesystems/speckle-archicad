@@ -9,6 +9,12 @@
 
 #include <memory>
 
+#if defined(AC28)
+#define ACENV
+#else
+#define ACENV __ACENV_CALL
+#endif
+
 #define BrowserPaletteResId 32500
 #define BrowserPaletteMenuResId 32500
 #define BrowserPaletteMenuItemIndex 1
@@ -29,7 +35,7 @@ protected:
 	virtual void PanelResized (const DG::PanelResizeEvent& ev) override;
 	virtual	void PanelCloseRequested (const DG::PanelCloseRequestEvent& ev, bool* accepted) override;
 
-	static GSErrCode __ACENV_CALL PaletteControlCallBack (Int32 paletteId, API_PaletteMessageID messageID, GS::IntPtr param);
+	static GSErrCode ACENV PaletteControlCallBack (Int32 paletteId, API_PaletteMessageID messageID, GS::IntPtr param);
 
 	static GS::Ref<BrowserPalette> instance;
 

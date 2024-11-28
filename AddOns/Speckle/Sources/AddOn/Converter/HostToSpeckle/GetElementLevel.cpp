@@ -12,16 +12,4 @@ std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 	auto apielem = ConverterUtils::GetElement(elemId);
 	auto floorInd = apielem.header.floorInd;
 	return "Level " + std::to_string(floorInd);
-
-	// TODO remove
-#if defined(AC28)
-	std::cout << "Hello";
-#elif defined(AC27)
-	std::cout << "Hello";
-#elif defined(AC26)
-	std::cout << "Hello";
-#elif defined(AC25)
-	std::cout << "Hello";
-#endif
-
 }
