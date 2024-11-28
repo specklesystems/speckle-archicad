@@ -1,6 +1,7 @@
 #include "TestBridge.h"
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
+#include "ErrorReport.h"
 
 
 TestBridge::TestBridge(IBrowserAdapter* browser)
@@ -61,22 +62,67 @@ void TestBridge::RunMethod(const RunMethodEventArgs& args)
     }
 }
 
-void TestBridge::GetComplexType(const RunMethodEventArgs& /*args*/)
+void TestBridge::GetComplexType(const RunMethodEventArgs& args)
 {
-    // TODO implement
+    nlohmann::json j;
+    j["id"] = "1234";
+    j["count"] = 1234;
+    args.eventSource->SetResult(args.methodId, j);
 }
 
-void TestBridge::GoAway(const RunMethodEventArgs& /*args*/)
+void TestBridge::GoAway(const RunMethodEventArgs& args)
 {
-    // TODO implement
+    args.eventSource->SetResult(args.methodId, nullptr);
 }
 
-void TestBridge::SayHi(const RunMethodEventArgs& /*args*/)
+void TestBridge::SayHi(const RunMethodEventArgs& args)
 {
-    // TODO implement
+    if (args.data.size() < 3)
+    {
+        ErrorReport err{};
+        err.error = "Problem";
+        err.message = "No good";
+        args.eventSource->SetResult(args.methodId, err);
+        return;
+    }
+
+    bool sayHelloNotHi = false;
+    if (args.data.size() == 3)
+        sayHelloNotHi = args.data[2].get<bool>();
+
+    std::string name = args.data[0].get<std::string>();
+    int count = args.data[1].get<int>();
+
+    std::string baseGreeting{ (sayHelloNotHi ? "Hello" : "Hi") + name + "!\n" };
+    
+    std::string finalGreeting = "";
+
+    for (auto i = count; i--; )
+        finalGreeting += baseGreeting;
+
+    if (finalGreeting.empty())
+        finalGreeting = baseGreeting;
+
+    args.eventSource->SetResult(args.methodId, finalGreeting);
 }
 
-void TestBridge::TriggerEvent(const RunMethodEventArgs& /*args*/)
+void TestBridge::TriggerEvent(const RunMethodEventArgs& args)
 {
-    // TODO implement
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    std::string eventName = args.data[0].get<std::string>();
+    if (eventName == "emptyTestEvent")
+    {
+        args.eventSource->Emit(eventName);
+        args.eventSource->ResponseReady(args.methodId);
+    }
+    else if (eventName == "testEvent")
+    {
+        nlohmann::json j;
+        j["count"] = 42;
+        j["name"] = "foo";
+        j["isOK"] = true;
+        args.eventSource->Send(eventName, j);
+    }
 }

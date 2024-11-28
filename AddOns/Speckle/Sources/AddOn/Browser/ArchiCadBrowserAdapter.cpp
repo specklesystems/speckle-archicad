@@ -66,14 +66,14 @@ void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 	jsObject->AddItem(new JS::Function("RunMethod", [this, binding](GS::Ref<JS::Base> param) {
 		auto args = GetStringArrayFromJavaScriptArray(param);
 
-		nlohmann::json data{};
+		std::vector<nlohmann::json> data;
 		try
 		{
 			auto parsedJson = nlohmann::json::parse(args[2]);
-			if (parsedJson.size() > 0)
+			for (int i = 0; i < parsedJson.size(); i++)
 			{
-				std::string rawString = parsedJson[0];
-				data = nlohmann::json::parse(rawString);
+				std::string rawString = parsedJson[i];
+				data.push_back(nlohmann::json::parse(rawString));
 			}
 		}
 		catch (...)

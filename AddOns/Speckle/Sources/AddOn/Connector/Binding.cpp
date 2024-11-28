@@ -1,6 +1,6 @@
 #include "Binding.h"
 #include "Base64GuidGenerator.h"
-
+#include "Debug.h"
 
 Binding::Binding(const std::string& name, const std::vector<std::string>& methodNames, IBrowserAdapter* browserAdapter)
     : _name(name), _methodNames(methodNames), _browserAdapter(browserAdapter)
@@ -28,6 +28,9 @@ void Binding::Send(const std::string& methodName, const nlohmann::json& data)
 {
 	std::string guid = Base64GuidGenerator::NewGuid();
 	std::string methodId = guid + "_" + methodName;
+
+	std::string s = "Send: " + methodId + " : " + data.dump() + "\n";
+	Debug::Print(s);
 
 	CacheResult(methodId, data);
 	EmitResponseReady(methodName, methodId);
@@ -71,6 +74,10 @@ void Binding::EmitResponseReady(const std::string methodName, const std::string 
 void Binding::Emit(const std::string eventName)
 {
 	std::string command = _name + ".emit('" + eventName + "')";
+
+	std::string s = "Emit : " + eventName + "\n";
+	Debug::Print(s);
+
 	_browserAdapter->ExecuteJS(command.c_str());
 }
 
