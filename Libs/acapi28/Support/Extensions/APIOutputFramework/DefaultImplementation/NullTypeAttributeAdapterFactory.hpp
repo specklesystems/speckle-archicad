@@ -1,0 +1,261 @@
+#ifndef __NULLTYPEATTRIBUTEADAPTERFACTORY_HPP__
+#define __NULLTYPEATTRIBUTEADAPTERFACTORY_HPP__
+
+#include "IAPIAttributeAdapterFactory.hpp"
+#include "NullTypeAttributeAdapter.hpp"
+
+#define NULLATTRIBADAPTER(type)																				\
+virtual IAPIAttributeAdapter<type>* GetAdapter (const type& /* forType */,									\
+												const API_DatabaseInfo& /* dbInfo */) override 				\
+{ 																											\
+	return new NullTypeAttributeAdapter<type> (&attributeProxy, this); 										\
+}
+
+#define NULLATTRIBADAPTERN(type)																			\
+virtual IAPIAttributeAdapter<type>* GetAdapter (const type& /* forType */,									\
+												const API_DatabaseInfo& /* dbInfo */) 		 				\
+{ 																											\
+	return new NullTypeAttributeAdapter<type> (&attributeProxy, this); 										\
+}
+
+#define NULLATTRIBADAPTERMEMO(type)																			\
+virtual IAPIAttributeAdapter<type>* GetAdapter (const type& /* forType */,									\
+												const API_DatabaseInfo& /* dbInfo */, 						\
+												const API_ElementMemo* /* withMemo = nullptr */) override 	\
+{ 																											\
+	return new NullTypeAttributeAdapter<type> (&attributeProxy, this); 										\
+}
+
+namespace GSAPI {
+
+class NullTypeAttributeAdapterFactory : public IAPIAttributeAdapterFactory {
+public:
+	NullTypeAttributeAdapterFactory (IAttributeProxy& proxy) : IAPIAttributeAdapterFactory (proxy) { }
+	NullTypeAttributeAdapterFactory (const NullTypeAttributeAdapterFactory& factory) : IAPIAttributeAdapterFactory (factory) { }
+	virtual ~NullTypeAttributeAdapterFactory ();
+
+	NullTypeAttributeAdapterFactory& operator= (const NullTypeAttributeAdapterFactory& factory)	
+	{ 
+		IAPIAttributeAdapterFactory::operator= (factory); 
+		return (*this); 
+	}
+
+	// API Elements
+	NULLATTRIBADAPTERMEMO (API_Element)
+	NULLATTRIBADAPTER (API_ElemType)
+	NULLATTRIBADAPTER (API_BeamSegmentType)
+	NULLATTRIBADAPTER (API_ColumnSegmentType)
+	NULLATTRIBADAPTER (API_Elem_Head)
+	NULLATTRIBADAPTER (API_WallType)
+	NULLATTRIBADAPTER (API_StoryVisibility)
+	NULLATTRIBADAPTER (API_LinkToSettings)
+	NULLATTRIBADAPTER (API_Coord)
+	NULLATTRIBADAPTER (API_Polygon)
+	NULLATTRIBADAPTER (API_ColumnType)
+	NULLATTRIBADAPTER (API_BeamType)
+	NULLATTRIBADAPTER (API_WindowType)
+	NULLATTRIBADAPTER (API_SkylightType)
+	NULLATTRIBADAPTER (API_OpeningBaseType)
+	NULLATTRIBADAPTER (API_VerticalLink)
+	NULLATTRIBADAPTER (API_ObjectType)
+	NULLATTRIBADAPTER (API_RGBColor)
+	NULLATTRIBADAPTER (API_RGBAColor)
+	NULLATTRIBADAPTER (API_SlabType)
+	NULLATTRIBADAPTER (API_HatchOrientation)
+	NULLATTRIBADAPTER (API_CoverFillTransformation)
+	NULLATTRIBADAPTER (API_RoofType)
+	NULLATTRIBADAPTER (API_PlaneRoofData)
+	NULLATTRIBADAPTER (API_PolyRoofData)
+	NULLATTRIBADAPTER (API_RoofSegmentData)
+	NULLATTRIBADAPTER (API_ShellContourData)
+	NULLATTRIBADAPTER (API_ShellBaseType)
+	NULLATTRIBADAPTER (API_ShellType)
+	NULLATTRIBADAPTER (API_ExtrudedShellData)
+	NULLATTRIBADAPTER (API_RevolvedShellData)
+	NULLATTRIBADAPTER (API_RuledShellData)
+	NULLATTRIBADAPTER (API_ContourEdgeData)
+	NULLATTRIBADAPTER (API_LocalCoordsData)
+	NULLATTRIBADAPTER (API_LocalCoordsType)
+	NULLATTRIBADAPTER (API_Wrapping)
+	NULLATTRIBADAPTERN (API_RoofLevelData)
+	NULLATTRIBADAPTER (API_PivotPolyEdgeData)
+	NULLATTRIBADAPTER (API_ShellShapeData)
+	NULLATTRIBADAPTER (API_MorphType)
+	NULLATTRIBADAPTER (API_Sector)
+	NULLATTRIBADAPTER (API_MeshType)
+	NULLATTRIBADAPTER (API_MeshLevel)
+	NULLATTRIBADAPTER (API_DimensionType)
+	NULLATTRIBADAPTER (API_NoteType)
+	NULLATTRIBADAPTER (API_DimBase)
+	NULLATTRIBADAPTER (API_Base)
+	NULLATTRIBADAPTER (API_RadialDimensionType)
+	NULLATTRIBADAPTER (API_LevelDimensionType)
+	NULLATTRIBADAPTER (API_AngleDimensionType)
+	NULLATTRIBADAPTER (API_TextType)
+	NULLATTRIBADAPTER (API_LabelType)
+	NULLATTRIBADAPTER (API_ZoneType)
+	NULLATTRIBADAPTERN (API_VeneerTypeID)
+	NULLATTRIBADAPTER (API_HatchType)
+	NULLATTRIBADAPTER (API_LineType)
+	NULLATTRIBADAPTER (API_PolyLineType)
+	NULLATTRIBADAPTER (API_ArcType)
+	NULLATTRIBADAPTER (API_SplineType)
+	NULLATTRIBADAPTER (API_HotspotType)
+	NULLATTRIBADAPTER (API_PictureType)
+	NULLATTRIBADAPTER (API_Box)
+	NULLATTRIBADAPTER (API_CutPlaneType)
+	NULLATTRIBADAPTER (API_InteriorElevationType)
+	NULLATTRIBADAPTER (API_DatabaseUnId)
+	NULLATTRIBADAPTER (API_CameraType)
+	NULLATTRIBADAPTER (API_PerspCamPars)
+	NULLATTRIBADAPTER (API_PerspPars)
+	NULLATTRIBADAPTER (API_CamSetType)
+	NULLATTRIBADAPTER (API_DrawingType)
+	NULLATTRIBADAPTER (API_SectElemType)
+	NULLATTRIBADAPTER (API_DetailType)
+	NULLATTRIBADAPTER (API_ChangeMarkerType)
+	// NULLATTRIBADAPTERMEMO (API_WorksheetType) // API_WorksheetType == API_DetailType
+	NULLATTRIBADAPTER (API_HotlinkType)
+	NULLATTRIBADAPTER (API_CurtainWallType)
+	NULLATTRIBADAPTER (API_CWSegmentType)
+	NULLATTRIBADAPTER (API_CWFrameType)
+	NULLATTRIBADAPTER (API_CWPanelType)
+	NULLATTRIBADAPTER (API_CWJunctionType)
+	NULLATTRIBADAPTER (API_CWAccessoryType)
+	NULLATTRIBADAPTER (API_StairType)
+	NULLATTRIBADAPTER (API_StairRiserType)
+	NULLATTRIBADAPTER (API_StairTreadType)
+	NULLATTRIBADAPTER (API_StairStructureType)
+	NULLATTRIBADAPTER (API_StairMonolithStructureSymbolData)
+	NULLATTRIBADAPTER (API_StairStructureComponentSettingsVisibilityOnStory)
+	NULLATTRIBADAPTER (API_StairStructureComponentSettingsVisibility)
+	NULLATTRIBADAPTER (API_RailingType)
+	NULLATTRIBADAPTER (API_RailingSegmentType)
+	NULLATTRIBADAPTER (API_RailingRailEndType)
+	NULLATTRIBADAPTER (API_RailingRailConnectionType)
+	NULLATTRIBADAPTER (API_RailingPatternType)
+	NULLATTRIBADAPTER (API_RailingNodeType)
+	NULLATTRIBADAPTER (API_RailingToprailType)
+	NULLATTRIBADAPTER (API_RailingHandrailType)
+	NULLATTRIBADAPTER (API_RailingRailType)
+	NULLATTRIBADAPTER (API_RailingFinishType)
+	NULLATTRIBADAPTER (API_RailingPostType)
+	NULLATTRIBADAPTER (API_RailingInnerPostType)
+	NULLATTRIBADAPTER (API_RailingBalusterType)
+	NULLATTRIBADAPTER (API_RailingBalusterSetType)
+	NULLATTRIBADAPTER (API_RailingPanelType)
+	NULLATTRIBADAPTER (API_AxonoPars)
+	NULLATTRIBADAPTER (API_Tranmat)
+	NULLATTRIBADAPTER (API_CutPlaneMarkerShowType)
+	NULLATTRIBADAPTER (API_CWAccessoryCategoryID)
+	NULLATTRIBADAPTER (API_CWFrameObjectTypeID)
+	NULLATTRIBADAPTER (API_CWJunctionCategoryID)
+	NULLATTRIBADAPTER (API_CWPanelObjectTypeID)
+	NULLATTRIBADAPTER (API_CWSegmentCategoryID)
+	NULLATTRIBADAPTER (API_CWSegmentGridOrigPosTypeID)
+	NULLATTRIBADAPTER (API_CWSegmentTypeID)
+	NULLATTRIBADAPTER (API_CWBoundaryFramePosID)
+	NULLATTRIBADAPTER (API_CWPlacementID)
+	NULLATTRIBADAPTER (API_GridMeshHead)
+	NULLATTRIBADAPTER (API_GridMeshVertex)
+	NULLATTRIBADAPTER (API_GridMeshEdge)
+	NULLATTRIBADAPTER (API_GridEdgeInfo)
+	NULLATTRIBADAPTER (API_GridMeshLine)
+	NULLATTRIBADAPTER (API_GridMeshPolygon)
+	NULLATTRIBADAPTER (API_Interval)
+	NULLATTRIBADAPTER (API_SubElementType)
+	NULLATTRIBADAPTER (API_SubElemFlagType)
+	NULLATTRIBADAPTER (API_Plane3D)
+	NULLATTRIBADAPTER (API_ActTranPars)
+	NULLATTRIBADAPTERN (API_BeamPart)
+	NULLATTRIBADAPTERN (API_ConnectionGuidItem)
+	NULLATTRIBADAPTERN (API_DescriptorRefType)
+	NULLATTRIBADAPTERN (API_ElemInfo3D)
+	NULLATTRIBADAPTERN (API_HatchFlags)
+	NULLATTRIBADAPTERN (API_Neig)
+	NULLATTRIBADAPTERN (API_NeigElemPartID)
+	NULLATTRIBADAPTERN (API_NeigID)
+	NULLATTRIBADAPTERN (API_Niche)
+	NULLATTRIBADAPTERN (API_Obsolete_ComponentRefType)
+	NULLATTRIBADAPTERN (API_PropertyObjectRefType)
+	NULLATTRIBADAPTER (API_SelectionInfo)
+	NULLATTRIBADAPTERN (API_SelRelativePosID)
+	NULLATTRIBADAPTERN (API_SelTypeID)
+	NULLATTRIBADAPTERN (API_ShapePrimsParams)
+	NULLATTRIBADAPTERN (API_SolidOperationID)
+	NULLATTRIBADAPTERN (API_SyTran)
+	NULLATTRIBADAPTERN (API_ToolCmdID)
+	NULLATTRIBADAPTERN (API_TrimTypeID)
+	NULLATTRIBADAPTERN (API_UserData)
+	NULLATTRIBADAPTERN (API_WallPart)
+	NULLATTRIBADAPTERN (API_Box3D)
+	NULLATTRIBADAPTERN (API_Point)
+	NULLATTRIBADAPTERN (API_Rect)
+	NULLATTRIBADAPTER (API_Region)
+	NULLATTRIBADAPTERN (API_UVCoord)
+
+	// API Element Memo Types
+	NULLATTRIBADAPTER (API_ElementMemo)
+	NULLATTRIBADAPTER (API_AssemblySegmentData)
+	NULLATTRIBADAPTER (API_PolyArc)
+	NULLATTRIBADAPTER (API_AddParType)
+	NULLATTRIBADAPTER (API_Gable)
+	NULLATTRIBADAPTER (API_EdgeTrim)
+	NULLATTRIBADAPTER (API_MeshLevelCoord)
+	NULLATTRIBADAPTER (API_Coord3D)
+	NULLATTRIBADAPTER (API_DimElem)
+	NULLATTRIBADAPTER (API_SplineDir)
+	NULLATTRIBADAPTER (API_Beam_Hole)
+	NULLATTRIBADAPTER (API_LinkType)
+	NULLATTRIBADAPTER (API_ParagraphType)
+	NULLATTRIBADAPTER (API_TabType)
+	NULLATTRIBADAPTER (API_SectionSegment)
+	NULLATTRIBADAPTER (API_GridMesh)
+	NULLATTRIBADAPTER (API_CWSegmentPatternCellData)
+	NULLATTRIBADAPTER (API_CWSegmentPatternData)
+	NULLATTRIBADAPTER (API_CWContourData)
+
+	// Primitive Element Types
+	NULLATTRIBADAPTERMEMO (GSAPI::PrimElement)
+	NULLATTRIBADAPTER (API_Prim_Head)
+	NULLATTRIBADAPTER (API_PrimPoint)
+	NULLATTRIBADAPTER (API_PrimLine)
+	NULLATTRIBADAPTER (API_PrimArc)
+	NULLATTRIBADAPTER (API_PrimText)
+	NULLATTRIBADAPTER (API_PrimPLine)
+	NULLATTRIBADAPTER (API_PrimTri)
+	NULLATTRIBADAPTER (API_PrimPoly)
+	NULLATTRIBADAPTER (API_PrimPict)
+	NULLATTRIBADAPTERN (API_PrimElemRef)
+	NULLATTRIBADAPTER (API_PrimHatchBorder)
+	NULLATTRIBADAPTER (API_PrimHotspot)
+
+	// Other API types
+	NULLATTRIBADAPTER (API_GDLModelViewOptions)
+
+	// Categories
+	NULLATTRIBADAPTER (API_ElemCategory)
+	NULLATTRIBADAPTER (API_ElemCategoryValue)
+
+	// Properties
+	NULLATTRIBADAPTER (API_ListVariant)
+	NULLATTRIBADAPTER (API_Property)
+	NULLATTRIBADAPTER (API_PropertyDefaultValue)
+	NULLATTRIBADAPTER (API_PropertyDefinition)
+	NULLATTRIBADAPTER (API_PropertyValue)
+	NULLATTRIBADAPTER (API_SingleEnumerationVariant)
+	NULLATTRIBADAPTER (API_SingleVariant)
+	NULLATTRIBADAPTER (API_Variant)
+
+	// Override
+	NULLATTRIBADAPTER (API_OverrideRule)
+	NULLATTRIBADAPTER (API_OverrideRuleStyle)
+	NULLATTRIBADAPTER (API_OverrideStyle)
+};
+
+}	// namespace GSAPI
+
+#undef NULLATTRIBADAPTER
+#undef NULLATTRIBADAPTER
+#undef NULLATTRIBADAPTERMEMO
+#endif //__NULLTYPEATTRIBUTEADAPTERFACTORY_HPP__
