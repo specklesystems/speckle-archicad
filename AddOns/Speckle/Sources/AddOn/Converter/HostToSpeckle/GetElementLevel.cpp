@@ -5,9 +5,18 @@
 #include "ACAPinc.h"
 #include "CheckError.h"
 
+#include <iostream>
+
 std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 {
 	auto apielem = ConverterUtils::GetElement(elemId);
 	auto floorInd = apielem.header.floorInd;
 	return "Level " + std::to_string(floorInd);
+
+#if defined(AC27)
+	std::cout << "Hello";
+#elif defined(AC26)
+	std::cout << "Hello";
+#endif
+
 }
