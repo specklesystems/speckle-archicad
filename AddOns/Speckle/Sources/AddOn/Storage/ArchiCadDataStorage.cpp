@@ -38,7 +38,7 @@ void ArchiCadDataStorage::SaveData(const nlohmann::json& data, const std::string
 
 	std::string dataString = data.dump();
 	GS::MemoryOChannel32 memChannel(GS::MemoryOChannel32::BMAllocation);
-	CHECK_ERROR(GS::UniString(dataString).Write(memChannel));
+	CHECK_ERROR(GS::UniString(dataString.c_str()).Write(memChannel));
 	GSHandle content = nullptr;
 	CHECK_ERROR(BMPtrToHandle(memChannel.GetDestination(), &content, memChannel.GetDataSize()));
 	CHECK_ERROR(ACAPI_AddOnObject_ModifyObject(apiGuid, nullptr, &content));

@@ -5,6 +5,57 @@ static const GS::Guid	paletteGuid ("{B8461D5C-DB5C-45EB-9047-3303212F04AD}");
 GS::Ref<BrowserPalette>	BrowserPalette::instance;
 
 
+static GSErrCode CatchProjectEvent(GSFlags eventTypes, APIProjectEventHandlerProc* handlerProc)
+{
+	GSErrCode err = NoError;
+
+#if defined(AC28)
+	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
+#elif defined(AC27)
+	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
+#elif defined(AC26)
+	err = ACAPI_Notify_CatchProjectEvent(eventTypes, handlerProc);
+#elif defined(AC25)
+	err = ACAPI_Notify_CatchProjectEvent(eventTypes, handlerProc);
+#endif
+
+	return err;
+}
+
+static GSErrCode GetMenuItemFlags(void* par1 = nullptr, void* par2 = nullptr)
+{
+	GSErrCode err = NoError;
+
+#if defined(AC28)
+	err = ACAPI_MenuItem_GetMenuItemFlags(par1, par2);
+#elif defined(AC27)
+	err = ACAPI_MenuItem_GetMenuItemFlags(par1, par2);
+#elif defined(AC26)
+	err = ACAPI_Interface(APIIo_GetMenuItemFlagsID, par1, par2);
+#elif defined(AC25)
+	err = ACAPI_Interface(APIIo_GetMenuItemFlagsID, par1, par2);
+#endif
+
+	return err;
+}
+
+static GSErrCode SetMenuItemFlags(void* par1 = nullptr, void* par2 = nullptr)
+{
+	GSErrCode err = NoError;
+
+#if defined(AC28)
+	err = ACAPI_MenuItem_SetMenuItemFlags(par1, par2);
+#elif defined(AC27)
+	err = ACAPI_MenuItem_SetMenuItemFlags(par1, par2);
+#elif defined(AC26)
+	err = ACAPI_Interface(APIIo_SetMenuItemFlagsID, par1, par2);
+#elif defined(AC25)
+	err = ACAPI_Interface(APIIo_SetMenuItemFlagsID, par1, par2);
+#endif
+
+	return err;
+}
+
 static GSErrCode ACENV NotificationHandler (API_NotifyEventID notifID, Int32 /*param*/)
 {
 	switch (notifID) {
@@ -20,7 +71,7 @@ BrowserPalette::BrowserPalette () :
 	DG::Palette (ACAPI_GetOwnResModule (), BrowserPaletteResId, ACAPI_GetOwnResModule (), paletteGuid),
 	dgBrowser(GetReference (), BrowserId)
 {
-	ACAPI_ProjectOperation_CatchProjectEvent (APINotify_Quit, NotificationHandler);
+	CatchProjectEvent (APINotify_Quit, NotificationHandler);
 	Attach (*this);
 	BeginEventProcessing ();
 	browserAdapter = std::make_unique<ArchiCadBrowserAdapter>(&dgBrowser);
@@ -72,14 +123,12 @@ void BrowserPalette::SetMenuItemCheckedState (bool isChecked)
 	itemRef.menuResID = BrowserPaletteMenuResId;
 	itemRef.itemIndex = BrowserPaletteMenuItemIndex;
 
-	ACAPI_MenuItem_GetMenuItemFlags (&itemRef, &itemFlags);
-	//ACAPI_Interface(APIIo_GetMenuItemFlagsID, &itemRef, &itemFlags); //26
+	GetMenuItemFlags(&itemRef, &itemFlags);
 	if (isChecked)
 		itemFlags |= API_MenuItemChecked;
 	else
 		itemFlags &= ~API_MenuItemChecked;
-	ACAPI_MenuItem_SetMenuItemFlags (&itemRef, &itemFlags);
-	//ACAPI_Interface(APIIo_SetMenuItemFlagsID, &itemRef, &itemFlags); //26
+	SetMenuItemFlags(&itemRef, &itemFlags);
 }
 
 void BrowserPalette::PanelResized (const DG::PanelResizeEvent& ev)

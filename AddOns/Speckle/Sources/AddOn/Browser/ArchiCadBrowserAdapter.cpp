@@ -2,28 +2,54 @@
 #include "Binding.h"
 #include "RunMethodEventArgs.h"
 
+#if defined(AC28)
+using JSBase = JS::Base;
+using JSArray = JS::Array;
+using JSValue = JS::Value;
+using JSFunction = JS::Function;
+using JSObject = JS::Object;
+#elif defined(AC27)
+using JSBase = JS::Base;
+using JSArray = JS::Array;
+using JSValue = JS::Value;
+using JSFunction = JS::Function;
+using JSObject = JS::Object;
+#elif defined(AC26)
+using JSBase = DG::JSBase;
+using JSArray = DG::JSArray;
+using JSValue = DG::JSValue;
+using JSFunction = DG::JSFunction;
+using JSObject = DG::JSObject;
+#elif defined(AC25)
+using JSBase = DG::JSBase;
+using JSArray = DG::JSArray;
+using JSValue = DG::JSValue;
+using JSFunction = DG::JSFunction;
+using JSObject = DG::JSObject;
+#endif
+
 namespace
 {
-	GS::UniString GetStringFromJavaScriptVariable(GS::Ref<JS::Base> jsVariable)
+	GS::UniString GetStringFromJavaScriptVariable(GS::Ref<JSBase> jsVariable)
 	{
-		GS::Ref<JS::Value> jsValue = GS::DynamicCast<JS::Value>(jsVariable);
-		if (DBVERIFY(jsValue != nullptr && jsValue->GetType() == JS::Value::STRING))
+		GS::Ref<JSValue> jsValue = GS::DynamicCast<JSValue>(jsVariable);
+		if (DBVERIFY(jsValue != nullptr && jsValue->GetType() == JSValue::STRING))
 			return jsValue->GetString();
 
 		return GS::EmptyUniString;
 	}
 
-	std::vector<std::string> GetStringArrayFromJavaScriptArray(GS::Ref<JS::Base> jsVariable)
+	std::vector<std::string> GetStringArrayFromJavaScriptArray(GS::Ref<JSBase> jsVariable)
 	{
 		std::vector<std::string> values;
 
-		GS::Ref<JS::Array> jsArr = GS::DynamicCast<JS::Array>(jsVariable);
+		GS::Ref<JSArray> jsArr = GS::DynamicCast<JSArray>(jsVariable);
 		auto item = jsArr->GetItemArray()[0];
 
 		for (const auto item : jsArr->GetItemArray())
 		{
-			GS::Ref<JS::Value> jsValue = GS::DynamicCast<JS::Value>(item);
-			if (DBVERIFY(jsValue != nullptr && jsValue->GetType() == JS::Value::STRING))
+			GS::Ref<JSValue> jsValue = GS::DynamicCast<JSValue>(item);
+			if (DBVERIFY(jsValue != nullptr && jsValue->GetType() == JSValue::STRING))
 				values.push_back(jsValue->GetString().ToCStr().Get());
 		}
 
@@ -31,15 +57,15 @@ namespace
 	}
 
 	template<class Type>
-	GS::Ref<JS::Base> ConvertToJavaScriptVariable(const Type& cppVariable)
+	GS::Ref<JSBase> ConvertToJavaScriptVariable(const Type& cppVariable)
 	{
-		return new JS::Value(cppVariable);
+		return new JSValue(cppVariable);
 	}
 
 	template<class Type>
-	GS::Ref<JS::Base> ConvertToJavaScriptVariable(const GS::Array<Type>& cppArray)
+	GS::Ref<JSBase> ConvertToJavaScriptVariable(const GS::Array<Type>& cppArray)
 	{
-		GS::Ref<JS::Array> newArray = new JS::Array();
+		GS::Ref<JSArray> newArray = new JSArray();
 		for (const Type& item : cppArray) {
 			newArray->AddItem(ConvertToJavaScriptVariable(item));
 		}
@@ -53,9 +79,9 @@ ArchiCadBrowserAdapter::ArchiCadBrowserAdapter(DG::Browser* browser)
 
 void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 {
-	JS::Object* jsObject = new JS::Object(binding->GetName().c_str());
+	JSObject* jsObject = new JSObject(binding->GetName().c_str());
 
-	jsObject->AddItem(new JS::Function("GetBindingsMethodNames", [this, binding](GS::Ref<JS::Base>) {
+	jsObject->AddItem(new JSFunction("GetBindingsMethodNames", [this, binding](GS::Ref<JSBase>) {
 		GS::Array<GS::UniString> methodNames;
 		for (const auto& name : binding->GetMethodNames())
 			methodNames.Push(name.c_str());
@@ -63,7 +89,7 @@ void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 		return ConvertToJavaScriptVariable(methodNames);
 	}));
 
-	jsObject->AddItem(new JS::Function("RunMethod", [this, binding](GS::Ref<JS::Base> param) {
+	jsObject->AddItem(new JSFunction("RunMethod", [this, binding](GS::Ref<JSBase> param) {
 		auto args = GetStringArrayFromJavaScriptArray(param);
 
 		std::vector<nlohmann::json> data;
@@ -86,13 +112,13 @@ void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 		return ConvertToJavaScriptVariable(true);
 	}));
 
-	jsObject->AddItem(new JS::Function("GetCallResult", [this, binding](GS::Ref<JS::Base> param) {
+	jsObject->AddItem(new JSFunction("GetCallResult", [this, binding](GS::Ref<JSBase> param) {
 		auto methodId = GetStringFromJavaScriptVariable(param);
 		auto methodIdCstr = methodId.ToCStr().Get();
 		auto result = binding->GetResult(methodIdCstr);
 		std::string resultJson = result.dump();
 		binding->ClearResult(methodIdCstr);
-		auto jsval = new JS::Value(resultJson.c_str());
+		auto jsval = new JSValue(resultJson.c_str());
 		return jsval;
 	}));
 
