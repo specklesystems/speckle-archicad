@@ -9,8 +9,7 @@
 
 'STR#' 32500 "Menu strings" {
 /* [   ] */	"Speckle"
-/* [  1] */	"Connector"
-/* [  2] */	"Browser^E3^ED^EW^ES^EE^EI^EL^ET^EM^R"
+/* [  1] */	"Initialize Speckle (Beta)^E3^ED^EW^ES^EE^EI^EL^ET^EM^R"
 }
 
 /* --- Dockable browser palette ----------------------------------------------*/
