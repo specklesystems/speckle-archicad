@@ -67,8 +67,11 @@ void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
 
 void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
 {
-    // TODO implement
+#if defined DEBUG
     args.eventSource->SetResult(args.methodId, true);
+#else
+    args.eventSource->SetResult(args.methodId, false);
+#endif
 }
 
 void ConfigBridge::UpdateConfig(const RunMethodEventArgs& /*args*/)

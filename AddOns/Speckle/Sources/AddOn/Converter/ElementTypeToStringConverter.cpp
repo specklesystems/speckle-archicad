@@ -76,7 +76,9 @@ static const std::unordered_map<API_ElemTypeID, std::string> elementTypeToString
     {API_BeamSegmentID, "BeamSegment"},
     {API_ColumnSegmentID, "ColumnSegment"},
     {API_OpeningID, "Opening"},
+#ifndef AC25
     {API_ExternalElemID, "ExternalElem"}
+#endif
 };
 
 std::string ElementTypeToStringConverter::ElementTypeToString(API_ElemTypeID type) 

@@ -147,9 +147,13 @@ void BaseBridge::HighlightModel(const RunMethodEventArgs& args)
     CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
 }
 
-void BaseBridge::HighlightObjects(const RunMethodEventArgs& /*args*/) 
+void BaseBridge::HighlightObjects(const RunMethodEventArgs& args) 
 {
-    // TODO implement
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    auto selection = args.data[0].get<std::vector<std::string>>();
+    CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
 }
 
 void BaseBridge::OpenUrl(const RunMethodEventArgs& args) 
@@ -162,9 +166,14 @@ void BaseBridge::OpenUrl(const RunMethodEventArgs& args)
     system(command.c_str());
 }
 
-void BaseBridge::RemoveModel(const RunMethodEventArgs& /*args*/) 
+void BaseBridge::RemoveModel(const RunMethodEventArgs& args) 
 {
-    // TODO implement
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    SendModelCard modelCard = args.data[0].get<SendModelCard>();
+    CONNECTOR.GetModelCardDatabase().RemoveModel(modelCard.modelCardId);
+    args.eventSource->ResponseReady(args.methodId);
 }
 
 void BaseBridge::UpdateModel(const RunMethodEventArgs& args) 

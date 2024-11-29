@@ -1,6 +1,7 @@
 #include "ArchiCadBrowserAdapter.h"
 #include "Binding.h"
 #include "RunMethodEventArgs.h"
+#include "JsonFileWriter.h"
 
 #if defined(AC28)
 using JSBase = JS::Base;
@@ -116,10 +117,10 @@ void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 		auto methodId = GetStringFromJavaScriptVariable(param);
 		auto methodIdCstr = methodId.ToCStr().Get();
 		auto result = binding->GetResult(methodIdCstr);
-		std::string resultJson = result.dump();
+		std::string resultJson = result.dump();		
 		binding->ClearResult(methodIdCstr);
-		auto jsval = new JSValue(resultJson.c_str());
-		return jsval;
+
+		return new JSValue(resultJson.c_str());
 	}));
 
 	_browser->RegisterAsynchJSObject(jsObject);

@@ -81,7 +81,14 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 {
 	auto acModel = ConverterUtils::GetArchiCadModel();
 	auto apiElem = ConverterUtils::GetElement(elemId);
-	auto partIDs = CollectPartIDs(apiElem.header.guid, apiElem.header.type.typeID);
+
+#if defined(AC25)
+	auto elemType = apiElem.header.typeID;
+#else
+	auto elemType = apiElem.header.type.typeID;
+#endif
+
+	auto partIDs = CollectPartIDs(apiElem.header.guid, elemType);
 
 	// the body to return
 	ElementBody elementBody{};
