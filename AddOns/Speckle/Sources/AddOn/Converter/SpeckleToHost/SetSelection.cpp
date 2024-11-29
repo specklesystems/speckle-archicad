@@ -26,13 +26,13 @@ static GSErrCode Select(const GS::Array<API_Neig>& selNeigs, bool add)
 	GSErrCode err = NoError;
 
 #if defined(AC28)
-	err = ACAPI_Selection_Select();
+	err = ACAPI_Selection_Select(selNeigs, add);
 #elif defined(AC27)
-	err = ACAPI_Selection_Select();
+	err = ACAPI_Selection_Select(selNeigs, add);
 #elif defined(AC26)
 	err = ACAPI_Element_Select(selNeigs, add);
 #elif defined(AC25)
-	err = ACAPI_Element_Select();
+	err = ACAPI_Element_Select(selNeigs, add);
 #endif
 
 	return err;

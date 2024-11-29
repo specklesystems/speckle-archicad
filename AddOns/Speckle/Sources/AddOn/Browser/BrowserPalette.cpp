@@ -22,35 +22,35 @@ static GSErrCode CatchProjectEvent(GSFlags eventTypes, APIProjectEventHandlerPro
 	return err;
 }
 
-static GSErrCode GetMenuItemFlags(void* par1 = nullptr, void* par2 = nullptr)
+static GSErrCode GetMenuItemFlags(API_MenuItemRef* menuItem = nullptr, GSFlags* flags = nullptr)
 {
 	GSErrCode err = NoError;
 
 #if defined(AC28)
-	err = ACAPI_MenuItem_GetMenuItemFlags(par1, par2);
+	err = ACAPI_MenuItem_GetMenuItemFlags(menuItem, flags);
 #elif defined(AC27)
-	err = ACAPI_MenuItem_GetMenuItemFlags(par1, par2);
+	err = ACAPI_MenuItem_GetMenuItemFlags(menuItem, flags);
 #elif defined(AC26)
-	err = ACAPI_Interface(APIIo_GetMenuItemFlagsID, par1, par2);
+	err = ACAPI_Interface(APIIo_GetMenuItemFlagsID, menuItem, flags);
 #elif defined(AC25)
-	err = ACAPI_Interface(APIIo_GetMenuItemFlagsID, par1, par2);
+	err = ACAPI_Interface(APIIo_GetMenuItemFlagsID, menuItem, flags);
 #endif
 
 	return err;
 }
 
-static GSErrCode SetMenuItemFlags(void* par1 = nullptr, void* par2 = nullptr)
+static GSErrCode SetMenuItemFlags(API_MenuItemRef* menuItem = nullptr, GSFlags* flags = nullptr)
 {
 	GSErrCode err = NoError;
 
 #if defined(AC28)
-	err = ACAPI_MenuItem_SetMenuItemFlags(par1, par2);
+	err = ACAPI_MenuItem_SetMenuItemFlags(menuItem, flags);
 #elif defined(AC27)
-	err = ACAPI_MenuItem_SetMenuItemFlags(par1, par2);
+	err = ACAPI_MenuItem_SetMenuItemFlags(menuItem, flags);
 #elif defined(AC26)
-	err = ACAPI_Interface(APIIo_SetMenuItemFlagsID, par1, par2);
+	err = ACAPI_Interface(APIIo_SetMenuItemFlagsID, menuItem, flags);
 #elif defined(AC25)
-	err = ACAPI_Interface(APIIo_SetMenuItemFlagsID, par1, par2);
+	err = ACAPI_Interface(APIIo_SetMenuItemFlagsID, menuItem, flags);
 #endif
 
 	return err;
