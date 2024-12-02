@@ -14,8 +14,8 @@
 
 /* --- Dockable browser palette ----------------------------------------------*/
 
-'GDLG'  32500    Palette | topCaption | close | grow   0   0  450  150  "Speckle Connector"  {
-/* [  1] */ Browser			0   0  450  150
+'GDLG'  32500    Palette | topCaption | close | grow   0   0  250  350  "Speckle Connector"  {
+/* [  1] */ Browser			0   0  250  350
 }
 
 'DLGH'  32500  DLG_32500_Browser_Palette {

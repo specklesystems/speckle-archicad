@@ -8,8 +8,7 @@
 struct RootObject
 {
     std::string speckle_type = "Speckle.Core.Models.Collections.Collection";
-    // TODO use project name here
-    std::string name = "RootObject";
+    std::string name = "";
     std::map<std::string, Level> elements;
     std::vector<RenderMaterialProxy> renderMaterialProxies;
 };

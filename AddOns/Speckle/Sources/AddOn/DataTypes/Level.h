@@ -7,7 +7,7 @@
 struct Level
 {
     std::string speckle_type = "Speckle.Core.Models.Collections.Collection";
-    std::string name = "Level";
+    std::string name = "";
     std::map<std::string, ElementTypeCollection> elements;
 };
 

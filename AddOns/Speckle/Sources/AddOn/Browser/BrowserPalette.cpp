@@ -108,11 +108,13 @@ void BrowserPalette::DestroyInstance ()
 void BrowserPalette::Show ()
 {
 	DG::Palette::Show ();
+	SetMenuItemCheckedState(true);
 }
 
 void BrowserPalette::Hide ()
 {
 	DG::Palette::Hide ();
+	SetMenuItemCheckedState(false);
 }
 
 void BrowserPalette::SetMenuItemCheckedState (bool isChecked)
@@ -164,6 +166,7 @@ GSErrCode ACENV	BrowserPalette::PaletteControlCallBack (Int32, API_PaletteMessag
 			GetInstance ().Hide ();
 			break;
 
+		/*
 		case APIPalMsg_HidePalette_Begin:
 			if (HasInstance () && GetInstance ().IsVisible ())
 				GetInstance ().Hide ();
@@ -183,6 +186,7 @@ GSErrCode ACENV	BrowserPalette::PaletteControlCallBack (Int32, API_PaletteMessag
 			if (HasInstance () && GetInstance ().IsVisible ())
 				GetInstance ().EnableItems ();
 			break;
+		*/
 
 		case APIPalMsg_IsPaletteVisible:
 			*(reinterpret_cast<bool*> (param)) = HasInstance () && GetInstance ().IsVisible ();

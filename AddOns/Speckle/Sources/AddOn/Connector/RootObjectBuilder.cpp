@@ -79,5 +79,8 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         rootObject.renderMaterialProxies.push_back(renderMaterialProxy.second);
     }
 
+    auto projectInfo = CONNECTOR.GetHostToSpeckleConverter().GetProjectInfo();
+    rootObject.name = projectInfo.name;
+
     return rootObject;
 }

@@ -97,9 +97,9 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.accountId = modelCard.accountId;
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
     // TODO: message
-    sendArgs.message = "Sending data from ArchiCAD";
-    //sendArgs.sendConversionResults = nlohmann::json::array();
+    sendArgs.message = "Sending model from ArchiCAD";
 
+    CONNECTOR.GetSpeckleToHostConverter().ShowAllIn3D();
     nlohmann::json sendObj;
     RootObjectBuilder rootObjectBuilder{};
     std::vector<SendConversionResult> conversionResults;

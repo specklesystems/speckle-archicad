@@ -113,9 +113,24 @@ void BaseBridge::GetConnectorVersion(const RunMethodEventArgs& args)
 
 void BaseBridge::GetDocumentInfo(const RunMethodEventArgs& args) 
 {
-    auto documentInfo = CONNECTOR.GetHostToSpeckleConverter().GetProjectInfo();
-    documentInfo.id = CONNECTOR.GetDataStorage().GetDataStorageId(Connector::MODELCARD_ADDONOBJECT_NAME);
-    args.eventSource->SetResult(args.methodId, documentInfo);
+    try
+    {
+        auto documentInfo = CONNECTOR.GetHostToSpeckleConverter().GetProjectInfo();
+        documentInfo.id = CONNECTOR.GetDataStorage().GetDataStorageId(Connector::MODELCARD_ADDONOBJECT_NAME);
+        args.eventSource->SetResult(args.methodId, documentInfo);
+    }
+    catch (const ArchiCadApiException& acex)
+    {
+        // handle no open project exception locally
+        if (acex.getErrorCode() == -2130313013)
+        {
+            args.eventSource->SetResult(args.methodId, nullptr);
+        }
+        else
+        {
+            throw;
+        }
+    }
 }
 
 void BaseBridge::GetDocumentState(const RunMethodEventArgs& args) 
@@ -131,9 +146,8 @@ void BaseBridge::GetSourceApplicationName(const RunMethodEventArgs& args)
 
 void BaseBridge::GetSourceApplicationVersion(const RunMethodEventArgs& args) 
 {
-    // TODO implement
-    // ACAPI_GetReleaseNumber
-    args.eventSource->SetResult(args.methodId, "27");
+    auto appVersion = CONNECTOR.GetHostToSpeckleConverter().GetHostAppReleaseInfo();
+    args.eventSource->SetResult(args.methodId, appVersion);
 }
 
 void BaseBridge::HighlightModel(const RunMethodEventArgs& args) 
