@@ -1,0 +1,56 @@
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Build Archicad
+
+on:
+  push:
+    branches: ["main", "dev", "release/*", "alan/*"] # Continuous delivery on every long-lived branch
+    tags: ["v3.*"] # Manual delivery on every 3.x tag
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+            
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+      - name: Run CMAKE
+        run: cmake -G "Visual Studio 17 2022" -T v142 -A "x64" -DAC_ADDON_LANGUAGE="INT" -DAC_API_DEVKIT_DIR="Libs\acapi27" -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build solution
+        run: msbuild build/archicad-speckle.sln /p:Configuration=Release /p:Version=3.0.0-beta /p:FileVersion=3.0.0
+
+  deploy-installers:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      IS_TAG_BUILD: ${{ github.ref_type == 'tag' }}
+      IS_RELEASE_BRANCH: true
+    steps:
+      - name: 🔫 Trigger Build Installers
+        uses: ALEEF02/workflow-dispatch@v3.0.0
+        continue-on-error: true
+        with:
+          workflow: build-cpp-installers
+          repo: specklesystems/connector-installers
+          token: ${{ secrets.CONNECTORS_GH_TOKEN }}
+          inputs: '{ "run_id": "${{ github.run_id }}", "version": "${{ needs.build.outputs.version }}", "file_version": "${{needs.build.outputs.file_version}}", "public_release": ${{ env.IS_TAG_BUILD }}, "store_artifacts": ${{ env.IS_RELEASE_BRANCH }} }'
+          ref: main
+          wait-for-completion: true
+          wait-for-completion-interval: 10s
+          wait-for-completion-timeout: 10m
+          display-workflow-run-url: true
+          display-workflow-run-url-interval: 10s
+
+      - uses: geekyeggo/delete-artifact@v5
+        with:
+          name: output-*
