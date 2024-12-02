@@ -30,7 +30,10 @@ jobs:
       - name: LS
         run: ls
         working-directory: build/27/
-        
+
+      - name: Build sln and zip
+        run: ./build.ps1 zip
+      
       - uses: actions/upload-artifact@v4
         with:
           name: output-${{ env.GitVersion_FullSemVer }}
