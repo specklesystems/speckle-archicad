@@ -16,6 +16,10 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+      file_version: ${{ steps.set-info-version.outputs.file_version }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,7 +62,7 @@ jobs:
           repo: specklesystems/connector-installers
           token: ${{ secrets.CONNECTORS_GH_TOKEN }}
           inputs: '{ "run_id": "${{ github.run_id }}", "version": "${{ needs.build.outputs.version }}", "file_version": "${{needs.build.outputs.file_version}}", "public_release": ${{ env.IS_TAG_BUILD }}, "store_artifacts": ${{ env.IS_RELEASE_BRANCH }} }'
-          ref: main
+          ref: alan/update-archicad-installer
           wait-for-completion: true
           wait-for-completion-interval: 10s
           wait-for-completion-timeout: 10m
