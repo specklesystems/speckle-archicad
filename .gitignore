@@ -11,3 +11,8 @@
 *.bak
 *.log
 **/*_svg_source/
+
+**/obj
+**/bin
+**/Thumbs.db
+**/output
