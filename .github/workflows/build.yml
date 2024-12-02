@@ -1,4 +1,3 @@
-
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
 # separate terms of service, privacy policy, and support
@@ -23,11 +22,9 @@ jobs:
           fetch-depth: 0
 
       - name: ⚒️ Run GitVersion
-        working-directory: speckle-cpp-connectors
         run: ./build.ps1 build-server-version
 
       - name: Build
-        working-directory: speckle-cpp-connectors
         run: ./build.ps1
 
       - uses: actions/upload-artifact@v4
