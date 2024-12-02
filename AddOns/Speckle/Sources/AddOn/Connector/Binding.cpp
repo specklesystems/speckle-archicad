@@ -1,5 +1,6 @@
 #include "Binding.h"
-
+#include "Base64GuidGenerator.h"
+#include "Debug.h"
 
 Binding::Binding(const std::string& name, const std::vector<std::string>& methodNames, IBrowserAdapter* browserAdapter)
     : _name(name), _methodNames(methodNames), _browserAdapter(browserAdapter)
@@ -17,27 +18,45 @@ std::vector<std::string> Binding::GetMethodNames() const
 	return _methodNames;
 }
 
-void Binding::SetResult(const std::string& key, nlohmann::json value)
+void Binding::SetResult(const std::string& methodId, const nlohmann::json& data)
 {
-	CacheResult(key, std::make_unique<nlohmann::json>(value));
-	ResponseReady(key);
+	CacheResult(methodId, data);
+	ResponseReady(methodId);
 }
 
-std::unique_ptr<nlohmann::json> Binding::GetResult(const std::string& key)
+void Binding::Send(const std::string& methodName, const nlohmann::json& data)
+{
+	std::string guid = Base64GuidGenerator::NewGuid();
+	std::string methodId = guid + "_" + methodName;
+
+	std::string s = "Send: " + methodId + " : " + data.dump() + "\n";
+	Debug::Print(s);
+
+	CacheResult(methodId, data);
+	EmitResponseReady(methodName, methodId);
+}
+
+void Binding::SendByBrowser(const std::string& sendMethodId, const nlohmann::json& data)
+{
+	Send("sendByBrowser", data);
+	ResponseReady(sendMethodId);
+}
+
+nlohmann::json Binding::GetResult(const std::string& methodId)
 {
 	try
 	{
-		return std::move(results.at(key));
+		return results.at(methodId);
 	}
 	catch (const std::exception&)
 	{
-		return nullptr;
+		return {};
 	}
 }
 
-void Binding::CacheResult(const std::string& key, std::unique_ptr<nlohmann::json> value)
+void Binding::CacheResult(const std::string& methodId, const nlohmann::json& result)
 {
-	results[key] = std::move(value);
+	results[methodId] = result;
 }
 
 void Binding::ResponseReady(const std::string methodId)
@@ -52,8 +71,22 @@ void Binding::EmitResponseReady(const std::string methodName, const std::string 
 	_browserAdapter->ExecuteJS(command.c_str());
 }
 
-void Binding::ClearResult(const std::string& key)
+void Binding::Emit(const std::string eventName)
 {
-	results[key].release();
-	results.erase(key);
+	std::string command = _name + ".emit('" + eventName + "')";
+
+	std::string s = "Emit : " + eventName + "\n";
+	Debug::Print(s);
+
+	_browserAdapter->ExecuteJS(command.c_str());
+}
+
+void Binding::ClearResult(const std::string& methodId)
+{
+	results.erase(methodId);
+}
+
+void Binding::SetToastNotification(const ToastNotification& toast)
+{
+	Send("setGlobalNotification", toast);
 }

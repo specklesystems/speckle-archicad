@@ -12,8 +12,8 @@ public:
 private:
     std::unique_ptr<Binding> sendBinding;
 
-    void Init(IBrowserAdapter* browser);
     void OnRunMethod(const RunMethodEventArgs& args);
+    void RunMethod(const RunMethodEventArgs& args);
 
     void GetSendFilters(const RunMethodEventArgs& args);
     void GetSendSettings(const RunMethodEventArgs& args);

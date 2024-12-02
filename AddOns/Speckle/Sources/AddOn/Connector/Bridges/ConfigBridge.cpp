@@ -1,13 +1,9 @@
 #include "ConfigBridge.h"
-#include "LoggerFactory.h"
+#include "InvalidMethodNameException.h"
+#include "ArchiCadApiException.h"
 
 
 ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
-{
-    Init(browser);
-}
-
-void ConfigBridge::Init(IBrowserAdapter* browser)
 {
     configBinding = std::make_unique<Binding>(
         "configBinding",
@@ -18,7 +14,31 @@ void ConfigBridge::Init(IBrowserAdapter* browser)
     configBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }
 
+// POC duplicated code, move try catch logic to Binding
 void ConfigBridge::OnRunMethod(const RunMethodEventArgs& args)
+{
+    try
+    {
+        RunMethod(args);
+    }
+    catch (const ArchiCadApiException& acex)
+    {
+        configBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+    }
+    catch (const std::exception& stdex)
+    {
+        configBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
+    }
+    catch (...)
+    {
+        configBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
+    }
+}
+
+void ConfigBridge::RunMethod(const RunMethodEventArgs& args)
 {
     if (args.methodName == "GetConfig")
     {
@@ -34,14 +54,12 @@ void ConfigBridge::OnRunMethod(const RunMethodEventArgs& args)
     }
     else
     {
-        GET_LOGGER("ConfigBridge")->Info("Invalid method name");
+        throw InvalidMethodNameException(args.methodName);
     }
 }
 
 void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
-{
-    GET_LOGGER("ConfigBridge")->Info(args.methodName + " called");
-    
+{    
     nlohmann::json res;
     res["darkTheme"] = true;
     args.eventSource->SetResult(args.methodId, res);
@@ -49,13 +67,14 @@ void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
 
 void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
 {
-    GET_LOGGER("ConfigBridge")->Info(args.methodName + " called");
-
+#if defined DEBUG
     args.eventSource->SetResult(args.methodId, true);
+#else
+    args.eventSource->SetResult(args.methodId, false);
+#endif
 }
 
-void ConfigBridge::UpdateConfig(const RunMethodEventArgs& args)
+void ConfigBridge::UpdateConfig(const RunMethodEventArgs& /*args*/)
 {
-    GET_LOGGER("ConfigBridge")->Info(args.methodName + " called");
-    // Logic to update the configuration data goes here
+    // TODO implement
 }

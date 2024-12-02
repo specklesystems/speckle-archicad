@@ -1,12 +1,12 @@
 #pragma once
 
 #include "json.hpp"
-#include "Utils.h"
+#include "GuidGenerator.h"
 
 struct Mesh
 {
     std::string speckle_type = "Objects.Geometry.Mesh";
-    std::string applicationId = Utils::GenerateGUID();
+    std::string applicationId = GuidGenerator::NewGuid();
     std::string units = "m"; // default to meters
     std::vector<double> vertices;
     std::vector<int> faces;

@@ -4,8 +4,11 @@
 #include "RunMethodEventArgs.h"
 #include "json.hpp"
 #include "IBrowserAdapter.h"
+#include "ToastNotification.h"
 
-class Binding {
+
+class Binding 
+{
 public:
     Event<const RunMethodEventArgs&> RunMethodRequested;
 
@@ -14,10 +17,10 @@ private:
     std::vector<std::string> _methodNames;
 
     // this adapter will provide an interface for Bindings to register their JSObjects, and function names
-    // without needing to include GS dependencies in the Binding class
+    // without needing to include GS dependencies to DG::Browser in the Binding class
     IBrowserAdapter* _browserAdapter;
 
-    std::map<std::string, std::unique_ptr<nlohmann::json>> results;
+    std::map<std::string, nlohmann::json> results;
 
 public:
     Binding() = default;
@@ -27,10 +30,16 @@ public:
     std::string GetName() const;
     std::vector<std::string> GetMethodNames() const;
 
-    std::unique_ptr <nlohmann::json> GetResult(const std::string& key);
-    void SetResult(const std::string& key, nlohmann::json value);
-    void CacheResult(const std::string& key, std::unique_ptr<nlohmann::json>);
+    nlohmann::json GetResult(const std::string& methodId);
+    void SetResult(const std::string& methodId, const nlohmann::json& data);
+    void Send(const std::string& methodName, const nlohmann::json& data);
+    void SendByBrowser(const std::string& sendMethodId, const nlohmann::json& data);
+
+    void CacheResult(const std::string& methodId, const nlohmann::json& result);
     void ResponseReady(const std::string methodId);
     void EmitResponseReady(const std::string methodName, const std::string methodId);
-    void ClearResult(const std::string& key);
+    void Emit(const std::string eventName);
+    void ClearResult(const std::string& methodId);
+
+    void SetToastNotification(const ToastNotification& toast);
 };

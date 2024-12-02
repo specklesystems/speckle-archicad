@@ -12,8 +12,8 @@ public:
 private:
     std::unique_ptr<Binding> accountsBinding;
     
-    void Init(IBrowserAdapter* browser);
     void OnRunMethod(const RunMethodEventArgs& args);
+    void RunMethod(const RunMethodEventArgs& args);
 
     void GetAccounts(const RunMethodEventArgs& args);
 };

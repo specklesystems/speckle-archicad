@@ -8,4 +8,5 @@ public:
 	SpeckleToHostConverter() = default;
 
 	void SetSelection(std::vector<std::string> guids) override;
+	void ShowAllIn3D() override;
 };

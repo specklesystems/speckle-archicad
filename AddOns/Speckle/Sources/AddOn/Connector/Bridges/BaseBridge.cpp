@@ -1,15 +1,10 @@
 #include "BaseBridge.h"
-#include "LoggerFactory.h"
-//#include "DummyArchicad.h"
-//#include "ModelCardDatabase.h"
 #include "Connector.h"
+#include "InvalidMethodNameException.h"
+#include "ArchiCadApiException.h"
+
 
 BaseBridge::BaseBridge(IBrowserAdapter* browser)
-{
-    Init(browser);
-}
-
-void BaseBridge::Init(IBrowserAdapter* browser)
 {
     baseBinding = std::make_unique<Binding>(
         "baseBinding",
@@ -24,7 +19,31 @@ void BaseBridge::Init(IBrowserAdapter* browser)
     baseBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }
 
-void BaseBridge::OnRunMethod(const RunMethodEventArgs& args) 
+// POC duplicated code, move try catch logic to Binding
+void BaseBridge::OnRunMethod(const RunMethodEventArgs& args)
+{
+    try
+    {
+        RunMethod(args);
+    }
+    catch (const ArchiCadApiException& acex)
+    {
+        baseBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+    }
+    catch (const std::exception& stdex)
+    {
+        baseBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
+    }
+    catch (...)
+    {
+        baseBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
+    }
+}
+
+void BaseBridge::RunMethod(const RunMethodEventArgs& args) 
 {
     if (args.methodName == "AddModel") 
     {
@@ -72,58 +91,51 @@ void BaseBridge::OnRunMethod(const RunMethodEventArgs& args)
     }
     else 
     {
-        GET_LOGGER("BaseBridge")->Info("Invalid method name: " + args.methodName);
+        throw InvalidMethodNameException(args.methodName);
     }
 }
 
 void BaseBridge::AddModel(const RunMethodEventArgs& args) 
 {
-    GET_LOGGER("BaseBridge")->Info(args.methodName + " called with args:" + args.args);
-    try
-    {
-        nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-        std::string rawString = parsedJson[0];
-        auto model = nlohmann::json::parse(rawString);
-        SendModelCard mc = model.get<SendModelCard>();
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
-        CONNECTOR.modelCardDatabase->AddModel(mc);
-
-        args.eventSource->ResponseReady(args.methodId);
-    }
-    catch (nlohmann::json::parse_error& e)
-    {
-        GET_LOGGER("BaseBridge")->Info("JSON parse error: " + std::string(e.what()));
-    }
-    catch (std::exception& e)
-    {
-        GET_LOGGER("BaseBridge")->Info("Unexpected error " + std::string(e.what()));
-    }
-    catch (...)
-    {
-        // oh
-    }
+    SendModelCard modelCard = args.data[0].get<SendModelCard>();
+    CONNECTOR.GetModelCardDatabase().AddModel(modelCard);
+    args.eventSource->ResponseReady(args.methodId);
 }
 
 void BaseBridge::GetConnectorVersion(const RunMethodEventArgs& args) 
 {
-    args.eventSource->SetResult(args.methodId, "1.2.3");
+    // TODO what should this number be?
+    args.eventSource->SetResult(args.methodId, "3.0.0");
 }
 
 void BaseBridge::GetDocumentInfo(const RunMethodEventArgs& args) 
 {
-    nlohmann::json documentInfo;
-    documentInfo["location"] = "C:\\Users\\david\\Desktop\\A.pln";
-    documentInfo["name"] = "A";
-    documentInfo["id"] = "123456";
-
-    args.eventSource->SetResult(args.methodId, documentInfo);
+    try
+    {
+        auto documentInfo = CONNECTOR.GetHostToSpeckleConverter().GetProjectInfo();
+        documentInfo.id = CONNECTOR.GetDataStorage().GetDataStorageId(Connector::MODELCARD_ADDONOBJECT_NAME);
+        args.eventSource->SetResult(args.methodId, documentInfo);
+    }
+    catch (const ArchiCadApiException& acex)
+    {
+        // handle no open project exception locally
+        if (acex.getErrorCode() == -2130313013)
+        {
+            args.eventSource->SetResult(args.methodId, nullptr);
+        }
+        else
+        {
+            throw;
+        }
+    }
 }
 
 void BaseBridge::GetDocumentState(const RunMethodEventArgs& args) 
 {
-    auto models = CONNECTOR.modelCardDatabase->GetModels();
-    nlohmann::json modelsJson;
-    modelsJson["models"] = models;
+    auto modelsJson = CONNECTOR.GetModelCardDatabase().GetModelsAsJson();
     args.eventSource->SetResult(args.methodId, modelsJson);
 }
 
@@ -134,71 +146,61 @@ void BaseBridge::GetSourceApplicationName(const RunMethodEventArgs& args)
 
 void BaseBridge::GetSourceApplicationVersion(const RunMethodEventArgs& args) 
 {
-    args.eventSource->SetResult(args.methodId, "27");
+    auto appVersion = CONNECTOR.GetHostToSpeckleConverter().GetHostAppReleaseInfo();
+    args.eventSource->SetResult(args.methodId, appVersion);
 }
 
 void BaseBridge::HighlightModel(const RunMethodEventArgs& args) 
 {
-    GET_LOGGER("BaseBridge")->Info(args.methodName + " called with args:" + args.args);
-    try
-    {
-        // get the modelcard by id
-        nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-        std::string rawString = parsedJson[0];
-        std::string id = nlohmann::json::parse(rawString).get<std::string>();
-        SendModelCard modelCard = CONNECTOR.modelCardDatabase->GetModelCard(id);
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
-        auto selection = modelCard.sendFilter.selectedObjectIds;
-        CONNECTOR.speckleToHostConverter->SetSelection(selection);
-    }
-    catch (nlohmann::json::parse_error& e)
-    {
-        GET_LOGGER("BaseBridge")->Info("JSON parse error: " + std::string(e.what()));
-    }
-    catch (...)
-    {
-        GET_LOGGER("BaseBridge")->Info("Unexpected error");
-    }
+    auto id = args.data[0].get<std::string>();
+    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
+    auto selection = modelCard.sendFilter.selectedObjectIds;
+    CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
 }
 
 void BaseBridge::HighlightObjects(const RunMethodEventArgs& args) 
 {
-    GET_LOGGER("BaseBridge")->Info(args.methodName + " called with args:" + args.args);
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    auto selection = args.data[0].get<std::vector<std::string>>();
+    CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
 }
 
 void BaseBridge::OpenUrl(const RunMethodEventArgs& args) 
 {
-    nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-    std::string rawString = parsedJson[0];
-    std::string url = nlohmann::json::parse(rawString).get<std::string>();
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
+    std::string url = args.data[0].get<std::string>();
     std::string command = "start " + url;
     system(command.c_str());
 }
 
 void BaseBridge::RemoveModel(const RunMethodEventArgs& args) 
 {
-    GET_LOGGER("BaseBridge")->Info(args.methodName + " called with args:" + args.args);
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    SendModelCard modelCard = args.data[0].get<SendModelCard>();
+    CONNECTOR.GetModelCardDatabase().RemoveModel(modelCard.modelCardId);
+    args.eventSource->ResponseReady(args.methodId);
 }
 
 void BaseBridge::UpdateModel(const RunMethodEventArgs& args) 
 {
-    GET_LOGGER("BaseBridge")->Info(args.methodName + " called with args:" + args.args);
-    try
-    {
-        nlohmann::json parsedJson = nlohmann::json::parse(args.args);
-        std::string rawString = parsedJson[0];
-        auto model = nlohmann::json::parse(rawString);
-        CONNECTOR.modelCardDatabase->AddModel(model);
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
-        args.eventSource->ResponseReady(args.methodId);
-    }
-    catch (nlohmann::json::parse_error& e)
-    {
-        GET_LOGGER("BaseBridge")->Info("JSON parse error: " + std::string(e.what()));
-    }
-    catch (...)
-    {
-        GET_LOGGER("BaseBridge")->Info("Unexpected error");
-    }
+    SendModelCard modelCard = args.data[0].get<SendModelCard>();
+    CONNECTOR.GetModelCardDatabase().AddModel(modelCard);
+    args.eventSource->ResponseReady(args.methodId);
+}
+
+void BaseBridge::OnDocumentChanged()
+{
+    baseBinding->Emit("documentChanged");
 }

@@ -1,39 +1,72 @@
 #include "AccountDatabase.h"
 #include "sqlite3.h"
 #include <iostream>
+#include <windows.h>
+#include <shlobj.h>
+
+static const int ACCOUNT_ID_COLUMN = 0;
+static const int ACCOUNT_DATA_COLUMN = 1;
+
+namespace
+{
+    // Function to convert wide string to narrow string
+    std::string WideStringToString(const std::wstring& wideString) 
+    {
+        int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, wideString.c_str(), -1, NULL, 0, NULL, NULL);
+        if (sizeNeeded <= 0) 
+        {
+            throw std::runtime_error("WideCharToMultiByte conversion failed");
+        }
+        std::string narrowString(sizeNeeded, 0);
+        WideCharToMultiByte(CP_UTF8, 0, wideString.c_str(), -1, &narrowString[0], sizeNeeded, NULL, NULL);
+        return narrowString;
+    }
+
+    // Function to get the dynamic DB path
+    const char* GetAccountsDatabasePath() 
+    {
+        static char resultPath[MAX_PATH];
+        wchar_t appDataPath[MAX_PATH];
+        if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) 
+        {
+            std::wstring wideDbPath = std::wstring(appDataPath) + L"\\Speckle\\Accounts.db";
+            std::string dbPath = WideStringToString(wideDbPath);
+            strncpy_s(resultPath, dbPath.c_str(), MAX_PATH - 1);
+            resultPath[MAX_PATH - 1] = '\0'; // Ensure null-termination
+            return resultPath;
+        }
+        else 
+        {
+            throw std::runtime_error("Failed to get AppData path");
+        }
+    }
+}
 
 AccountDatabase::AccountDatabase() 
 {
-    InitData();
-}
-
-void AccountDatabase::InitData()
-{
-    accountsData = R"([])";
+    LoadAccountsFromDB();
 }
 
 nlohmann::json AccountDatabase::GetAccounts() const 
 {
-    try
-    {
-        return nlohmann::json::parse(accountsData);
-    }
-    catch (...)
-    {
-        return nlohmann::json::object();
-    }
+    auto accounts = nlohmann::json::array();
+    for (const auto& [id, account] : _accountsData)
+        accounts.push_back(account);
+
+    return accounts;
 }
 
 nlohmann::json AccountDatabase::GetAccount(const std::string& id) const 
 {
-    for (const auto& account : GetAccounts()) 
+    try
     {
-        if (account["id"] == id) 
-        {
-            return account;
-        }
+        return _accountsData.at(id);
     }
-    return nlohmann::json::object();
+    catch (const std::exception&)
+    {
+        // TODO
+        return {};
+    }
 }
 
 std::string AccountDatabase::GetTokenByAccountId(const std::string& id) const
@@ -43,17 +76,14 @@ std::string AccountDatabase::GetTokenByAccountId(const std::string& id) const
     return token;
 }
 
-std::string AccountDatabase::GetAccountsFromDB() const
+void AccountDatabase::LoadAccountsFromDB()
 {
     sqlite3* db;
     sqlite3_stmt* stmt;
     int rc;
 
-    // TODO: change this to actual appdata
-    const char* dbPath = "C:/Users/david/AppData/Roaming/Speckle/Accounts.db";
-
     // Open the database (or create it if it doesn’t exist)
-    rc = sqlite3_open(dbPath, &db);
+    rc = sqlite3_open(GetAccountsDatabasePath(), &db);
     if (rc != SQLITE_OK)
     {
         std::cerr << "Error opening database: " << sqlite3_errmsg(db) << std::endl;
@@ -70,28 +100,22 @@ std::string AccountDatabase::GetAccountsFromDB() const
         sqlite3_close(db);
     }
 
-    // String to collect the results
-    std::ostringstream resultStream;
-
     // Execute the query and collect results
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        int columnCount = sqlite3_column_count(stmt);
-        for (int i = 0; i < columnCount; ++i)
+        try
         {
-            const char* columnText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
-            resultStream << (columnText ? columnText : "NULL");
-            if (i < columnCount - 1)
-            {
-                resultStream << ", "; // Add a comma between column values
-            }
+            const char* id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, ACCOUNT_ID_COLUMN));
+            const char* account = reinterpret_cast<const char*>(sqlite3_column_text(stmt, ACCOUNT_DATA_COLUMN));
+            _accountsData[id] = nlohmann::json::parse(account);
         }
-        resultStream << "\n"; // Add a newline after each row
+        catch (...)
+        {
+            // TODO
+        }
     }
 
     // Finalize the statement and close the database
     sqlite3_finalize(stmt);
     sqlite3_close(db);
-
-    return resultStream.str();
 }

@@ -6,16 +6,18 @@
 class ModelCardDatabase : public IModelCardDatabase
 {
 public:
-    ModelCardDatabase();
+    ModelCardDatabase() = default;
+
+    void LoadModelsFromJson(const nlohmann::json j) override;
+    nlohmann::json GetModelsAsJson() override;
 
     std::vector<SendModelCard> GetModels() const override;
-    std::map<std::string, SendModelCard> GetModelsMap() const;
     SendModelCard GetModelCard(const std::string& modelCardId) const override;
     void AddModel(const SendModelCard& modelCard) override;
     void UpdateModel(const SendModelCard& modelCard) override;
     void RemoveModel(const std::string& modelCardId) override;
+    void ClearModels() override;
 
 private:
-    void InitData();
     std::map<std::string, SendModelCard> modelCards;
 };

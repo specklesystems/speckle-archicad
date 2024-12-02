@@ -1,13 +1,11 @@
 #include "SelectionBridge.h"
-#include "LoggerFactory.h"
 #include "Connector.h"
+#include "InvalidMethodNameException.h"
+#include "Base64GuidGenerator.h"
+#include "ArchiCadApiException.h"
+
 
 SelectionBridge::SelectionBridge(IBrowserAdapter* browser)
-{
-    Init(browser);
-}
-
-void SelectionBridge::Init(IBrowserAdapter* browser)
 {
     selectionBinding = std::make_unique<Binding>(
         "selectionBinding",
@@ -15,10 +13,33 @@ void SelectionBridge::Init(IBrowserAdapter* browser)
         browser);
 
     selectionBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
-    CONNECTOR.hostAppEvents->SelectionChanged += [this](const std::string& msg) { SelectionChanged(msg); };
 }
 
+// POC duplicated code, move try catch logic to Binding
 void SelectionBridge::OnRunMethod(const RunMethodEventArgs& args)
+{
+    try
+    {
+        RunMethod(args);
+    }
+    catch (const ArchiCadApiException& acex)
+    {
+        selectionBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false});
+    }
+    catch (const std::exception& stdex)
+    {
+        selectionBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
+    }
+    catch (...)
+    {
+        selectionBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
+    }
+}
+
+void SelectionBridge::RunMethod(const RunMethodEventArgs& args)
 {
     if (args.methodName == "GetSelection")
     {
@@ -26,21 +47,26 @@ void SelectionBridge::OnRunMethod(const RunMethodEventArgs& args)
     }
     else
     {
-        GET_LOGGER("SelectionBridge")->Info("Invalid method name");
+        throw InvalidMethodNameException(args.methodName);
     }
+}
+
+static nlohmann::json GetSelectionAsJson()
+{
+    nlohmann::json selection;
+    auto selectedElements = CONNECTOR.GetHostToSpeckleConverter().GetSelection();
+    selection["selectedObjectIds"] = selectedElements;
+    selection["summary"] = std::to_string(selectedElements.size()) + " objects selected";
+
+    return selection;
 }
 
 void SelectionBridge::GetSelection(const RunMethodEventArgs& args)
 {
-    nlohmann::json selection;
-    selection["selectedObjectIds"] = CONNECTOR.hostToSpeckleConverter->GetSelection();
-    // TODO
-    selection["summary"] = "Hello World!";
-    args.eventSource->SetResult(args.methodId, selection);
+    args.eventSource->SetResult(args.methodId, GetSelectionAsJson());
 }
 
-void SelectionBridge::SelectionChanged(const std::string& message)
+void SelectionBridge::OnSelectionChanged()
 {
-    // TODO
-    std::cout << message;
+    selectionBinding->Send("setSelection", GetSelectionAsJson());
 }

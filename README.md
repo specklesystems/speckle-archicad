@@ -37,7 +37,36 @@ Default sections:
 
 ## Developing & Debugging
 
-This doesn't make sense here, but in general, we should try to provide a small "how to" guide on local development and debugging, as it lowers the barrier to contributions.
+### Build
+What will you need?
+- [ArchiCad 27](https://graphisoft.com/downloads/archicad/install/AC27/INT/)
+- [CMake](https://cmake.org) – To generate IDE projects (3.16 minimum version is needed)
+- [Python](https://www.python.org) – For some build tools (version 2.7+ or 3.8+).
+- Visual Studio 2019 or 2022 (v142 toolset)
+
+How to build the AddOn on Windows and **Visual Studio 2022**
+- Make sure that your Visual Studio 2022 is installed properly and that you have the v142 toolset installed
+- After modifying the installation, a restart may be necessary
+
+![VS 2022 Components](images/vs_2022_install.PNG)
+- Open the project root and run ```generate_project.bat```
+- This will create the build folder and you will find the ```archicad-speckle.sln``` in it
+- Open the solution file in Visual Studio 2022 and build the project
+
+More Help
+
+- [Getting started with ArchiCad AddOns](https://archicadapi.graphisoft.com/getting-started-with-archicad-add-ons)
+
+### Installation
+- Open the Add-On Manager in Archicad (Options menu)
+- Click the "Add..." button under "Edit list of available Add-ons"
+- Browse ```./build/Int/Debug/Speckle.apx```
+
+### Debugging
+- Right-click SpeckleAddOn in the Visual Studio solution explorer
+- Click 'Set as Startup Project'
+- Click run (Local Windows Debugger)
+- By default it will start ArchiCAD 27, make sure that it's installed on your machine
 
 ## Contributing
 
