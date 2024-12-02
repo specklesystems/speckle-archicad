@@ -23,6 +23,23 @@ namespace
 }
 
 // TODO cachce level names before send
+static GSErrCode GetStorySettings(API_StoryInfo* storyInfo)
+{
+	GSErrCode err = NoError;
+
+#if defined(AC28)
+	err = ACAPI_ProjectSetting_GetStorySettings(storyInfo);
+#elif defined(AC27)
+	err = ACAPI_ProjectSetting_GetStorySettings(storyInfo);
+#elif defined(AC26)
+	err = ACAPI_Environment(APIEnv_GetStorySettingsID, storyInfo, nullptr);
+#elif defined(AC25)
+	err = ACAPI_Environment(APIEnv_GetStorySettingsID, storyInfo, nullptr);
+#endif
+
+	return err;
+}
+
 std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 {
 	std::string floorName = "";
@@ -30,7 +47,7 @@ std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 	auto floorInd = apielem.header.floorInd;
 	
 	API_StoryInfo storyInfo{};
-	CHECK_ERROR(ACAPI_ProjectSetting_GetStorySettings(&storyInfo));
+	CHECK_ERROR(GetStorySettings(&storyInfo));
 	auto storyCount = storyInfo.lastStory - storyInfo.firstStory + 1;
 	for (auto i = 0; i < storyCount; i++)
 	{

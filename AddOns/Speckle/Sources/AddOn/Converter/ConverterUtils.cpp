@@ -6,6 +6,9 @@
 #include <exp.h>
 #include <Sight.hpp>
 
+#if defined(AC25)
+#include "AttributeReader.hpp"
+#endif
 
 static GSErrCode GetCurrentWindowSight(void** sightPtr)
 {
@@ -39,8 +42,14 @@ ModelerAPI::Model ConverterUtils::GetArchiCadModel()
 	CHECK_ERROR(GetCurrentWindowSight(&dummy));
 	Modeler::SightPtr currentSightPtr((Modeler::Sight*)dummy); // init the shared ptr with the raw pointer
 	ModelerAPI::Model archiCadModel{};
+
+#if defined(AC25)
+	AttributeReader attrReader;
+	CHECK_ERROR(EXPGetModel(currentSightPtr, &archiCadModel, &attrReader));
+#else
 	Modeler::IAttributeReader* attrReader = ACAPI_Attribute_GetCurrentAttributeSetReader();
 	CHECK_ERROR(EXPGetModel(currentSightPtr, &archiCadModel, attrReader));
+#endif
 
 	return archiCadModel;
 }

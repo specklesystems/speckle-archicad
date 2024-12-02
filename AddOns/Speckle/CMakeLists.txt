@@ -255,7 +255,7 @@ add_dependencies (${SPECKLE_ADDON_LIB} ${SPECKLE_ADDON_RESOURCES})
 # group to folder
 set_target_properties(${SPECKLE_ADDON_RESOURCES} PROPERTIES FOLDER Resources)
 
-set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT\\Archicad 27\\Archicad.exe")
+set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT\\Archicad 28\\Archicad.exe")
 
 # other libs
 target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite)
