@@ -68,7 +68,7 @@ Target(
     var version = Environment.GetEnvironmentVariable("GitVersion_FullSemVer") ?? "3.0.0-localBuild";
     var fileVersion = Environment.GetEnvironmentVariable("GitVersion_AssemblySemFileVer") ?? "3.0.0.9999";
     Console.WriteLine($"Version: {version} & {fileVersion}");
-    Run("msbuild", $"build/{s}/archicad-speckle.sln /p:Configuration=Release /p:Version={version} /p:FileVersion={fileVersion}");
+    Run("msbuild", $"./build/{s}/archicad-speckle.sln /p:Configuration=Release /p:Version={version} /p:FileVersion={fileVersion}");
   }
 );
 
