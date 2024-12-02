@@ -22,6 +22,7 @@ namespace
 	}
 }
 
+// TODO cachce level names before send
 std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 {
 	std::string floorName = "";
