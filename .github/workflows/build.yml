@@ -26,14 +26,14 @@ jobs:
 
       - name: Build
         run: ./build.ps1 build-cmake
-      
+
       - name: LS
         run: ls
         working-directory: build/27/
 
-      - name: Build sln and zip
-        run: ./build.ps1 zip
-      
+      - name: Build sln
+        run: msbuild build/27/archicad-speckle.sln /p:Configuration=Release
+
       - uses: actions/upload-artifact@v4
         with:
           name: output-${{ env.GitVersion_FullSemVer }}
