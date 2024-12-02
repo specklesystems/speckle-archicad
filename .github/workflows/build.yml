@@ -21,18 +21,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
       - name: ⚒️ Run GitVersion
         run: ./build.ps1 build-server-version
 
       - name: Build
-        run: ./build.ps1 build-cmake
-
-      - name: LS
-        run: ls
-        working-directory: build/27/
-
-      - name: Build sln
-        run: msbuild build/27/archicad-speckle.sln /p:Configuration=Release
+        run: ./build.ps1
 
       - uses: actions/upload-artifact@v4
         with:
