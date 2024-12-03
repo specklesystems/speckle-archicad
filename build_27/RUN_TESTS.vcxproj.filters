@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\dev\speckle-archicad\speckle-archicad\build_27\CMakeFiles\178a33d7c51a443289fd13888faf2178\RUN_TESTS_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{D85E1057-470A-3D59-9D2A-33374DB4781F}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

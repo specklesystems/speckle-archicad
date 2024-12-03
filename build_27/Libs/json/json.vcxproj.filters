@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\dev\speckle-archicad\speckle-archicad\Libs\json\src\json.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\dev\speckle-archicad\speckle-archicad\Libs\json\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{3FEE2DB4-8844-360B-B27E-81DE53D45603}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,2 @@
+﻿DLG_32500_Browser_Palette	32500	0	Speckle Connector	""
+DLG_32500_Browser_Palette-Browser_0	32500	1	Speckle Connector	"Browser Control"

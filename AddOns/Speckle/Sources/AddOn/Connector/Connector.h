@@ -8,6 +8,7 @@
 #include "ISpeckleToHostConverter.h"
 #include "HostAppEvents.h"
 #include "IDataStorage.h"
+#include "IProcessWindow.h"
 
 #include <memory>
 
@@ -23,6 +24,7 @@ private:
 	std::unique_ptr<ISpeckleToHostConverter> speckleToHostConverter;
 	std::unique_ptr<HostAppEvents> hostAppEvents;
 	std::unique_ptr<IDataStorage> dataStorage;
+	std::unique_ptr<IProcessWindow> processWindow;
 
 public:
 	static const std::string MODELCARD_ADDONOBJECT_NAME;
@@ -37,6 +39,7 @@ public:
 	ISpeckleToHostConverter& GetSpeckleToHostConverter();
 	HostAppEvents& GetHostAppEvents();
 	IDataStorage& GetDataStorage();
+	IProcessWindow& GetProcessWindow();
 
 	void InitConnector();
 };

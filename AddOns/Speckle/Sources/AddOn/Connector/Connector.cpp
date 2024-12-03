@@ -4,6 +4,7 @@
 #include "HostToSpeckleConverter.h"
 #include "SpeckleToHostConverter.h"
 #include "ArchiCadDataStorage.h"
+#include "ProcessWindow.h"
 
 std::unique_ptr<Connector> Connector::instance = nullptr;
 const std::string Connector::MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v123";
@@ -24,6 +25,7 @@ void Connector::InitConnector()
 	speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
 	hostAppEvents = std::make_unique<HostAppEvents>();
 	dataStorage = std::make_unique<ArchiCadDataStorage>();
+    processWindow = std::make_unique<ProcessWindow>();
 }
 
 IAccountDatabase& Connector::GetAccountDatabase() 
@@ -72,4 +74,12 @@ IDataStorage& Connector::GetDataStorage()
         throw std::runtime_error("DataStorage not initialized");
 
     return *dataStorage;
+}
+
+IProcessWindow& Connector::GetProcessWindow()
+{
+    if (!processWindow)
+        throw std::runtime_error("ProcessWindow not initialized");
+
+    return *processWindow;
 }

@@ -1,0 +1,242 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{78F4E6C1-A0D8-3ADE-8CD1-825E80CC2633}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>SpeckleAddOnResources</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\dev\speckle-archicad\speckle-archicad\build_27\CMakeFiles\248b7913bb102b88c227a6350911b1fe\AddOnResources.stamp.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling resources...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E make_directory C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects
+if %errorlevel% neq 0 goto :cmEnd
+python C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOnResources/Tools/CompileResources.py INT C:/dev/speckle-archicad/speckle-archicad/Libs/acapi27 C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOn C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOnResources C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects/Speckle.res
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects/AddOnResources.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX.win\AddOnMain.rc2;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX\AddOnFix.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RINT\AddOn.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\Tools\CompileResources.py;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\ResourceObjects\AddOnResources.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling resources...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E make_directory C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects
+if %errorlevel% neq 0 goto :cmEnd
+python C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOnResources/Tools/CompileResources.py INT C:/dev/speckle-archicad/speckle-archicad/Libs/acapi27 C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOn C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOnResources C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects/Speckle.res
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects/AddOnResources.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX.win\AddOnMain.rc2;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX\AddOnFix.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RINT\AddOn.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\Tools\CompileResources.py;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\ResourceObjects\AddOnResources.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Compiling resources...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E make_directory C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects
+if %errorlevel% neq 0 goto :cmEnd
+python C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOnResources/Tools/CompileResources.py INT C:/dev/speckle-archicad/speckle-archicad/Libs/acapi27 C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOn C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOnResources C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects/Speckle.res
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/ResourceObjects/AddOnResources.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX.win\AddOnMain.rc2;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX\AddOnFix.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RINT\AddOn.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\Tools\CompileResources.py;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\ResourceObjects\AddOnResources.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\dev\speckle-archicad\speckle-archicad\build_27\CMakeFiles\703560ae20a8304bb4f1b221ae78eb97\SpeckleAddOnResources.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\ResourceObjects\AddOnResources.stamp;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX.win\AddOnMain.rc2;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX\AddOnFix.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RINT\AddOn.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\Tools\CompileResources.py;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\CMakeFiles\SpeckleAddOnResources</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</VerifyInputsAndOutputsExist>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'"></Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\ResourceObjects\AddOnResources.stamp;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX.win\AddOnMain.rc2;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX\AddOnFix.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RINT\AddOn.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\Tools\CompileResources.py;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\CMakeFiles\SpeckleAddOnResources</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</VerifyInputsAndOutputsExist>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'"></Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\ResourceObjects\AddOnResources.stamp;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX.win\AddOnMain.rc2;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RFIX\AddOnFix.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\RINT\AddOn.grc;C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\Tools\CompileResources.py;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\CMakeFiles\SpeckleAddOnResources</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</VerifyInputsAndOutputsExist>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/dev/speckle-archicad/speckle-archicad -BC:/dev/speckle-archicad/speckle-archicad/build_27 --check-stamp-file C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\ResourceMDIDIds.hpp.in;C:\dev\speckle-archicad\speckle-archicad\build_27\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/dev/speckle-archicad/speckle-archicad -BC:/dev/speckle-archicad/speckle-archicad/build_27 --check-stamp-file C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\ResourceMDIDIds.hpp.in;C:\dev\speckle-archicad\speckle-archicad\build_27\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/dev/speckle-archicad/speckle-archicad -BC:/dev/speckle-archicad/speckle-archicad/build_27 --check-stamp-file C:/dev/speckle-archicad/speckle-archicad/build_27/AddOns/Speckle/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\dev\speckle-archicad\speckle-archicad\AddOns\Speckle\Sources\AddOnResources\ResourceMDIDIds.hpp.in;C:\dev\speckle-archicad\speckle-archicad\build_27\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\dev\speckle-archicad\speckle-archicad\build_27\AddOns\Speckle\CMakeFiles\SpeckleAddOnResources">
+    </None>
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="C:\dev\speckle-archicad\speckle-archicad\build_27\ZERO_CHECK.vcxproj">
+      <Project>{F79FDF1C-3697-3637-8048-15F718F20AB0}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -89,6 +89,8 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     std::string id = args.data[0].get<std::string>();
     SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
 
+    CONNECTOR.GetProcessWindow().Init("Sending...", 1);
+
     SendViaBrowserArgs sendArgs{};
     sendArgs.modelCardId = modelCard.modelCardId;
     sendArgs.projectId = modelCard.projectId;
@@ -108,4 +110,5 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.sendConversionResults = conversionResults;
 
     args.eventSource->SendByBrowser(args.methodId, sendArgs);
+    CONNECTOR.GetProcessWindow().Close();
 }
