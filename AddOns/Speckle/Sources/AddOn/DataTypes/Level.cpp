@@ -11,5 +11,5 @@ void to_json(nlohmann::json& j, const Level& level)
         elementTypes.push_back(e.second);
     }
 
-    j["elements"] = elementTypes;
+    j["@elements"] = elementTypes;
 }

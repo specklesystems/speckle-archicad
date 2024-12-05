@@ -18,4 +18,5 @@ private:
     void GetSendFilters(const RunMethodEventArgs& args);
     void GetSendSettings(const RunMethodEventArgs& args);
     void Send(const RunMethodEventArgs& args);
+    void AfterSendObjects(const RunMethodEventArgs& args);
 };

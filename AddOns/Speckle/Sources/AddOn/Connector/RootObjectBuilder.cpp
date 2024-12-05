@@ -34,6 +34,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
 
         bodies.push_back(body);
         ModelElement modelElement;
+        modelElement.applicationId = elemId;
         modelElement.displayValue = body;
 
         if (rootObject.elements.find(levelName) == rootObject.elements.end())

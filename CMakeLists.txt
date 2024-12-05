@@ -61,15 +61,17 @@ endfunction ()
 set(LIB_INCLUDE_DIRS 
 		${CMAKE_SOURCE_DIR}/Libs/json/include
 		${CMAKE_SOURCE_DIR}/Libs/spdlog/include
-		${CMAKE_SOURCE_DIR}/Libs/sqlite/include)
+		${CMAKE_SOURCE_DIR}/Libs/sqlite/include
+		${CMAKE_SOURCE_DIR}/Libs/sha/include)
 set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}")
 
 #Libs
 add_subdirectory(Libs/json)
 add_subdirectory(Libs/spdlog)
 add_subdirectory(Libs/sqlite)
+add_subdirectory(Libs/sha)
 
 # AddOns
 add_subdirectory(AddOns/Speckle)
 
-set_target_properties(json spdlog sqlite PROPERTIES FOLDER Libs)
+set_target_properties(json spdlog sqlite sha PROPERTIES FOLDER Libs)

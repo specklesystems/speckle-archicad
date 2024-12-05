@@ -5,7 +5,7 @@ void to_json(nlohmann::json& j, const ModelElement& elem)
     j["speckle_type"] = elem.speckle_type;
     j["applicationId"] = elem.applicationId;
     j["units"] = elem.units;
-    j["displayValue"] = elem.displayValue;
+    j["@displayValue"] = elem.displayValue;
 }
 
 void from_json(const nlohmann::json& j, ModelElement& elem)

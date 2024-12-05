@@ -6,13 +6,16 @@
 #include "RootObjectBuilder.h"
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
+#include "BaseObjectSerializer.h"
+
+#include "JsonFileWriter.h"
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
     sendBinding = std::make_unique<Binding>(
         "sendBinding",
-        std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send" },
+        std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send", "AfterSendObjects" },
         browser);
 
     sendBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
@@ -56,6 +59,10 @@ void SendBridge::RunMethod(const RunMethodEventArgs& args)
     {
         Send(args);
     }
+    else if (args.methodName == "AfterSendObjects")
+    {
+        AfterSendObjects(args);
+    }
     else
     {
         throw InvalidMethodNameException(args.methodName);
@@ -97,15 +104,40 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.accountId = modelCard.accountId;
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
     // TODO: message
-    sendArgs.message = "Sending model from ArchiCAD";
+    //sendArgs.message = "Sending model from ArchiCAD";
 
     CONNECTOR.GetSpeckleToHostConverter().ShowAllIn3D();
     nlohmann::json sendObj;
     RootObjectBuilder rootObjectBuilder{};
     std::vector<SendConversionResult> conversionResults;
-    sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResults);
-    sendArgs.sendObject = sendObj;
-    sendArgs.sendConversionResults = conversionResults;
+    auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResults);
 
-    args.eventSource->SendByBrowser(args.methodId, sendArgs);
+    BaseObjectSerializer serializer{};
+    auto rootObjectId = serializer.Serialize(root);
+    //auto objects = serializer.GetObjects();
+    auto batches = serializer.BatchObjects();
+
+    sendArgs.referencedObjectId = rootObjectId;
+
+    int i = 1;
+    int batchSize = static_cast<int>(batches.size());
+    for (const auto& b : batches)
+    {
+        sendArgs.batch = b;
+        sendArgs.currentBatch = i;
+        i++;
+        sendArgs.totalBatch = batchSize;
+        args.eventSource->SendBatchViaBrowser(args.methodId, sendArgs);
+    }
+
+    //JsonFileWriter::WriteJsonToFile(objects, "C:\\tmp\\traversed_base.json");
+    //sendObj["rootObject"] = objects;
+    //sendArgs.sendObject = sendObj;
+    //sendArgs.sendConversionResults = conversionResults;
+    //args.eventSource->SendByBrowser(args.methodId, sendArgs);
+}
+
+void SendBridge::AfterSendObjects(const RunMethodEventArgs& /*args*/)
+{
+    return;
 }
