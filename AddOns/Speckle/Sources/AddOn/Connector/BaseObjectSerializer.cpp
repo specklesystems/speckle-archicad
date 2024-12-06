@@ -187,8 +187,8 @@ std::vector<nlohmann::json> BaseObjectSerializer::GetObjects()
 
 std::vector<std::string> BaseObjectSerializer::BatchObjects()
 {
-	int maxSize = 1024 * 1024;
-	std::vector<std::string> batches;
+	int maxSize = 1024 * 1024 * 100;
+	std::vector<std::string> batches; 
 
 	int batchSize = 0;
 	std::string batch = "[";
