@@ -208,7 +208,7 @@ std::vector<std::string> BaseObjectSerializer::BatchObjects()
 			batch += "]";
 			batches.push_back(batch);
 			batchSize = stringSize;
-			batch = "[" + objectString;
+			batch = "[" + objectString + ",";
 		}
 	}
 
