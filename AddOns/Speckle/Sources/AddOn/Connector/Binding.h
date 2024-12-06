@@ -35,6 +35,7 @@ public:
     void Send(const std::string& methodName, const nlohmann::json& data);
     void SendByBrowser(const std::string& sendMethodId, const nlohmann::json& data);
     void SendBatchViaBrowser(const std::string& sendMethodId, const nlohmann::json& data);
+    void CreateVersionViaBrowser(const std::string& sendMethodId, const nlohmann::json& data);
 
     void CacheResult(const std::string& methodId, const nlohmann::json& result);
     void ResponseReady(const std::string methodId);

@@ -7,6 +7,7 @@
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
 #include "BaseObjectSerializer.h"
+#include "AfterSendObjectsArgs.h"
 
 #include "JsonFileWriter.h"
 
@@ -59,7 +60,7 @@ void SendBridge::RunMethod(const RunMethodEventArgs& args)
     {
         Send(args);
     }
-    else if (args.methodName == "AfterSendObjects")
+    else if (args.methodName == "afterSendObjects")
     {
         AfterSendObjects(args);
     }
@@ -137,7 +138,25 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     //args.eventSource->SendByBrowser(args.methodId, sendArgs);
 }
 
-void SendBridge::AfterSendObjects(const RunMethodEventArgs& /*args*/)
+void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
 {
-    return;
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    std::string id = args.data[0].get<std::string>();
+    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
+
+    AfterSendObjectsArgs afterSendObjectsArgs{};
+    afterSendObjectsArgs.modelCardId = modelCard.modelCardId;
+    afterSendObjectsArgs.projectId = modelCard.projectId;
+    afterSendObjectsArgs.modelId = modelCard.modelId;
+    afterSendObjectsArgs.serverUrl = modelCard.serverUrl;
+    afterSendObjectsArgs.accountId = modelCard.accountId;
+    afterSendObjectsArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
+    std::string referencedObjectId = args.data[1].get<std::string>();
+    afterSendObjectsArgs.referencedObjectId = referencedObjectId;
+    afterSendObjectsArgs.sendConversionResults = nlohmann::json::array();
+    // TODO cache the sendCoversionResult with modelcardId on Send and att it here;
+
+    args.eventSource->CreateVersionViaBrowser(args.methodId, afterSendObjectsArgs);
 }
