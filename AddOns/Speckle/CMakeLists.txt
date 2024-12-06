@@ -258,7 +258,7 @@ set_target_properties(${SPECKLE_ADDON_RESOURCES} PROPERTIES FOLDER Resources)
 set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT\\Archicad 27\\Archicad.exe")
 
 # other libs
-target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite sha)
+target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite sha md5)
 
 #compile definitions
 SetCompilerParams(${SPECKLE_ADDON_LIB})

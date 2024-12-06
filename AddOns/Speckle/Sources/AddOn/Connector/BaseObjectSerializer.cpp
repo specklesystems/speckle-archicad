@@ -4,22 +4,7 @@
 #include "Base64GuidGenerator.h"
 #include <functional> 
 #include "picosha2.h"
-
-#include "JsonFileWriter.h"
-
-/*static const int MD5_DIGEST_LENGTH = 32;
-
-std::string computeMD5(const std::string& input) {
-	unsigned char result[MD5_DIGEST_LENGTH];
-	MD5(reinterpret_cast<const unsigned char*>(input.c_str()), input.length(), result);
-
-	std::ostringstream sout;
-	sout << std::hex << std::setfill('0');
-	for (auto c : result) {
-		sout << std::setw(2) << static_cast<int>(c);
-	}
-	return sout.str();
-}*/
+#include "md5.h"
 
 std::string BaseObjectSerializer::Serialize(RootObject root)
 {
@@ -69,7 +54,8 @@ std::pair<std::string, nlohmann::json> BaseObjectSerializer::TraverseBase(const 
 
 	auto dumped = traversedBase.dump();
 
-	std::string id = picosha2::hash256_hex_string(dumped);
+	//std::string id = picosha2::hash256_hex_string(dumped);
+	std::string id = MD5::hash(dumped);
 
 	traversedBase["id"] = id;
 	if (!closure.empty())
