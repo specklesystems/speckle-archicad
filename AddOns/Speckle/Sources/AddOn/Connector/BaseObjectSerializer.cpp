@@ -52,23 +52,27 @@ std::pair<std::string, nlohmann::json> BaseObjectSerializer::TraverseBase(const 
 	auto parent = lineage.back();
 	lineage.pop_back();
 
-	if (familyTree.find(parent) == familyTree.end())
+	auto it = familyTree.find(parent);
+	if (it == familyTree.end())
 	{
-		for (const auto& [ref, depth] : familyTree[parent].items())
+		// Initialize if parent is not found
+		familyTree[parent] = nlohmann::json::object();
+	}
+	else
+	{
+		// Access the existing parent's items
+		for (const auto& [ref, depth] : it->second.items())
 		{
 			closure[ref] = depth - detachLineage.size();
 		}
 	}
-	//std::hash<std::string> stringHash;
-	//JsonFileWriter::WriteJsonToFile(traversedBase, "C:\\tmp\\traversed_base.json");
+
 	auto dumped = traversedBase.dump();
-	//auto idInt = stringHash(dumped);
-	//auto id = std::to_string(idInt);
 
 	std::string id = picosha2::hash256_hex_string(dumped);
 
 	traversedBase["id"] = id;
-	if (closure.size() != 0)
+	if (!closure.empty())
 	{
 		traversedBase["__closure"] = closure;
 	}
@@ -171,10 +175,11 @@ nlohmann::json BaseObjectSerializer::DetachHelper(const std::string& referenceId
 			familyTree[parent] = nlohmann::json::object();
 		}
 
-		bool isRefExist = ((familyTree.find(parent) != familyTree.end()) && familyTree[parent][referenceId] != nullptr);
-		if (!isRefExist || familyTree[parent][referenceId] > detachLineage.size())
+		auto& table = familyTree[parent];
+		bool isRefExist = table.contains(referenceId);
+		if (!isRefExist || (table[referenceId].is_number() && table[referenceId] > detachLineage.size()))
 		{
-			familyTree[parent][referenceId] = detachLineage.size();
+			table[referenceId] = detachLineage.size();
 		}
 	}
 
