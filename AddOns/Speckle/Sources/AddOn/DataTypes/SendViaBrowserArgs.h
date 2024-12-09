@@ -11,9 +11,6 @@ struct SendViaBrowserArgs
     std::string token;
     std::string serverUrl;
     std::string accountId;
-    //std::string message;
-    //nlohmann::json sendObject;
-    //nlohmann::json sendConversionResults;
     int totalBatch;
     int currentBatch;
     std::string referencedObjectId;

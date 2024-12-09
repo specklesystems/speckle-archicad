@@ -8,9 +8,6 @@ void to_json(nlohmann::json& j, const SendViaBrowserArgs& args)
     j["token"] = args.token;
     j["serverUrl"] = args.serverUrl;
     j["accountId"] = args.accountId;
-    //j["message"] = args.message;
-    //j["sendObject"] = args.sendObject;
-    //j["sendConversionResults"] = args.sendConversionResults;
     j["totalBatch"] = args.totalBatch;
     j["currentBatch"] = args.currentBatch;
     j["referencedObjectId"] = args.referencedObjectId;
@@ -25,9 +22,6 @@ void from_json(const nlohmann::json& j, SendViaBrowserArgs& args)
     args.token = j.at("token").get<std::string>();
     args.serverUrl = j.at("serverUrl").get<std::string>();
     args.accountId = j.at("accountId").get<std::string>();
-    //args.message = j.at("message").get<std::string>();
-    //args.sendObject = j.at("sendObject");;
-    //args.sendConversionResults = j.at("sendConversionResults");
     args.totalBatch = j.at("totalBatch").get<int>();
     args.currentBatch = j.at("currentBatch").get<int>();
     args.referencedObjectId = j.at("referencedObjectId").get<std::string>();
