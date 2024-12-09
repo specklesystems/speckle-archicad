@@ -6,13 +6,15 @@
 #include "RootObjectBuilder.h"
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
+#include "BaseObjectSerializer.h"
+#include "AfterSendObjectsArgs.h"
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
     sendBinding = std::make_unique<Binding>(
         "sendBinding",
-        std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send" },
+        std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send", "AfterSendObjects" },
         browser);
 
     sendBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
@@ -28,17 +30,17 @@ void SendBridge::OnRunMethod(const RunMethodEventArgs& args)
     catch (const ArchiCadApiException& acex)
     {
         sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
     }
     catch (const std::exception& stdex)
     {
         sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
     }
     catch (...)
     {
         sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
     }
 }
 
@@ -55,6 +57,10 @@ void SendBridge::RunMethod(const RunMethodEventArgs& args)
     else if (args.methodName == "Send")
     {
         Send(args);
+    }
+    else if (args.methodName == "afterSendObjects")
+    {
+        AfterSendObjects(args);
     }
     else
     {
@@ -97,15 +103,51 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.accountId = modelCard.accountId;
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
     // TODO: message
-    sendArgs.message = "Sending model from ArchiCAD";
+    //sendArgs.message = "Sending model from ArchiCAD";
 
     CONNECTOR.GetSpeckleToHostConverter().ShowAllIn3D();
     nlohmann::json sendObj;
     RootObjectBuilder rootObjectBuilder{};
-    std::vector<SendConversionResult> conversionResults;
-    sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResults);
-    sendArgs.sendObject = sendObj;
-    sendArgs.sendConversionResults = conversionResults;
+    auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResultCache);
 
-    args.eventSource->SendByBrowser(args.methodId, sendArgs);
+    BaseObjectSerializer serializer{};
+    auto rootObjectId = serializer.Serialize(root);
+    auto batches = serializer.BatchObjects();
+
+    sendArgs.referencedObjectId = rootObjectId;
+
+    int i = 1;
+    int batchSize = static_cast<int>(batches.size());
+    for (const auto& b : batches)
+    {
+        sendArgs.batch = b;
+        sendArgs.currentBatch = i;
+        i++;
+        sendArgs.totalBatch = batchSize;
+        args.eventSource->SendBatchViaBrowser(args.methodId, sendArgs);
+    }
+}
+
+void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
+{
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    std::string id = args.data[0].get<std::string>();
+    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
+
+    AfterSendObjectsArgs afterSendObjectsArgs{};
+    afterSendObjectsArgs.modelCardId = modelCard.modelCardId;
+    afterSendObjectsArgs.projectId = modelCard.projectId;
+    afterSendObjectsArgs.modelId = modelCard.modelId;
+    afterSendObjectsArgs.serverUrl = modelCard.serverUrl;
+    afterSendObjectsArgs.accountId = modelCard.accountId;
+    afterSendObjectsArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
+    std::string referencedObjectId = args.data[1].get<std::string>();
+    afterSendObjectsArgs.referencedObjectId = referencedObjectId;
+    afterSendObjectsArgs.sendConversionResults = nlohmann::json::array();
+    afterSendObjectsArgs.sendConversionResults = conversionResultCache;
+
+    args.eventSource->CreateVersionViaBrowser(args.methodId, afterSendObjectsArgs);
+    conversionResultCache.clear();
 }

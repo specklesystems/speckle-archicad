@@ -24,17 +24,17 @@ void AccountBridge::OnRunMethod(const RunMethodEventArgs& args)
     catch (const ArchiCadApiException& acex)
     {
         accountsBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
     }
     catch (const std::exception& stdex)
     {
         accountsBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
     }
     catch (...)
     {
         accountsBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
     }
 }
 
