@@ -73,6 +73,8 @@ static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*p
 		case APINotify_Open: CONNECTOR.GetHostAppEvents().ProjectOpened(); break;
 		case APINotify_Close: CONNECTOR.GetHostAppEvents().ProjectClosed(); break;
 		case APINotify_PreSave: CONNECTOR.GetHostAppEvents().ProjectSaving(); break;
+		case APINotify_SendChanges: CONNECTOR.GetHostAppEvents().SendChanges(); break;
+		case APINotify_ReceiveChanges: CONNECTOR.GetHostAppEvents().ReceiveChanges(); break;
 	}
 
 	return NoError;
@@ -99,18 +101,6 @@ static void	ShowOrHideBrowserPalette()
 		}
 		BrowserPalette::GetInstance().Show();
 	}
-}
-
-static void LoadModelCardData()
-{
-	auto data = CONNECTOR.GetDataStorage().LoadData(Connector::MODELCARD_ADDONOBJECT_NAME);
-	CONNECTOR.GetModelCardDatabase().LoadModelsFromJson(data);
-}
-
-static void SaveModelCardData()
-{
-	auto data = CONNECTOR.GetModelCardDatabase().GetModelsAsJson();
-	CONNECTOR.GetDataStorage().SaveData(data, Connector::MODELCARD_ADDONOBJECT_NAME);
 }
 
 GSErrCode ACENV MenuCommandHandler(const API_MenuParams *menuParams)
@@ -194,17 +184,13 @@ GSErrCode ACENV Initialize(void)
 	try
 	{
 		CONNECTOR.GetHostAppEvents().ProjectOpened += []() {
-			LoadModelCardData();
+			CONNECTOR.GetModelCardDatabase().LoadModelsFromStorage();
 			BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
 		};
 
 		CONNECTOR.GetHostAppEvents().ProjectClosed += []() {
 			CONNECTOR.GetModelCardDatabase().ClearModels();
 			BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
-		};
-
-		CONNECTOR.GetHostAppEvents().ProjectSaving += []() {
-			SaveModelCardData();
 		};
 
 		CONNECTOR.GetHostAppEvents().SelectionChanged += []() {

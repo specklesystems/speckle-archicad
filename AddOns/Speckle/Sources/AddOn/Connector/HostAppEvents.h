@@ -10,4 +10,6 @@ public:
 	Event<> ProjectOpened;
 	Event<> ProjectClosed;
 	Event<> ProjectSaving;
+	Event<> SendChanges;
+	Event<> ReceiveChanges;
 };

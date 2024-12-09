@@ -1,15 +1,18 @@
 #pragma once
 
 #include "IModelCardDatabase.h"
+#include "IDataStorage.h"
 #include <map>
 
 class ModelCardDatabase : public IModelCardDatabase
 {
 public:
-    ModelCardDatabase() = default;
+    ModelCardDatabase(std::unique_ptr<IDataStorage> storage);
 
-    void LoadModelsFromJson(const nlohmann::json j) override;
     nlohmann::json GetModelsAsJson() override;
+    void LoadModelsFromJson(const nlohmann::json j) override;
+    void StoreModels() override;
+    void LoadModelsFromStorage() override;
 
     std::vector<SendModelCard> GetModels() const override;
     SendModelCard GetModelCard(const std::string& modelCardId) const override;
@@ -19,5 +22,6 @@ public:
     void ClearModels() override;
 
 private:
+    std::unique_ptr<IDataStorage> dataStorage;
     std::map<std::string, SendModelCard> modelCards;
 };
