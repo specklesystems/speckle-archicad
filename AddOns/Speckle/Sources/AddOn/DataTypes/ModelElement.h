@@ -7,7 +7,7 @@
 struct ModelElement
 {
     std::string speckle_type = "Base";
-    std::string applicationId = ""; //TODO: remove default
+    std::string applicationId = "";
     std::string units = "m"; // default to meters
     ElementBody displayValue;
 };

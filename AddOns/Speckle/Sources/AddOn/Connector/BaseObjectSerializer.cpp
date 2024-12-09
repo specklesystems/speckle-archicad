@@ -2,8 +2,6 @@
 #include "Connector.h"
 #include "ArchiCadApiException.h"
 #include "Base64GuidGenerator.h"
-#include <functional> 
-#include "picosha2.h"
 #include "md5.h"
 
 std::string BaseObjectSerializer::Serialize(RootObject root)
@@ -52,10 +50,7 @@ std::pair<std::string, nlohmann::json> BaseObjectSerializer::TraverseBase(const 
 		}
 	}
 
-	auto dumped = traversedBase.dump();
-
-	//std::string id = picosha2::hash256_hex_string(dumped);
-	std::string id = MD5::hash(dumped);
+	std::string id = MD5::hash(traversedBase.dump());
 
 	traversedBase["id"] = id;
 	if (!closure.empty())
@@ -85,6 +80,9 @@ void BaseObjectSerializer::TraverseBaseProps(const nlohmann::json& base, nlohman
 		}
 
 		bool isDetachedProp = (prop[0] == '@');
+		auto newPropName = prop;
+		if (isDetachedProp)
+			newPropName.erase(0, 1); // Erase the first @ character 
 
 		// TODO: revisit dynamically detaching
 
@@ -92,11 +90,11 @@ void BaseObjectSerializer::TraverseBaseProps(const nlohmann::json& base, nlohman
 
 		if (value.is_object() && value.contains("speckle_type") && isDetachedProp)
 		{
-			traversedBase[prop] = DetachHelper(child["id"]);
+			traversedBase[newPropName] = DetachHelper(child["id"]);
 		}
 		else
 		{
-			traversedBase[prop] = child;
+			traversedBase[newPropName] = child;
 		}
 	}
 }
@@ -175,19 +173,9 @@ nlohmann::json BaseObjectSerializer::DetachHelper(const std::string& referenceId
 	return reference;
 }
 
-std::vector<nlohmann::json> BaseObjectSerializer::GetObjects()
+std::vector<std::string> BaseObjectSerializer::BatchObjects(int maxSize)
 {
-	std::vector<nlohmann::json> objectList;
-
-	for (const auto& o : objects)
-		objectList.push_back(o.second);
-
-	return objectList;
-}
-
-std::vector<std::string> BaseObjectSerializer::BatchObjects()
-{
-	int maxSize = 1024 * 1024 * 100;
+	maxSize *= 1048576; // to MegaBytes
 	std::vector<std::string> batches; 
 
 	int batchSize = 0;

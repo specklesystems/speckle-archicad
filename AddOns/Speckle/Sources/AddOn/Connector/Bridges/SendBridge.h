@@ -2,6 +2,7 @@
 
 #include "IBrowserAdapter.h"
 #include "Binding.h"
+#include "SendConversionResult.h"
 
 class SendBridge {
 public:
@@ -11,6 +12,7 @@ public:
 
 private:
     std::unique_ptr<Binding> sendBinding;
+    std::vector<SendConversionResult> conversionResultCache;
 
     void OnRunMethod(const RunMethodEventArgs& args);
     void RunMethod(const RunMethodEventArgs& args);

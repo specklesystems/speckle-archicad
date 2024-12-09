@@ -28,7 +28,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         }
         catch (const ArchiCadApiException& e)
         {
-            conversionResult.status = ConversionResultStatus::ERROR;
+            conversionResult.status = ConversionResultStatus::CONVERSION_ERROR;
             conversionResult.error.message = e.what();
         }
 

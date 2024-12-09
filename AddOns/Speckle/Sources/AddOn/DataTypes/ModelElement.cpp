@@ -13,5 +13,5 @@ void from_json(const nlohmann::json& j, ModelElement& elem)
     elem.speckle_type = j.at("speckle_type").get<std::string>();
     elem.applicationId = j.at("applicationId").get<std::string>();
     elem.units = j.at("units").get<std::string>();
-    //elem.displayValue = j.at("displayValue").get<std::vector<Mesh>>();
+    // TODO implement ElementBody from_json() function
 }

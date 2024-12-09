@@ -9,8 +9,6 @@
 #include "BaseObjectSerializer.h"
 #include "AfterSendObjectsArgs.h"
 
-#include "JsonFileWriter.h"
-
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
@@ -32,17 +30,17 @@ void SendBridge::OnRunMethod(const RunMethodEventArgs& args)
     catch (const ArchiCadApiException& acex)
     {
         sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
     }
     catch (const std::exception& stdex)
     {
         sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
     }
     catch (...)
     {
         sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
     }
 }
 
@@ -110,13 +108,11 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     CONNECTOR.GetSpeckleToHostConverter().ShowAllIn3D();
     nlohmann::json sendObj;
     RootObjectBuilder rootObjectBuilder{};
-    std::vector<SendConversionResult> conversionResults;
-    auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResults);
+    auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResultCache);
 
     BaseObjectSerializer serializer{};
     auto rootObjectId = serializer.Serialize(root);
-    //auto objects = serializer.GetObjects();
-    auto batches = serializer.BatchObjects();
+    auto batches = serializer.BatchObjects(5);
 
     sendArgs.referencedObjectId = rootObjectId;
 
@@ -130,12 +126,6 @@ void SendBridge::Send(const RunMethodEventArgs& args)
         sendArgs.totalBatch = batchSize;
         args.eventSource->SendBatchViaBrowser(args.methodId, sendArgs);
     }
-
-    //JsonFileWriter::WriteJsonToFile(objects, "C:\\tmp\\traversed_base.json");
-    //sendObj["rootObject"] = objects;
-    //sendArgs.sendObject = sendObj;
-    //sendArgs.sendConversionResults = conversionResults;
-    //args.eventSource->SendByBrowser(args.methodId, sendArgs);
 }
 
 void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
@@ -156,7 +146,8 @@ void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
     std::string referencedObjectId = args.data[1].get<std::string>();
     afterSendObjectsArgs.referencedObjectId = referencedObjectId;
     afterSendObjectsArgs.sendConversionResults = nlohmann::json::array();
-    // TODO cache the sendCoversionResult with modelcardId on Send and att it here;
+    afterSendObjectsArgs.sendConversionResults = conversionResultCache;
 
     args.eventSource->CreateVersionViaBrowser(args.methodId, afterSendObjectsArgs);
+    conversionResultCache.clear();
 }
