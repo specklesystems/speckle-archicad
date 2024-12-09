@@ -14,8 +14,6 @@ static GSErrCode ApiProjectInfo(API_ProjectInfo* projectInfo)
 	err = ACAPI_ProjectOperation_Project(projectInfo);
 #elif defined(AC26)
 	err = ACAPI_Environment(APIEnv_ProjectID, projectInfo);
-#elif defined(AC25)
-	err = ACAPI_Environment(APIEnv_ProjectID, projectInfo);
 #endif
 
 	return err;

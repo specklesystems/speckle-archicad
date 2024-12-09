@@ -17,8 +17,6 @@ static GSErrCode GetCurrentWindowSight(void** sightPtr)
 	err = ACAPI_Sight_GetCurrentWindowSight(sightPtr);
 #elif defined(AC26)
 	err = ACAPI_3D_GetCurrentWindowSight(sightPtr);
-#elif defined(AC25)
-	err = ACAPI_3D_GetCurrentWindowSight(sightPtr);
 #endif
 
 	return err;

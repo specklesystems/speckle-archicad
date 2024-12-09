@@ -16,8 +16,6 @@ static GSErrCode RegisterMenu(short menuStrResID, short promptStrResID, APIMenuC
 	err = ACAPI_MenuItem_RegisterMenu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
 #elif defined(AC26)
 	err = ACAPI_Register_Menu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
-#elif defined(AC25)
-	err = ACAPI_Register_Menu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
 #endif
 
 	return err;
@@ -32,8 +30,6 @@ static GSErrCode InstallMenuHandler(short menuStrResID, APIMenuCommandProc* hand
 #elif defined(AC27)
 	err = ACAPI_MenuItem_InstallMenuHandler(menuStrResID, handlerProc);
 #elif defined(AC26)
-	err = ACAPI_Install_MenuHandler(menuStrResID, handlerProc);
-#elif defined(AC25)
 	err = ACAPI_Install_MenuHandler(menuStrResID, handlerProc);
 #endif
 
@@ -50,8 +46,6 @@ static GSErrCode CatchProjectEvent(GSFlags eventTypes, APIProjectEventHandlerPro
 	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
 #elif defined(AC26)
 	err = ACAPI_Notify_CatchProjectEvent(eventTypes, handlerProc);
-#elif defined(AC25)
-	err = ACAPI_Notify_CatchProjectEvent(eventTypes, handlerProc);
 #endif
 
 	return err;
@@ -67,13 +61,10 @@ static GSErrCode CatchSelectionChange(APISelectionChangeHandlerProc* handlerProc
 	err = ACAPI_Notification_CatchSelectionChange(handlerProc);
 #elif defined(AC26)
 	err = ACAPI_Notify_CatchSelectionChange(handlerProc);
-#elif defined(AC25)
-	err = ACAPI_Notify_CatchSelectionChange(handlerProc);
 #endif
 
 	return err;
 }
-
 
 static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*param*/)
 {
