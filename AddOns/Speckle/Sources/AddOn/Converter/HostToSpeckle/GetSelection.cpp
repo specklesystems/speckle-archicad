@@ -3,7 +3,6 @@
 #include "APIEnvir.h"
 #include "ACAPinc.h"
 #include "CheckError.h"
-#include <iostream>
 
 std::vector<std::string> HostToSpeckleConverter::GetSelection()
 {
@@ -16,8 +15,6 @@ std::vector<std::string> HostToSpeckleConverter::GetSelection()
 	}
 	catch (const std::exception& e)
 	{
-		std::string msg = e.what();
-		std::cout << msg;
 		// could not get selection
 		// it has to be handled locally to return an empty list 
 		// instead of a toast error in the SelectionBridge OnRunMethod
