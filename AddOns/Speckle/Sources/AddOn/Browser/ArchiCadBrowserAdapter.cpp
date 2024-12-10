@@ -21,12 +21,6 @@ using JSArray = DG::JSArray;
 using JSValue = DG::JSValue;
 using JSFunction = DG::JSFunction;
 using JSObject = DG::JSObject;
-#elif defined(AC25)
-using JSBase = DG::JSBase;
-using JSArray = DG::JSArray;
-using JSValue = DG::JSValue;
-using JSFunction = DG::JSFunction;
-using JSObject = DG::JSObject;
 #endif
 
 namespace

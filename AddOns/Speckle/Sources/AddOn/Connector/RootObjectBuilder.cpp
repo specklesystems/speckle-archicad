@@ -1,6 +1,7 @@
 #include "RootObjectBuilder.h"
 #include "Connector.h"
 #include "ArchiCadApiException.h"
+#include "SpeckleConversionException.h"
 
 
 RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elementIds, std::vector<SendConversionResult>& conversionResults)
@@ -18,18 +19,23 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
 
         try
         {
-            conversionResult.sourceId = elemId;
             elementType = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
             conversionResult.sourceType = elementType;
+            conversionResult.sourceId = elemId;
             body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
-            conversionResult.resultType = "Mesh";
             conversionResult.resultId = "";
+            conversionResult.resultType = "Mesh";
             levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
         }
-        catch (const ArchiCadApiException& e)
+        catch (const ArchiCadApiException& ae)
         {
             conversionResult.status = ConversionResultStatus::CONVERSION_ERROR;
-            conversionResult.error.message = e.what();
+            conversionResult.error.message = ae.what();
+        }
+        catch (const SpeckleConversionException& se)
+        {
+            conversionResult.status = ConversionResultStatus::CONVERSION_ERROR;
+            conversionResult.error.message = se.what();
         }
 
         bodies.push_back(body);

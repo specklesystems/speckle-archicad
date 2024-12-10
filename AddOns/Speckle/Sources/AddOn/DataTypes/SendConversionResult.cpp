@@ -7,5 +7,5 @@ void to_json(nlohmann::json& j, const SendConversionResult& result)
     j["sourceType"] = result.sourceType;
     j["resultId"] = result.resultId;
     j["resultType"] = result.resultType;
-    //j["error"] = result.error;
+    j["error"] = result.error;
 }
