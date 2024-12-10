@@ -28,6 +28,7 @@ void BrowserBridge::LoadUI()
         return;
 
 	_browserAdapter->LoadURL("https://boisterous-douhua-e3cefb.netlify.app/");
+    //_browserAdapter->LoadURL("https://deploy-preview-3648--boisterous-douhua-e3cefb.netlify.app/");
 }
 
 AccountBridge& BrowserBridge::GetAccountBridge()

@@ -13,7 +13,7 @@ std::vector<std::string> HostToSpeckleConverter::GetSelection()
 	{
 		CHECK_ERROR(ACAPI_Selection_Get(&selectionInfo, &selection, true));
 	}
-	catch (const std::exception& e)
+	catch (const std::exception&)
 	{
 		// could not get selection
 		// it has to be handled locally to return an empty list 
