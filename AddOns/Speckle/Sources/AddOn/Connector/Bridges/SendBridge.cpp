@@ -92,8 +92,8 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     if (args.data.size() < 1)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
-    std::string id = args.data[0].get<std::string>();
-    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
+    std::string modelCardId = args.data[0].get<std::string>();
+    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId);
 
     SendViaBrowserArgs sendArgs{};
     sendArgs.modelCardId = modelCard.modelCardId;
@@ -102,8 +102,6 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.serverUrl = modelCard.serverUrl;
     sendArgs.accountId = modelCard.accountId;
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
-    // TODO: message
-    //sendArgs.message = "Sending model from ArchiCAD";
 
     CONNECTOR.GetSpeckleToHostConverter().ShowAllIn3D();
     nlohmann::json sendObj;
@@ -133,8 +131,8 @@ void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
     if (args.data.size() < 1)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
-    std::string id = args.data[0].get<std::string>();
-    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
+    std::string modelCardId = args.data[0].get<std::string>();
+    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId);
 
     AfterSendObjectsArgs afterSendObjectsArgs{};
     afterSendObjectsArgs.modelCardId = modelCard.modelCardId;

@@ -1,6 +1,6 @@
 #include "ModelCardDatabase.h"
 
-const static std::string MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v123";
+const static std::string MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v1";
 
 ModelCardDatabase::ModelCardDatabase(std::unique_ptr<IDataStorage> storage)
     : dataStorage(std::move(storage)) {}
@@ -66,19 +66,19 @@ SendModelCard ModelCardDatabase::GetModelCard(const std::string& modelCardId) co
 void ModelCardDatabase::AddModel(const SendModelCard& modelCard)
 {
     modelCards[modelCard.modelCardId] = modelCard;
-    //StoreModels();
+    StoreModels();
 }
 
 void ModelCardDatabase::UpdateModel(const SendModelCard& modelCard)
 {
     modelCards[modelCard.modelCardId] = modelCard;
-    //StoreModels();
+    StoreModels();
 }
 
 void ModelCardDatabase::RemoveModel(const std::string& modelCardId)
 {
     modelCards.erase(modelCardId);
-    //StoreModels();
+    StoreModels();
 }
 
 void ModelCardDatabase::ClearModels()

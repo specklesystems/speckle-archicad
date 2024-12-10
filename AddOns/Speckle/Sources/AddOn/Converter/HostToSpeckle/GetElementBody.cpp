@@ -87,6 +87,10 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 	// the body to return
 	ElementBody elementBody{};
 
+	// POC: remove this once we are ready to convert Grid Elements
+	if (elemType == API_ObjectID && apiElem.header.type.variationID == APIVarId_GridElement)
+		throw std::exception("Converting Grid elements in ArchiCAD is not supported yet.");
+
 	//Get elements
 	Int32 nElements = acModel.GetElementCount();
 	for (Int32 iElement = 1; iElement <= nElements; iElement++)
