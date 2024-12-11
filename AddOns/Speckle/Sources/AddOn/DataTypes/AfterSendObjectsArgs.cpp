@@ -1,6 +1,6 @@
-#include "SendViaBrowserArgs.h"
+#include "AfterSendObjectsArgs.h"
 
-void to_json(nlohmann::json& j, const SendViaBrowserArgs& args)
+void to_json(nlohmann::json& j, const AfterSendObjectsArgs& args)
 {
     j["modelCardId"] = args.modelCardId;
     j["projectId"] = args.projectId;
@@ -8,13 +8,12 @@ void to_json(nlohmann::json& j, const SendViaBrowserArgs& args)
     j["token"] = args.token;
     j["serverUrl"] = args.serverUrl;
     j["accountId"] = args.accountId;
-    j["totalBatch"] = args.totalBatch;
-    j["currentBatch"] = args.currentBatch;
+    j["message"] = args.message;
+    j["sendConversionResults"] = args.sendConversionResults;
     j["referencedObjectId"] = args.referencedObjectId;
-    j["batch"] = args.batch;
 }
 
-void from_json(const nlohmann::json& j, SendViaBrowserArgs& args)
+void from_json(const nlohmann::json& j, AfterSendObjectsArgs& args)
 {
     args.modelCardId = j.at("modelCardId").get<std::string>();
     args.projectId = j.at("projectId").get<std::string>();
@@ -22,8 +21,7 @@ void from_json(const nlohmann::json& j, SendViaBrowserArgs& args)
     args.token = j.at("token").get<std::string>();
     args.serverUrl = j.at("serverUrl").get<std::string>();
     args.accountId = j.at("accountId").get<std::string>();
-    args.totalBatch = j.at("totalBatch").get<int>();
-    args.currentBatch = j.at("currentBatch").get<int>();
+    args.message = j.at("message").get<std::string>();
+    args.sendConversionResults = j.at("sendConversionResults");
     args.referencedObjectId = j.at("referencedObjectId").get<std::string>();
-    args.batch = j.at("batch").get<std::string>();
 }

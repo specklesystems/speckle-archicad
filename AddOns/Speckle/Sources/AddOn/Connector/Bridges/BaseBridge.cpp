@@ -29,17 +29,17 @@ void BaseBridge::OnRunMethod(const RunMethodEventArgs& args)
     catch (const ArchiCadApiException& acex)
     {
         baseBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
     }
     catch (const std::exception& stdex)
     {
         baseBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Exception occured" , stdex.what(), false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
     }
     catch (...)
     {
         baseBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::DANGER , "Unknown exception occured" , "", false });
+            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
     }
 }
 
@@ -116,7 +116,7 @@ void BaseBridge::GetDocumentInfo(const RunMethodEventArgs& args)
     try
     {
         auto documentInfo = CONNECTOR.GetHostToSpeckleConverter().GetProjectInfo();
-        documentInfo.id = CONNECTOR.GetDataStorage().GetDataStorageId(Connector::MODELCARD_ADDONOBJECT_NAME);
+        documentInfo.id = "9FB91C96-3D34-4A2F-81CF-206FFE2FD185";
         args.eventSource->SetResult(args.methodId, documentInfo);
     }
     catch (const ArchiCadApiException& acex)

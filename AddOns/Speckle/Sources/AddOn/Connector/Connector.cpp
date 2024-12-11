@@ -6,7 +6,6 @@
 #include "ArchiCadDataStorage.h"
 
 std::unique_ptr<Connector> Connector::instance = nullptr;
-const std::string Connector::MODELCARD_ADDONOBJECT_NAME = "SpeckleModelCardAddOnObjectName_v123";
 
 Connector& Connector::GetInstance()
 {
@@ -19,11 +18,11 @@ Connector& Connector::GetInstance()
 void Connector::InitConnector()
 {
 	accountDatabase = std::make_unique<AccountDatabase>();
-	modelCardDatabase = std::make_unique<ModelCardDatabase>();
+	auto dataStorage = std::make_unique<ArchiCadDataStorage>();
+	modelCardDatabase = std::make_unique<ModelCardDatabase>(std::move(dataStorage));
 	hostToSpeckleConverter = std::make_unique<HostToSpeckleConverter>();
 	speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
 	hostAppEvents = std::make_unique<HostAppEvents>();
-	dataStorage = std::make_unique<ArchiCadDataStorage>();
 }
 
 IAccountDatabase& Connector::GetAccountDatabase() 
@@ -64,12 +63,4 @@ HostAppEvents& Connector::GetHostAppEvents()
         throw std::runtime_error("HostAppEvents not initialized");
 
     return *hostAppEvents;
-}
-
-IDataStorage& Connector::GetDataStorage() 
-{
-    if (!dataStorage)
-        throw std::runtime_error("DataStorage not initialized");
-
-    return *dataStorage;
 }

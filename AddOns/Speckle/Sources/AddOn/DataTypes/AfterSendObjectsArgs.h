@@ -3,7 +3,7 @@
 #include <string>
 #include "json.hpp"
 
-struct SendViaBrowserArgs
+struct AfterSendObjectsArgs
 {
     std::string modelCardId;
     std::string projectId;
@@ -11,11 +11,12 @@ struct SendViaBrowserArgs
     std::string token;
     std::string serverUrl;
     std::string accountId;
-    int totalBatch;
-    int currentBatch;
+    std::string message;
+    nlohmann::json sendConversionResults;
     std::string referencedObjectId;
-    std::string batch;
+
 };
 
-void to_json(nlohmann::json& j, const SendViaBrowserArgs& c);
-void from_json(const nlohmann::json& j, SendViaBrowserArgs& card);
+void to_json(nlohmann::json& j, const AfterSendObjectsArgs& args);
+void from_json(const nlohmann::json& j, AfterSendObjectsArgs& args);
+

@@ -4,15 +4,15 @@
 
 enum class ToastNotificationType 
 {
-    SUCCESS,
-    WARNING,
-    DANGER,
-    INFO
+    TOAST_SUCCESS,
+    TOAST_WARNING,
+    TOAST_DANGER,
+    TOAST_INFO
 };
 
 struct ToastNotification
 {
-    ToastNotificationType type = ToastNotificationType::INFO;
+    ToastNotificationType type = ToastNotificationType::TOAST_INFO;
     std::string title = "";
     std::string description = "";
     bool autoClose;

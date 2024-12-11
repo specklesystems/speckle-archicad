@@ -4,6 +4,7 @@
 #include "ACAPinc.h"
 #include "CheckError.h"
 #include "ConverterUtils.h"
+#include "SpeckleConversionException.h"
 
 #include <AttributeIndex.hpp>
 #include <ConvexPolygon.hpp>
@@ -81,17 +82,15 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 {
 	auto acModel = ConverterUtils::GetArchiCadModel();
 	auto apiElem = ConverterUtils::GetElement(elemId);
-
-#if defined(AC25)
-	auto elemType = apiElem.header.typeID;
-#else
 	auto elemType = apiElem.header.type.typeID;
-#endif
-
 	auto partIDs = CollectPartIDs(apiElem.header.guid, elemType);
 
 	// the body to return
 	ElementBody elementBody{};
+
+	// POC: remove this once we are ready to convert Grid Elements
+	if (elemType == API_ObjectID && apiElem.header.type.variationID == APIVarId_GridElement)
+		throw SpeckleConversionException("Converting Grid elements in ArchiCAD is not supported yet.");
 
 	//Get elements
 	Int32 nElements = acModel.GetElementCount();

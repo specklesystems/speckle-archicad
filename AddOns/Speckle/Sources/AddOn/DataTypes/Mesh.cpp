@@ -7,14 +7,7 @@ void Mesh::AddFace(std::vector<double> verticesToAdd)
     faces.push_back(faceSize);
 
     for (const auto& v : verticesToAdd)
-    {
-        // rounding doubles to 4 decimals to lower the JSON size
-        // it saves about 10-15% on large models
-        // it can be critical if we try to parse large JSON cunks on the JS side
-        // remove the rounding if the precision is needed
-        double d = std::round(v * 10000.0) * 0.0001;;
-        vertices.push_back(d);
-    }
+        vertices.push_back(v);
 
     for (int i = 0; i < faceSize; i++)
         faces.push_back(lastVertexCount + i);

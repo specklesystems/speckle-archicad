@@ -9,8 +9,10 @@ class IModelCardDatabase
 public:
     virtual ~IModelCardDatabase() = default;
 
-    virtual void LoadModelsFromJson(const nlohmann::json j) = 0;
     virtual nlohmann::json GetModelsAsJson() = 0;
+    virtual void LoadModelsFromJson(const nlohmann::json j) = 0;
+    virtual void StoreModels() = 0;
+    virtual void LoadModelsFromStorage() = 0;
 
     virtual std::vector<SendModelCard> GetModels() const = 0;
     virtual SendModelCard GetModelCard(const std::string& modelCardId) const = 0;

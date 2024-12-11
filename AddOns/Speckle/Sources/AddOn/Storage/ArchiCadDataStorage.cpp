@@ -11,10 +11,10 @@ namespace
 	API_Guid GetApiObjectGuidByName(const std::string& dataName)
 	{
 		API_Guid apiGuid{};
-		CHECK_ERROR(ACAPI_AddOnObject_GetUniqueObjectGuidFromName(dataName.c_str(), &apiGuid));
+		CHECK_ERROR(ACAPI_AddOnObject_GetClientOnlyObjectGuidFromName(dataName.c_str(), &apiGuid));
 
 		if (apiGuid == APINULLGuid)
-			CHECK_ERROR(ACAPI_AddOnObject_CreateUniqueObject(dataName.c_str(), &apiGuid));
+			CHECK_ERROR(ACAPI_AddOnObject_CreateClientOnlyObject(dataName.c_str(), nullptr, &apiGuid));
 
 		if (apiGuid == APINULLGuid)
 			throw "Could not find ApiObject guid by name";

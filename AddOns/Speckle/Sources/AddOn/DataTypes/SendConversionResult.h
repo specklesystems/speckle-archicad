@@ -5,16 +5,16 @@
 
 enum class ConversionResultStatus
 {
-    NONE = 0, // Do not use
-    SUCCESS = 1,
-    INFO = 2, // Not in use yet, maybe later as discussed
-    WARNING = 3, // Not in use yet, maybe later as discussed
-    ERROR = 4
+    CONVERSION_NONE = 0, // Do not use
+    CONVERSION_SUCCESS = 1,
+    CONVERSION_INFO = 2, // Not in use yet, maybe later as discussed
+    CONVERSION_WARNING = 3, // Not in use yet, maybe later as discussed
+    CONVERSION_ERROR = 4
 };
 
 struct SendConversionResult
 {
-    ConversionResultStatus status = ConversionResultStatus::SUCCESS;
+    ConversionResultStatus status = ConversionResultStatus::CONVERSION_SUCCESS;
     std::string sourceId = "";
     std::string sourceType = "";
     std::string resultId = "";
