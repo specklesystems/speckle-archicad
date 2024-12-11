@@ -11,6 +11,7 @@ public:
 
 	virtual std::vector<std::string> GetSelection() = 0;
 	virtual ElementBody GetElementBody(const std::string& elemId) = 0;
+	virtual ElementBody GetElementBodyWithModelAccess(const std::string& elemId) = 0;
 	virtual Material GetModelMaterial(int materialIndex) = 0;
 	virtual std::string GetElementLevel(const std::string& elemId) = 0;
 	virtual std::string GetElementType(const std::string& elemId) = 0;
