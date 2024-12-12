@@ -50,7 +50,7 @@ std::pair<std::string, nlohmann::json> BaseObjectSerializer::TraverseBase(const 
 		}
 	}
 
-	std::string id = MD5::hash(traversedBase.dump());
+	std::string id = MD5Hash::hash(traversedBase.dump());
 
 	traversedBase["id"] = id;
 	if (!closure.empty())

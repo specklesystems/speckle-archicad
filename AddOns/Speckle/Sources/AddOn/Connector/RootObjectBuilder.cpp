@@ -22,7 +22,8 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             elementType = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
             conversionResult.sourceType = elementType;
             conversionResult.sourceId = elemId;
-            body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
+            //body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
+            body = CONNECTOR.GetHostToSpeckleConverter().GetElementBodyWithModelAccess(elemId);
             conversionResult.resultId = "";
             conversionResult.resultType = "Mesh";
             levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);

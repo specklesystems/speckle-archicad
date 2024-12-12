@@ -6,144 +6,152 @@
 #include "ConverterUtils.h"
 #include "SpeckleConversionException.h"
 
-#include <AttributeIndex.hpp>
-#include <ConvexPolygon.hpp>
-#include <Model.hpp>
-#include <ModelElement.hpp>
-#include <ModelMeshBody.hpp>
+#include "Transformation.hpp"
+#include "TRANMAT.h"
+#include "TM.h"
+#include "Vertex.hpp"
 
 #include <set>
+#include <functional>
+
+#include "StopWatch.h"
 
 namespace
 {
-	template<typename T>
-	void GetPartIDs(T* parts, std::set<API_Guid>& partIDs)
-	{
-		GSSize nSubElements = BMGetPtrSize(reinterpret_cast<GSPtr>(parts)) / sizeof(T);
-		for (Int32 idx = 0; idx < nSubElements; ++idx)
-			partIDs.insert(parts[idx].head.guid);
+	void GetComponent(API_Component3D& component, API_3DTypeID typeId, Int32 index) {
+		component = API_Component3D{};
+		component.header.typeID = typeId;
+		component.header.index = index;
+		if (ACAPI_ModelAccess_GetComponent(&component) != NoError) {
+			// TODO: throw
+		}
 	}
 
-	std::set<API_Guid> CollectPartIDs(const API_Guid& elemId, API_ElemTypeID typeID)
+	bool getDecomposedVertexIndices(int polygonIndex, API_Component3D& component, std::vector<std::vector<int>>& indices)
 	{
-		API_ElementMemo memo{};
-		ACAPI_Element_GetMemo(elemId, &memo, APIMemoMask_All);
+		GetComponent(component, API_PgonID, polygonIndex);
 
-		std::set<API_Guid> partIDs{};
-		partIDs.insert(elemId);
+		Int32** cpoly = nullptr;
+		GSErrCode err = ACAPI_ModelAccess_DecomposePgon(polygonIndex, &cpoly);
 
-		switch (typeID) {
-		case API_StairID:
-			GetPartIDs(memo.stairRisers, partIDs);
-			GetPartIDs(memo.stairTreads, partIDs);
-			GetPartIDs(memo.stairStructures, partIDs);
-			break;
-		case API_RailingID:
-			GetPartIDs(memo.railingSegments, partIDs);
-			GetPartIDs(memo.railingPatterns, partIDs);
-			GetPartIDs(memo.railingRails, partIDs);
-			GetPartIDs(memo.railingHandrails, partIDs);
-			GetPartIDs(memo.railingToprails, partIDs);
-			GetPartIDs(memo.railingBalusterSets, partIDs);
-			GetPartIDs(memo.railingBalusters, partIDs);
-			GetPartIDs(memo.railingPanels, partIDs);
-			GetPartIDs(memo.railingInnerPosts, partIDs);
+		if (err != NoError || cpoly == nullptr)
+			return false;
 
-			GetPartIDs(memo.railingNodes, partIDs);
-			GetPartIDs(memo.railingRailConnections, partIDs);
-			GetPartIDs(memo.railingHandrailConnections, partIDs);
-			GetPartIDs(memo.railingToprailConnections, partIDs);
-			GetPartIDs(memo.railingPosts, partIDs);
-			GetPartIDs(memo.railingRailEnds, partIDs);
-			GetPartIDs(memo.railingHandrailEnds, partIDs);
-			GetPartIDs(memo.railingToprailEnds, partIDs);
-			break;
-		case API_CurtainWallID:
-			GetPartIDs(memo.cWallSegments, partIDs);
-			GetPartIDs(memo.cWallFrames, partIDs);
-			GetPartIDs(memo.cWallPanels, partIDs);
-			GetPartIDs(memo.cWallJunctions, partIDs);
-			GetPartIDs(memo.cWallAccessories, partIDs);
-			break;
-		case API_ColumnID:
-			GetPartIDs(memo.columnSegments, partIDs);
-			break;
-		case API_BeamID:
-			GetPartIDs(memo.beamSegments, partIDs);
-			break;
-		default:
-			break;
+		int numSubPolygons = -cpoly[0][0];  // First element is -n, the number of subpolygons
+
+		int idx = 1;
+		for (int i = 0; i < numSubPolygons; ++i) {
+			int numVertices = -cpoly[0][idx];  // Each subpolygon starts with -m, the number of vertices
+
+			std::vector<int> currentIndices;
+			currentIndices.clear();
+
+			for (int j = 1; j <= numVertices; ++j) {
+				int vertIndex = cpoly[0][idx + j];  // Get the vertex index
+				currentIndices.push_back(vertIndex + 1);
+			}
+			indices.push_back(currentIndices);
+			idx += numVertices + 1;
 		}
-		return partIDs;
+
+		BMKillHandle(reinterpret_cast<GSHandle*>(&cpoly));
+		return true;
+	}
+
+	void getVertexIndices(int polygonIndex, API_Component3D& component, std::vector<std::vector<int>>& indices)
+	{
+		GetComponent(component, API_PgonID, polygonIndex);
+		Int32 fpedg = component.pgon.fpedg;
+		Int32 lpedg = component.pgon.lpedg;
+
+		std::vector<int> currentIndices;
+		currentIndices.clear();
+
+		for (Int32 ie = fpedg; ie <= lpedg; ie++)
+		{
+			GetComponent(component, API_PedgID, ie);
+			bool wasNegative = component.pedg.pedg < 0;
+			Int32 edgeIndex = std::abs(component.pedg.pedg);
+
+			GetComponent(component, API_EdgeID, edgeIndex);
+			Int32 vertexIndex = wasNegative ? component.edge.vert2 : component.edge.vert1;
+			currentIndices.push_back(vertexIndex);
+		}
+
+		indices.push_back(currentIndices);
+	}
+
+	void API2AC_Tranmat(TRANMAT* tranmat, const API_Tranmat& api_tranmat)
+	{
+		tranmat->status = 0;
+		tranmat->dummy1 = tranmat->dummy2 = tranmat->dummy3 = 0;
+		Geometry::Vector3d vec1(api_tranmat.tmx[0], api_tranmat.tmx[4], api_tranmat.tmx[8]), vec2(api_tranmat.tmx[1], api_tranmat.tmx[5], api_tranmat.tmx[9]), vec3(api_tranmat.tmx[2], api_tranmat.tmx[6], api_tranmat.tmx[10]), vec4(api_tranmat.tmx[3], api_tranmat.tmx[7], api_tranmat.tmx[11]);
+		tranmat->SetMatrix(Geometry::Matrix34::CreateFromColVectors(vec1, vec2, vec3, vec4));
 	}
 }
 
 ElementBody HostToSpeckleConverter::GetElementBodyWithModelAccess(const std::string& elemId)
 {
-	auto acModel = ConverterUtils::GetArchiCadModel();
 	auto apiElem = ConverterUtils::GetElement(elemId);
-	auto elemType = apiElem.header.type.typeID;
-	auto partIDs = CollectPartIDs(apiElem.header.guid, elemType);
+	API_ElemInfo3D info3D = {};
+	ACAPI_ModelAccess_Get3DInfo(apiElem.header, &info3D);
 
 	// the body to return
 	ElementBody elementBody{};
 
-	// POC: remove this once we are ready to convert Grid Elements
-	if (elemType == API_ObjectID && apiElem.header.type.variationID == APIVarId_GridElement)
-		throw SpeckleConversionException("Converting Grid elements in ArchiCAD is not supported yet.");
-
-	//Get elements
-	Int32 nElements = acModel.GetElementCount();
-	for (Int32 iElement = 1; iElement <= nElements; iElement++)
+	for (Int32 ib = info3D.fbody; ib <= info3D.lbody; ib++)
 	{
-		ModelerAPI::Element elem{};
-		acModel.GetElement(iElement, &elem);
-		API_Guid apiGuid{ GSGuid2APIGuid(elem.GetElemGuid()) };
-		if (partIDs.find(apiGuid) == partIDs.end())
-			continue;
+		std::hash<std::string> hasher;
+		STOPWATCH.Start();
+		std::vector<std::vector<int>> indices;
+		API_Component3D component = {};
+		GetComponent(component, API_BodyID, ib);
 
-		// Get bodies
-		Int32 nBodies = elem.GetTessellatedBodyCount();
-		for (Int32 bodyIndex = 1; bodyIndex <= nBodies; ++bodyIndex)
+		Int32 nPgon = component.body.nPgon;
+		API_Tranmat tmx = component.body.tranmat;
+		for (Int32 ip = 1; ip <= nPgon; ip++)
 		{
-			ModelerAPI::MeshBody body{};
-			elem.GetTessellatedBody(bodyIndex, &body);
+			bool decomp = getDecomposedVertexIndices(ip, component, indices);
 
-			// Get polygons
-			Int32 polyCount = body.GetPolygonCount();
-			for (Int32 polyIndex = 1; polyIndex <= polyCount; ++polyIndex)
+			if (!decomp)
 			{
-				ModelerAPI::Polygon polygon{};
-				body.GetPolygon(polyIndex, &polygon);
-
-				std::vector<double> vertices;
-				ModelerAPI::AttributeIndex matIdx{};
-				polygon.GetMaterialIndex(matIdx);
-				int materialIndex = matIdx.GetIndex();
-
-				// Get convex polygons
-				Int32 convexPolyCount = polygon.GetConvexPolygonCount();
-				for (Int32 convPolyIndex = 1; convPolyIndex <= convexPolyCount; ++convPolyIndex)
-				{
-					ModelerAPI::ConvexPolygon convexPolygon{};
-					polygon.GetConvexPolygon(convPolyIndex, &convexPolygon);
-
-					// Get vertices
-					Int32 vertexCount = convexPolygon.GetVertexCount();
-					for (Int32 vertexIndex = 1; vertexIndex <= vertexCount; ++vertexIndex)
-					{
-						ModelerAPI::Vertex vertex{};
-						body.GetVertex(convexPolygon.GetVertexIndex(vertexIndex), &vertex);
-
-						vertices.push_back(vertex.x);
-						vertices.push_back(vertex.y);
-						vertices.push_back(vertex.z);
-					}
-
-					elementBody.AddFace(vertices, materialIndex);
-					vertices.clear();
-				}
+				getVertexIndices(ip, component, indices);
 			}
+		}
+
+		// create hash from vertexindices
+		std::stringstream ss;
+		for (int i = 0; i < indices.size(); i++)
+		{
+			for (int j = 0; j < indices[i].size(); j++) 
+			{
+				ss << indices[i][j];
+			}
+		}
+
+		// Compute the hash value
+		size_t hash_value = hasher(ss.str());
+		auto elapsed = STOPWATCH.Stop();
+
+		if (hash_value == 0) return{};
+
+		std::vector<double> vertices;
+		for (int i = 0; i < indices.size(); i++)
+		{
+			for (int j = 0; j < indices[i].size(); j++)
+			{
+				GetComponent(component, API_VertID, indices[i][j]);
+				TRANMAT	tm;
+				API2AC_Tranmat(&tm, tmx);
+				Point3D p1(component.vert.x, component.vert.y, component.vert.z);
+				p1 = Geometry::TransformPoint(tm, p1);
+				vertices.push_back(p1.x);
+				vertices.push_back(p1.y);
+				vertices.push_back(p1.z);
+			}
+
+			elementBody.AddFace(vertices, 1);
+			vertices.clear();
 		}
 	}
 

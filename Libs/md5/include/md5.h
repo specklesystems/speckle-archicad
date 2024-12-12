@@ -1,5 +1,5 @@
-#ifndef MD5_H
-#define MD5_H
+#ifndef MD5HASH_H
+#define MD5HASH_H
 
 #include <cstring>
 #include <string>
@@ -8,10 +8,10 @@
 #include <cstdint>
 #include <vector>
 
-class MD5 {
+class MD5Hash {
 public:
-    MD5() { init(); }
-    explicit MD5(const std::string& text) {
+    MD5Hash() { init(); }
+    explicit MD5Hash(const std::string& text) {
         init();
         update(reinterpret_cast<const unsigned char*>(text.c_str()), text.size());
         finalize();
@@ -65,7 +65,7 @@ public:
     }
 
     static std::string hash(const std::string& input) {
-        MD5 md5(input);
+        MD5Hash md5(input);
         return md5.hexdigest();
     }
 
