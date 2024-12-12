@@ -75,6 +75,7 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
     filter.name = "Selection";
     filter.selectedObjectIds = CONNECTOR.GetHostToSpeckleConverter().GetSelection();
     filter.summary = std::to_string(filter.selectedObjectIds.size()) + " objects selected";
+    filter.isDefault = true;
 
     nlohmann::json sendFilters;
     sendFilters.push_back(filter);
