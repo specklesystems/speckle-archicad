@@ -8,6 +8,7 @@ struct SendFilter
     std::vector<std::string> selectedObjectIds;
     std::string name;
     std::string summary;
+    bool isDefault = false;
 };
 
 void to_json(nlohmann::json& j, const SendFilter& filter);
