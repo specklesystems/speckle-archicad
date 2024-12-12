@@ -15,5 +15,5 @@ void from_json(const nlohmann::json& j, SendFilter& filter)
     filter.selectedObjectIds = j.at("selectedObjectIds").get<std::vector<std::string>>();
     filter.name = j.at("name").get<std::string>();
     filter.summary = j.at("summary").get<std::string>();
-    filter.isDefault = j.at("summary").get<bool>();
+    filter.isDefault = j.at("isDefault").get<bool>();
 }
