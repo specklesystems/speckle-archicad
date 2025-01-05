@@ -26,8 +26,8 @@ namespace
 std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 {
 	std::string floorName = "";
-	auto apielem = ConverterUtils::GetElement(elemId);
-	auto floorInd = apielem.header.floorInd;
+	auto apiElem = ConverterUtils::GetElement(elemId);
+	auto floorInd = apiElem.header.floorInd;
 	
 	API_StoryInfo storyInfo{};
 	CHECK_ERROR(ACAPI_ProjectSetting_GetStorySettings(&storyInfo));

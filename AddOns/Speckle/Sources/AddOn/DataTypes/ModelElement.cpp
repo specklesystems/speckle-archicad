@@ -6,6 +6,7 @@ void to_json(nlohmann::json& j, const ModelElement& elem)
     j["applicationId"] = elem.applicationId;
     j["units"] = elem.units;
     j["@displayValue"] = elem.displayValue;
+    j["properties"] = elem.properties;
 }
 
 void from_json(const nlohmann::json& j, ModelElement& elem)

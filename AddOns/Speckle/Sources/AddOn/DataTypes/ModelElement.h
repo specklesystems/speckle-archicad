@@ -10,6 +10,7 @@ struct ModelElement
     std::string applicationId = "";
     std::string units = "m"; // default to meters
     ElementBody displayValue;
+    nlohmann::json properties;
 };
 
 void to_json(nlohmann::json& j, const ModelElement& elem);
