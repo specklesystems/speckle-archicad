@@ -16,7 +16,8 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         ElementBody body{};
         std::string levelName;
         std::string elementType;
-        nlohmann::json properties;
+        nlohmann::json userLevelProperties;
+        nlohmann::json materialQuantities;
 
         try
         {
@@ -27,7 +28,9 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             conversionResult.resultId = "";
             conversionResult.resultType = "Mesh";
             levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
-            properties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, ArchicadPropertyType::FundamentalBuiltIn);
+            userLevelProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, ArchicadPropertyType::UserLevelBuiltIn);
+            materialQuantities = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
+
         }
         catch (const ArchiCadApiException& ae)
         {
@@ -44,7 +47,8 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         ModelElement modelElement;
         modelElement.applicationId = elemId;
         modelElement.displayValue = body;
-        modelElement.properties = properties;
+        modelElement.properties["User Level Properties"] = userLevelProperties;
+        modelElement.properties["Material Quantities"] = materialQuantities;
 
         if (rootObject.elements.find(levelName) == rootObject.elements.end())
         {
