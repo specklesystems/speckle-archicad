@@ -55,7 +55,6 @@ namespace
 
 		quantities["area"] = elementQuantity.wall.surface1;
 		quantities["volume"] = elementQuantity.wall.volume;
-		quantities["units"] = "m";
 
 		if (apiElem.wall.modelElemStructureType == API_BasicStructure)
 		{
@@ -77,7 +76,6 @@ namespace
 
 		quantities["area"] = elementQuantity.slab.bottomSurface;
 		quantities["volume"] = elementQuantity.slab.volume;
-		quantities["units"] = "m";
 
 		if (apiElem.slab.modelElemStructureType == API_BasicStructure)
 		{

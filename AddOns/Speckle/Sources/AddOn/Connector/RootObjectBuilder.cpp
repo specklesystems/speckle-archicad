@@ -14,21 +14,25 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         SendConversionResult conversionResult{};   
 
         ElementBody body{};
+        std::string elementName;
         std::string levelName;
         std::string elementType;
-        nlohmann::json userLevelProperties;
+        std::map<std::string, std::string> elementClassifications;
+        //nlohmann::json userLevelProperties;
         nlohmann::json materialQuantities;
 
         try
         {
+            elementName = CONNECTOR.GetHostToSpeckleConverter().GetElementName(elemId);
             elementType = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
+            elementClassifications = CONNECTOR.GetHostToSpeckleConverter().GetElementClassifications(elemId);
             conversionResult.sourceType = elementType;
             conversionResult.sourceId = elemId;
             body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
             conversionResult.resultId = "";
             conversionResult.resultType = "Mesh";
             levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
-            userLevelProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, ArchicadPropertyType::UserLevelBuiltIn);
+            //userLevelProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, ArchicadPropertyType::UserLevelBuiltIn);
             materialQuantities = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
 
         }
@@ -45,9 +49,13 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
 
         bodies.push_back(body);
         ArchicadObject archicadObject;
+        archicadObject.name = elementName;
+        archicadObject.type = elementType;
+        archicadObject.classifications = elementClassifications;
+        archicadObject.level = levelName;
         archicadObject.applicationId = elemId;
         archicadObject.displayValue = body;
-        archicadObject.properties["User Level Properties"] = userLevelProperties;
+        //archicadObject.properties["User Level Properties"] = userLevelProperties;
         archicadObject.properties["Material Quantities"] = materialQuantities;
 
         if (rootObject.elements.find(levelName) == rootObject.elements.end())

@@ -9,7 +9,7 @@ struct ArchicadObject
     std::string name = "";
     std::string type = "";
     std::string level = "";
-    std::vector<std::string> classification;
+    std::map<std::string, std::string> classifications;
     std::string speckle_type = "Objects.Data.ArchicadObject";
     std::string applicationId = "";
     std::string units = "m"; // default to meters

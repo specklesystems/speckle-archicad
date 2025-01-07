@@ -20,8 +20,10 @@ public:
 	virtual std::vector<std::string> GetSelection() = 0;
 	virtual ElementBody GetElementBody(const std::string& elemId) = 0;
 	virtual Material GetModelMaterial(int materialIndex) = 0;
+	virtual std::string GetElementName(const std::string& elemId) = 0;
 	virtual std::string GetElementLevel(const std::string& elemId) = 0;
 	virtual std::string GetElementType(const std::string& elemId) = 0;
+	virtual std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) = 0;
 	virtual ProjectInfo GetProjectInfo() = 0;
 	virtual std::string GetHostAppReleaseInfo() = 0;
 	virtual nlohmann::json GetElementMaterialQuantities(const std::string& elemId) = 0;
