@@ -44,11 +44,11 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         }
 
         bodies.push_back(body);
-        ModelElement modelElement;
-        modelElement.applicationId = elemId;
-        modelElement.displayValue = body;
-        modelElement.properties["User Level Properties"] = userLevelProperties;
-        modelElement.properties["Material Quantities"] = materialQuantities;
+        ArchicadObject archicadObject;
+        archicadObject.applicationId = elemId;
+        archicadObject.displayValue = body;
+        archicadObject.properties["User Level Properties"] = userLevelProperties;
+        archicadObject.properties["Material Quantities"] = materialQuantities;
 
         if (rootObject.elements.find(levelName) == rootObject.elements.end())
         {
@@ -66,7 +66,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         }
 
         ElementTypeCollection& elementTypeCollection = level.elements[elementType];
-        elementTypeCollection.elements.push_back(modelElement);
+        elementTypeCollection.elements.push_back(archicadObject);
 
         conversionResults.push_back(conversionResult);
     }

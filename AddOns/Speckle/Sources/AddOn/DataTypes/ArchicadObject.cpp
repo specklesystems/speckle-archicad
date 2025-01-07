@@ -1,7 +1,11 @@
-#include "ModelElement.h"
+#include "ArchicadObject.h"
 
-void to_json(nlohmann::json& j, const ModelElement& elem)
+void to_json(nlohmann::json& j, const ArchicadObject& elem)
 {
+    j["name"] = elem.name;
+    j["type"] = elem.type;
+    j["level"] = elem.level;
+    j["classification"] = elem.classification;
     j["speckle_type"] = elem.speckle_type;
     j["applicationId"] = elem.applicationId;
     j["units"] = elem.units;
@@ -9,10 +13,9 @@ void to_json(nlohmann::json& j, const ModelElement& elem)
     j["properties"] = elem.properties;
 }
 
-void from_json(const nlohmann::json& j, ModelElement& elem)
+/*void from_json(const nlohmann::json& j, ArchicadObject& elem)
 {
     elem.speckle_type = j.at("speckle_type").get<std::string>();
     elem.applicationId = j.at("applicationId").get<std::string>();
     elem.units = j.at("units").get<std::string>();
-    // TODO implement ElementBody from_json() function
-}
+}*/
