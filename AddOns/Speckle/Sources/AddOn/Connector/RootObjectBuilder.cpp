@@ -19,22 +19,27 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         std::string elementType;
         std::map<std::string, std::string> elementClassifications;
         nlohmann::json dimensionalProperties;
+        nlohmann::json generalRatingsProperties;
+        nlohmann::json ifcProperties;
         nlohmann::json materialQuantities;
 
         try
         {
             elementName = CONNECTOR.GetHostToSpeckleConverter().GetElementName(elemId);
             elementType = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
-            elementClassifications = CONNECTOR.GetHostToSpeckleConverter().GetElementClassifications(elemId);
             conversionResult.sourceType = elementType;
             conversionResult.sourceId = elemId;
             body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
             conversionResult.resultId = "";
             conversionResult.resultType = "Mesh";
             levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
-            dimensionalProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::Dimensional);
-            materialQuantities = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
 
+            // organize these into a separate function
+            elementClassifications = CONNECTOR.GetHostToSpeckleConverter().GetElementClassifications(elemId);
+            dimensionalProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::Dimensional);
+            generalRatingsProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::GeneralRatings);
+            ifcProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::IFC);
+            materialQuantities = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
         }
         catch (const ArchiCadApiException& ae)
         {
@@ -51,12 +56,14 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         ArchicadObject archicadObject;
         archicadObject.name = elementName;
         archicadObject.type = elementType;
-        archicadObject.classifications = elementClassifications;
         archicadObject.level = levelName;
         archicadObject.applicationId = elemId;
         archicadObject.displayValue = body;
-        archicadObject.properties["Dimensional Properties"] = dimensionalProperties;
         archicadObject.properties["Material Quantities"] = materialQuantities;
+        archicadObject.properties["Classifications"] = elementClassifications;
+        archicadObject.properties["User Defined Properties"]["Dimensional Properties"] = dimensionalProperties;
+        archicadObject.properties["User Defined Properties"]["General Ratings"] = generalRatingsProperties;
+        archicadObject.properties["User Defined Properties"]["IFC Properties"] = ifcProperties;
 
         if (rootObject.elements.find(levelName) == rootObject.elements.end())
         {

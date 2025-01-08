@@ -89,6 +89,60 @@ namespace
 
 		return quantities;
 	}
+
+	nlohmann::json GetBeamQuantity(const API_Element& apiElem)
+	{
+		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
+		nlohmann::json quantities;
+
+
+		return quantities;
+	}
+
+	nlohmann::json GetColumnQuantity(const API_Element& apiElem)
+	{
+		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
+		nlohmann::json quantities;
+
+
+		return quantities;
+	}
+
+	nlohmann::json GetRoofQuantity(const API_Element& apiElem)
+	{
+		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
+		nlohmann::json quantities;
+
+
+		return quantities;
+	}
+
+	nlohmann::json GetShellQuantity(const API_Element& apiElem)
+	{
+		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
+		nlohmann::json quantities;
+
+
+		return quantities;
+	}
+
+	nlohmann::json GetDoorQuantity(const API_Element& apiElem)
+	{
+		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
+		nlohmann::json quantities;
+
+
+		return quantities;
+	}
+
+	nlohmann::json GetWindowQuantity(const API_Element& apiElem)
+	{
+		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
+		nlohmann::json quantities;
+
+
+		return quantities;
+	}
 }
 
 nlohmann::json HostToSpeckleConverter::GetElementMaterialQuantities(const std::string& elemId)
@@ -101,6 +155,18 @@ nlohmann::json HostToSpeckleConverter::GetElementMaterialQuantities(const std::s
 		return GetWallQuantity(apiElem);
 	case API_SlabID:
 		return GetSlabQuantity(apiElem);
+	case API_BeamID:
+		return GetBeamQuantity(apiElem);
+	case API_ColumnID:
+		return GetColumnQuantity(apiElem);
+	case API_RoofID:
+		return GetRoofQuantity(apiElem);
+	case API_ShellID:
+		return GetShellQuantity(apiElem);
+	case API_DoorID:
+		return GetDoorQuantity(apiElem);
+	case API_WindowID:
+		return GetWindowQuantity(apiElem);
 
 	default:
 		return {};
