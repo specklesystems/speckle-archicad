@@ -18,7 +18,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         std::string levelName;
         std::string elementType;
         std::map<std::string, std::string> elementClassifications;
-        //nlohmann::json userLevelProperties;
+        nlohmann::json dimensionalProperties;
         nlohmann::json materialQuantities;
 
         try
@@ -32,7 +32,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             conversionResult.resultId = "";
             conversionResult.resultType = "Mesh";
             levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
-            //userLevelProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, ArchicadPropertyType::UserLevelBuiltIn);
+            dimensionalProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::Dimensional);
             materialQuantities = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
 
         }
@@ -55,7 +55,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         archicadObject.level = levelName;
         archicadObject.applicationId = elemId;
         archicadObject.displayValue = body;
-        //archicadObject.properties["User Level Properties"] = userLevelProperties;
+        archicadObject.properties["Dimensional Properties"] = dimensionalProperties;
         archicadObject.properties["Material Quantities"] = materialQuantities;
 
         if (rootObject.elements.find(levelName) == rootObject.elements.end())

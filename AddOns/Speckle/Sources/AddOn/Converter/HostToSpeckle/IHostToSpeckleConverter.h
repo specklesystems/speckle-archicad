@@ -12,6 +12,13 @@ enum class ArchicadPropertyType
 	All
 };
 
+enum class PropertyFilter
+{
+	GeneralRatings,
+	IFC,
+	Dimensional
+};
+
 class IHostToSpeckleConverter 
 {
 public:
@@ -27,8 +34,6 @@ public:
 	virtual ProjectInfo GetProjectInfo() = 0;
 	virtual std::string GetHostAppReleaseInfo() = 0;
 	virtual nlohmann::json GetElementMaterialQuantities(const std::string& elemId) = 0;
-	virtual nlohmann::json GetElementUserDefinedProperties(const std::string& elemId) = 0;
-	virtual nlohmann::json GetElementBuiltInProperties(const std::string& elemId) = 0;
-	virtual nlohmann::json GetElementIfcProperties(const std::string& elemId) = 0;
 	virtual nlohmann::json GetElementProperties(const std::string& elemId, const ArchicadPropertyType propertyType) = 0;
+	virtual nlohmann::json GetElementProperties(const std::string& elemId, const PropertyFilter filter) = 0;
 };
