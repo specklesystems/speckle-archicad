@@ -61,9 +61,7 @@ static const std::vector<std::string> dimensionalPropertyFilter =
 	"8EC256D5-C747-4778-A4BF-99047C25F4AF", // Required Headroom Height
 	"4FFCB82F-1D60-4262-85B9-EC6FEC785D40", // Number Of Risers (total)
 	"1108D4D8-BDFB-491D-B527-C1779EE03209", // Number Of Treads (total)
-	"C58C7FC2-CBFC-4998-93D1-0A40A0D0681E", // Walking Line Length
-	"C4B62357-1289-4D43-A3F6-AB02B192864C", // Height
-	"5BF6931F-82EB-40B8-B184-F51D20EC9D17"  // Elevation to Project Zero
+	"C58C7FC2-CBFC-4998-93D1-0A40A0D0681E"  // Walking Line Length
 };
 
 namespace
