@@ -1,6 +1,6 @@
 #include "Mesh.h"
 
-void Mesh::AddFace(std::vector<double> verticesToAdd)
+/*void Mesh::AddFace(std::vector<double> verticesToAdd)
 {
     int faceSize = static_cast<int>(verticesToAdd.size() / 3);
     int lastVertexCount = static_cast<int>(vertices.size() / 3);
@@ -11,7 +11,7 @@ void Mesh::AddFace(std::vector<double> verticesToAdd)
 
     for (int i = 0; i < faceSize; i++)
         faces.push_back(lastVertexCount + i);
-}
+}*/
 
 void to_json(nlohmann::json& j, const Mesh& mesh)
 {

@@ -69,7 +69,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
     {
         for (const auto& mesh : body.meshes)
         {
-            int materialIndex = mesh.second.materialIndex;
+            int materialIndex = mesh.materialIndex;
             if (collectedProxies.find(materialIndex) == collectedProxies.end())
             {
                 RenderMaterialProxy renderMaterialProxy;
@@ -77,7 +77,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
                 collectedProxies[materialIndex] = renderMaterialProxy;
             }
 
-            collectedProxies[materialIndex].objects.push_back(mesh.second.applicationId);
+            collectedProxies[materialIndex].objects.push_back(mesh.applicationId);
         }
     }
 
