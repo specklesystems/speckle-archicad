@@ -13,9 +13,6 @@
 #include <ModelElement.hpp>
 #include <ModelMeshBody.hpp>
 
-#include <ModelEdge.hpp>
-#include <iostream>
-
 #include <set>
 
 namespace
