@@ -23,6 +23,6 @@ Material HostToSpeckleConverter::GetModelMaterial(int materialIndex)
 	double shiny = modelerMaterial.GetShining();
 	material.opacity = 1.0 - transparent;
 	material.roughness = 1.0 - (shiny / 100.0);
-
+	
 	return material;
 }
