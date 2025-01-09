@@ -12,34 +12,46 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
     for (const auto& elemId : elementIds)
     {
         SendConversionResult conversionResult{};   
-
         ElementBody body{};
-        std::string elementName;
-        std::string levelName;
-        std::string elementType;
-        std::map<std::string, std::string> elementClassifications;
-        nlohmann::json dimensionalProperties;
-        nlohmann::json generalRatingsProperties;
-        nlohmann::json ifcProperties;
-        nlohmann::json materialQuantities;
+        ArchicadObject archicadObject;
 
         try
         {
-            elementName = CONNECTOR.GetHostToSpeckleConverter().GetElementName(elemId);
-            elementType = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
-            conversionResult.sourceType = elementType;
+            archicadObject.applicationId = elemId;
+            archicadObject.name = CONNECTOR.GetHostToSpeckleConverter().GetElementName(elemId);
+            archicadObject.type = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
+            conversionResult.sourceType = archicadObject.type;
             conversionResult.sourceId = elemId;
             body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
+            bodies.push_back(body);
+            archicadObject.displayValue = body;
             conversionResult.resultId = "";
             conversionResult.resultType = "Mesh";
-            levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
+            archicadObject.level = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
 
-            // organize these into a separate function
-            elementClassifications = CONNECTOR.GetHostToSpeckleConverter().GetElementClassifications(elemId);
-            dimensionalProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::Dimensional);
-            generalRatingsProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::GeneralRatings);
-            ifcProperties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::IFC);
-            materialQuantities = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
+            archicadObject.properties["Material Quantities"] = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
+            archicadObject.properties["Classifications"] = CONNECTOR.GetHostToSpeckleConverter().GetElementClassifications(elemId);
+            archicadObject.properties["User Defined Properties"]["Dimensional Properties"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::Dimensional);
+            archicadObject.properties["User Defined Properties"]["General Ratings"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::GeneralRatings);
+            archicadObject.properties["User Defined Properties"]["IFC Properties"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::IFC);
+
+            if (rootObject.elements.find(archicadObject.level) == rootObject.elements.end())
+            {
+                Level level{};
+                level.name = archicadObject.level;
+                rootObject.elements[archicadObject.level] = level;
+            }
+
+            Level& level = rootObject.elements[archicadObject.level];
+            if (level.elements.find(archicadObject.type) == level.elements.end())
+            {
+                ElementTypeCollection collection{};
+                collection.name = archicadObject.type;
+                level.elements[archicadObject.type] = collection;
+            }
+
+            ElementTypeCollection& elementTypeCollection = level.elements[archicadObject.type];
+            elementTypeCollection.elements.push_back(archicadObject);
         }
         catch (const ArchiCadApiException& ae)
         {
@@ -51,37 +63,6 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             conversionResult.status = ConversionResultStatus::CONVERSION_ERROR;
             conversionResult.error.message = se.what();
         }
-
-        bodies.push_back(body);
-        ArchicadObject archicadObject;
-        archicadObject.name = elementName;
-        archicadObject.type = elementType;
-        archicadObject.level = levelName;
-        archicadObject.applicationId = elemId;
-        archicadObject.displayValue = body;
-        archicadObject.properties["Material Quantities"] = materialQuantities;
-        archicadObject.properties["Classifications"] = elementClassifications;
-        archicadObject.properties["User Defined Properties"]["Dimensional Properties"] = dimensionalProperties;
-        archicadObject.properties["User Defined Properties"]["General Ratings"] = generalRatingsProperties;
-        archicadObject.properties["User Defined Properties"]["IFC Properties"] = ifcProperties;
-
-        if (rootObject.elements.find(levelName) == rootObject.elements.end())
-        {
-            Level level{};
-            level.name = levelName;
-            rootObject.elements[levelName] = level;
-        }
-
-        Level& level = rootObject.elements[levelName];
-        if (level.elements.find(elementType) == level.elements.end())
-        {
-            ElementTypeCollection collection{};
-            collection.name = elementType;
-            level.elements[elementType] = collection;
-        }
-
-        ElementTypeCollection& elementTypeCollection = level.elements[elementType];
-        elementTypeCollection.elements.push_back(archicadObject);
 
         conversionResults.push_back(conversionResult);
     }
