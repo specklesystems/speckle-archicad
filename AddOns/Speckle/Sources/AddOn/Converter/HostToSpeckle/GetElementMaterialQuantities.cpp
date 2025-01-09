@@ -95,6 +95,8 @@ namespace
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
 
+		quantities["area"] = elementQuantity.beam.area;
+		quantities["volume"] = elementQuantity.beam.volume;
 
 		return quantities;
 	}
@@ -104,6 +106,8 @@ namespace
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
 
+		quantities["area"] = elementQuantity.column.area;
+		quantities["volume"] = (elementQuantity.column.coreGrossVolume + elementQuantity.column.veneGrossVolume);
 
 		return quantities;
 	}
@@ -113,6 +117,8 @@ namespace
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
 
+		quantities["area"] = elementQuantity.roof.bottomSurface;
+		quantities["volume"] = elementQuantity.roof.volume;
 
 		return quantities;
 	}
@@ -122,6 +128,8 @@ namespace
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
 
+		quantities["area"] = elementQuantity.shell.floorplanArea;
+		quantities["volume"] = elementQuantity.shell.volume;
 
 		return quantities;
 	}
@@ -131,6 +139,8 @@ namespace
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
 
+		quantities["area"] = elementQuantity.door.surface;
+		quantities["volume"] = elementQuantity.door.volume;
 
 		return quantities;
 	}
@@ -140,6 +150,19 @@ namespace
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
 
+		quantities["area"] = elementQuantity.window.surface;
+		quantities["volume"] = elementQuantity.window.volume;
+
+		return quantities;
+	}
+
+	nlohmann::json GetStairQuantity(const API_Element& apiElem)
+	{
+		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
+		nlohmann::json quantities;
+
+		quantities["area"] = elementQuantity.stair.area;
+		quantities["volume"] = elementQuantity.stair.volume;
 
 		return quantities;
 	}
@@ -167,6 +190,8 @@ nlohmann::json HostToSpeckleConverter::GetElementMaterialQuantities(const std::s
 		return GetDoorQuantity(apiElem);
 	case API_WindowID:
 		return GetWindowQuantity(apiElem);
+	case API_StairID:
+		return GetStairQuantity(apiElem);
 
 	default:
 		return {};
