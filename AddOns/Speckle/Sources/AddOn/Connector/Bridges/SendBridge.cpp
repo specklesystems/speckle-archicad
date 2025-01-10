@@ -117,8 +117,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     }
     catch (const UserCancelledException&)
     {
-        std::string command = "triggerCancel(\"" + sendArgs.modelCardId + "\")";
-        args.eventSource->Emit(command);
+        args.eventSource->Send("triggerCancel", sendArgs.modelCardId);
     }
 
     CONNECTOR.GetProcessWindow().Close();
