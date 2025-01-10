@@ -110,6 +110,10 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     try
     {
         sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResults);
+        sendArgs.sendObject = sendObj;
+        sendArgs.sendConversionResults = conversionResults;
+
+        args.eventSource->SendByBrowser(args.methodId, sendArgs);
     }
     catch (const UserCancelledException&)
     {
@@ -117,9 +121,5 @@ void SendBridge::Send(const RunMethodEventArgs& args)
         args.eventSource->Emit(command);
     }
 
-    sendArgs.sendObject = sendObj;
-    sendArgs.sendConversionResults = conversionResults;
-
-    args.eventSource->SendByBrowser(args.methodId, sendArgs);
     CONNECTOR.GetProcessWindow().Close();
 }
