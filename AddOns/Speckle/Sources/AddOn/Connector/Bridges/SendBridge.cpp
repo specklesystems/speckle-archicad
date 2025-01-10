@@ -6,7 +6,7 @@
 #include "RootObjectBuilder.h"
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
-
+#include "UserCancelledException.h"
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
@@ -105,7 +105,18 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     nlohmann::json sendObj;
     RootObjectBuilder rootObjectBuilder{};
     std::vector<SendConversionResult> conversionResults;
-    sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResults);
+    
+
+    try
+    {
+        sendObj["rootObject"] = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResults);
+    }
+    catch (const UserCancelledException&)
+    {
+        std::string command = "triggerCancel(" + sendArgs.modelCardId + ")";
+        args.eventSource->Emit(command);
+    }
+
     sendArgs.sendObject = sendObj;
     sendArgs.sendConversionResults = conversionResults;
 

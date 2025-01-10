@@ -1,6 +1,7 @@
 #include "RootObjectBuilder.h"
 #include "Connector.h"
 #include "ArchiCadApiException.h"
+#include "UserCancelledException.h"
 
 
 RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elementIds, std::vector<SendConversionResult>& conversionResults)
@@ -63,7 +64,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         if (CONNECTOR.GetProcessWindow().IsProcessCanceled())
         {
             CONNECTOR.GetProcessWindow().Close();
-            throw std::exception("The user cancelled the operation");
+            throw UserCancelledException("The user cancelled the send operation");
         }
     }
 
