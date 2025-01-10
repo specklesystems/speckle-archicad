@@ -1,7 +1,0 @@
-#ifndef RESOURCEMDIDIDS_HPP
-#define RESOURCEMDIDIDS_HPP
-
-#define AC_MDID_DEV 
-#define AC_MDID_LOC 
-
-#endif
