@@ -19,4 +19,5 @@ public:
 	nlohmann::json GetElementMaterialQuantities(const std::string& elemId) override;
 	nlohmann::json GetElementProperties(const std::string& elemId, const ArchicadPropertyType propertyType) override;
 	nlohmann::json GetElementProperties(const std::string& elemId, const PropertyFilter filter) override;
+	nlohmann::json GetWorkingUnits() override;
 };

@@ -41,21 +41,6 @@ namespace
 		return attr.header.name;
 	}
 
-	std::string GetWorkingUnits()
-	{
-		API_WorkingUnitPrefs prefs{};
-		ACAPI_ProjectSetting_GetPreferences(&prefs, APIPrefs_WorkingUnitsID);
-
-		if (prefs.lengthUnit == API_LengthTypeID::Meter)
-		{
-			return "m";
-		}
-		else
-		{
-			return "m";
-		}
-	}
-
 	API_ElementQuantity GetElementQuantity(const API_Guid apiGuid)
 	{
 		API_ElementQuantity quantity{};
@@ -74,17 +59,15 @@ namespace
 		return quantity;
 	}
 
-	nlohmann::json GetWallQuantity(const API_Element& apiElem)
+	nlohmann::json GetWallQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
-
 		std::string materialName = "";
 
 		if (apiElem.wall.modelElemStructureType == API_BasicStructure)
 		{
 			materialName = GetBuildingMaterialName(apiElem.wall.buildingMaterial);
-
 		}
 		else if (apiElem.wall.modelElemStructureType == API_CompositeStructure)
 		{
@@ -93,10 +76,11 @@ namespace
 
 		if (!materialName.empty())
 		{
+			double totalSurface = elementQuantity.wall.surface1 + elementQuantity.wall.surface2 + elementQuantity.wall.surface3;
 			quantities[materialName]["materialName"] = materialName;
 			quantities[materialName]["volume"] = elementQuantity.wall.volume;
-			quantities[materialName]["area"] = elementQuantity.wall.area;
-			quantities[materialName]["units"] = "m";
+			quantities[materialName]["area"] = totalSurface;
+			quantities[materialName]["units"] = workingUnits["lengthUnits"];
 		}
 
 		if (apiElem.wall.sidMat.hasValue)
@@ -104,7 +88,7 @@ namespace
 			std::string sideMatName = GetMaterialName(apiElem.wall.sidMat.value);
 			quantities[sideMatName]["materialName"] = sideMatName;
 			quantities[sideMatName]["area"] = elementQuantity.wall.surface3;
-			quantities[sideMatName]["units"] = "m";
+			quantities[sideMatName]["units"] = workingUnits["lengthUnits"];
 		}
 
 		if (apiElem.wall.refMat.hasValue)
@@ -112,7 +96,7 @@ namespace
 			std::string refMatName = GetMaterialName(apiElem.wall.refMat.value);
 			quantities[refMatName]["materialName"] = refMatName;
 			quantities[refMatName]["area"] = elementQuantity.wall.surface1;
-			quantities[refMatName]["units"] = "m";
+			quantities[refMatName]["units"] = workingUnits["lengthUnits"];
 		}
 
 		if (apiElem.wall.oppMat.hasValue)
@@ -120,99 +104,188 @@ namespace
 			std::string oppMatName = GetMaterialName(apiElem.wall.oppMat.value);
 			quantities[oppMatName]["materialName"] = oppMatName;
 			quantities[oppMatName]["area"] = elementQuantity.wall.surface2;
-			quantities[oppMatName]["units"] = "m";
+			quantities[oppMatName]["units"] = workingUnits["lengthUnits"];
 		}
 
 		return quantities;
 	}
 
-	nlohmann::json GetSlabQuantity(const API_Element& apiElem)
+	nlohmann::json GetSlabQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
-
-		quantities["area"] = elementQuantity.slab.bottomSurface;
-		quantities["volume"] = elementQuantity.slab.volume;
+		std::string materialName = "";
 
 		if (apiElem.slab.modelElemStructureType == API_BasicStructure)
 		{
-			quantities["materialName"] = GetBuildingMaterialName(apiElem.slab.buildingMaterial);
-
+			materialName = GetBuildingMaterialName(apiElem.slab.buildingMaterial);
 		}
 		else if (apiElem.slab.modelElemStructureType == API_CompositeStructure)
 		{
-			quantities["materialName"] = GetCompositeMaterialName(apiElem.slab.composite);
+			materialName = GetCompositeMaterialName(apiElem.slab.composite);
+		}
+
+		if (!materialName.empty())
+		{
+			double totalSurface = elementQuantity.slab.bottomSurface + elementQuantity.slab.topSurface + elementQuantity.slab.edgeSurface;
+			quantities[materialName]["materialName"] = materialName;
+			quantities[materialName]["volume"] = elementQuantity.slab.volume;
+			quantities[materialName]["area"] = totalSurface;
+			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.slab.topMat.hasValue)
+		{
+			std::string topMatName = GetMaterialName(apiElem.slab.topMat.value);
+			quantities[topMatName]["materialName"] = topMatName;
+			quantities[topMatName]["area"] = elementQuantity.slab.topSurface;
+			quantities[topMatName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.slab.botMat.hasValue)
+		{
+			std::string bottomMatName = GetMaterialName(apiElem.slab.botMat.value);
+			quantities[bottomMatName]["materialName"] = bottomMatName;
+			quantities[bottomMatName]["area"] = elementQuantity.slab.bottomSurface;
+			quantities[bottomMatName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.slab.sideMat.hasValue)
+		{
+			std::string sideMatName = GetMaterialName(apiElem.slab.sideMat.value);
+			quantities[sideMatName]["materialName"] = sideMatName;
+			quantities[sideMatName]["area"] = elementQuantity.slab.edgeSurface;
+			quantities[sideMatName]["units"] = workingUnits["lengthUnits"];
 		}
 
 		return quantities;
 	}
 
-	// TODO: change this when we export beams as segmented elements
-	nlohmann::json GetBeamQuantity(const API_Element& apiElem)
+	nlohmann::json GetBeamQuantity(const API_Element& /*apiElem*/, nlohmann::json /*workingUnits*/)
+	{
+		// TODO: change this when we export beams as segmented elements
+		return {};
+	}
+
+	nlohmann::json GetColumnQuantity(const API_Element& /*apiElem*/, nlohmann::json /*workingUnits*/)
+	{
+		// TODO: change this when we export beams as segmented elements
+		return {};
+	}
+
+	nlohmann::json GetRoofQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
+		std::string materialName = "";
 
-		//quantities["area"] = (elementQuantity.beam.bottomSurface + elementQuantity.beam.topSurface + elementQuantity.beam.edgeSurface);
-		quantities["area"] = elementQuantity.beam.area;
-		quantities["volume"] = elementQuantity.beam.volume;
+		if (apiElem.roof.shellBase.modelElemStructureType == API_BasicStructure)
+		{
+			materialName = GetBuildingMaterialName(apiElem.roof.shellBase.buildingMaterial);
+		}
+		else if (apiElem.roof.shellBase.modelElemStructureType == API_CompositeStructure)
+		{
+			materialName = GetCompositeMaterialName(apiElem.roof.shellBase.composite);
+		}
+
+		if (!materialName.empty())
+		{
+			quantities[materialName]["materialName"] = materialName;
+			quantities[materialName]["volume"] = elementQuantity.roof.volume;
+			quantities[materialName]["area"] = elementQuantity.roof.contourArea;
+			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.roof.shellBase.topMat.hasValue)
+		{
+			std::string topMatName = GetMaterialName(apiElem.roof.shellBase.topMat.value);
+			quantities[topMatName]["materialName"] = topMatName;
+			quantities[topMatName]["area"] = elementQuantity.roof.topSurface;
+			quantities[topMatName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.roof.shellBase.botMat.hasValue)
+		{
+			std::string bottomMatName = GetMaterialName(apiElem.roof.shellBase.botMat.value);
+			quantities[bottomMatName]["materialName"] = bottomMatName;
+			quantities[bottomMatName]["area"] = elementQuantity.roof.bottomSurface;
+			quantities[bottomMatName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.roof.shellBase.sidMat.hasValue)
+		{
+			std::string sideMatName = GetMaterialName(apiElem.roof.shellBase.sidMat.value);
+			quantities[sideMatName]["materialName"] = sideMatName;
+			quantities[sideMatName]["area"] = elementQuantity.roof.edgeSurface;
+			quantities[sideMatName]["units"] = workingUnits["lengthUnits"];
+		}
 
 		return quantities;
 	}
 
-	// TODO: change this when we export columns as segmented elements
-	nlohmann::json GetColumnQuantity(const API_Element& apiElem)
+	nlohmann::json GetShellQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
-
-		quantities["area"] = elementQuantity.column.coreSurface;
-		quantities["volume"] = (elementQuantity.column.coreGrossVolume + elementQuantity.column.veneGrossVolume);
-
-		return quantities;
-	}
-
-	nlohmann::json GetRoofQuantity(const API_Element& apiElem)
-	{
-		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
-		nlohmann::json quantities;
-
-		quantities["area"] = elementQuantity.roof.contourArea;
-		quantities["volume"] = elementQuantity.roof.volume;
-
-		return quantities;
-	}
-
-	nlohmann::json GetShellQuantity(const API_Element& apiElem)
-	{
-		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
-		nlohmann::json quantities;
-
-		quantities["area"] = elementQuantity.shell.floorplanArea;
-		quantities["volume"] = elementQuantity.shell.volume;
+		std::string materialName = "";
 
 		if (apiElem.shell.shellBase.modelElemStructureType == API_BasicStructure)
 		{
-			quantities["materialName"] = GetBuildingMaterialName(apiElem.shell.shellBase.buildingMaterial);
-
+			materialName = GetBuildingMaterialName(apiElem.shell.shellBase.buildingMaterial);
 		}
 		else if (apiElem.shell.shellBase.modelElemStructureType == API_CompositeStructure)
 		{
-			quantities["materialName"] = GetCompositeMaterialName(apiElem.shell.shellBase.composite);
+			materialName = GetCompositeMaterialName(apiElem.shell.shellBase.composite);
+		}
+
+		if (!materialName.empty())
+		{
+			quantities[materialName]["materialName"] = materialName;
+			quantities[materialName]["volume"] = elementQuantity.shell.volume;
+			quantities[materialName]["area"] = elementQuantity.shell.floorplanArea;
+			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.shell.shellBase.topMat.hasValue)
+		{
+			std::string topMatName = GetMaterialName(apiElem.shell.shellBase.topMat.value);
+			quantities[topMatName]["materialName"] = topMatName;
+			quantities[topMatName]["area"] = elementQuantity.shell.grossOppositeSurf;
+			quantities[topMatName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.shell.shellBase.botMat.hasValue)
+		{
+			std::string bottomMatName = GetMaterialName(apiElem.shell.shellBase.botMat.value);
+			quantities[bottomMatName]["materialName"] = bottomMatName;
+			quantities[bottomMatName]["area"] = elementQuantity.shell.grossReferenceSurf;
+			quantities[bottomMatName]["units"] = workingUnits["lengthUnits"];
+		}
+
+		if (apiElem.shell.shellBase.sidMat.hasValue)
+		{
+			std::string sideMatName = GetMaterialName(apiElem.shell.shellBase.sidMat.value);
+			quantities[sideMatName]["materialName"] = sideMatName;
+			quantities[sideMatName]["area"] = elementQuantity.shell.grossEdgeSurf;
+			quantities[sideMatName]["units"] = workingUnits["lengthUnits"];
 		}
 
 		return quantities;
 	}
 
-	nlohmann::json GetMorphQuantity(const API_Element& apiElem)
+	nlohmann::json GetMorphQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
+		std::string materialName = GetBuildingMaterialName(apiElem.shell.shellBase.buildingMaterial);
 
-		quantities["area"] = elementQuantity.morph.floorPlanArea;
-		quantities["volume"] = elementQuantity.morph.volume;
-
-		quantities["materialName"] = GetBuildingMaterialName(apiElem.morph.buildingMaterial);
+		if (!materialName.empty())
+		{
+			quantities[materialName]["materialName"] = materialName;
+			quantities[materialName]["volume"] = elementQuantity.morph.volume;
+			quantities[materialName]["area"] = elementQuantity.morph.floorPlanArea;
+			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+		}
 
 		return quantities;
 	}
@@ -221,23 +294,24 @@ namespace
 nlohmann::json HostToSpeckleConverter::GetElementMaterialQuantities(const std::string& elemId)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
+	auto workingUnits = GetWorkingUnits();
 
 	switch (apiElem.header.type.typeID)
 	{
 	case API_WallID:
-		return GetWallQuantity(apiElem);
+		return GetWallQuantity(apiElem, workingUnits);
 	case API_SlabID:
-		return GetSlabQuantity(apiElem);
+		return GetSlabQuantity(apiElem, workingUnits);
 	case API_BeamID:
-		return GetBeamQuantity(apiElem);
+		return GetBeamQuantity(apiElem, workingUnits);
 	case API_ColumnID:
-		return GetColumnQuantity(apiElem);
+		return GetColumnQuantity(apiElem, workingUnits);
 	case API_RoofID:
-		return GetRoofQuantity(apiElem);
+		return GetRoofQuantity(apiElem, workingUnits);
 	case API_ShellID:
-		return GetShellQuantity(apiElem);
+		return GetShellQuantity(apiElem, workingUnits);
 	case API_MorphID:
-		return GetMorphQuantity(apiElem);
+		return GetMorphQuantity(apiElem, workingUnits);
 
 	default:
 		return {};
