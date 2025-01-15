@@ -30,10 +30,9 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             archicadObject.level = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
 
             archicadObject.properties["Material Quantities"] = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
-            archicadObject.properties["Classifications"] = CONNECTOR.GetHostToSpeckleConverter().GetElementClassifications(elemId);
-            archicadObject.properties["User Defined Properties"]["Dimensional Properties"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::Dimensional);
-            archicadObject.properties["User Defined Properties"]["General Ratings"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::GeneralRatings);
-            archicadObject.properties["User Defined Properties"]["IFC Properties"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::IFC);
+            archicadObject.properties["Element Properties"]["Classifications"] = CONNECTOR.GetHostToSpeckleConverter().GetElementClassifications(elemId);
+            archicadObject.properties["Element Properties"]["Dimensional Properties"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::Dimensional);
+            archicadObject.properties["User Defined Properties"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, ArchicadPropertyType::UserDefined);
 
             if (rootObject.elements.find(archicadObject.level) == rootObject.elements.end())
             {
