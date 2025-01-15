@@ -86,21 +86,31 @@ namespace
 	{
 		API_Property  prop = {};
 		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
+		std::string propertyValue = "";
 
 		switch (propertyDefinition.valueType)
 		{
 		case API_PropertyStringValueType:
-			return prop.value.singleVariant.variant.uniStringValue.ToCStr().Get();
+			propertyValue = prop.value.singleVariant.variant.uniStringValue.ToCStr().Get();
+			break;
 		case API_PropertyIntegerValueType:
-			return std::to_string(prop.value.singleVariant.variant.intValue);
+			propertyValue = std::to_string(prop.value.singleVariant.variant.intValue);
+			break;
 		case API_PropertyRealValueType:
-			return std::to_string(prop.value.singleVariant.variant.doubleValue);
+			propertyValue = std::to_string(prop.value.singleVariant.variant.doubleValue);
+			break;
 		case API_PropertyBooleanValueType:
-			return std::to_string(prop.value.singleVariant.variant.boolValue);
+			propertyValue = std::to_string(prop.value.singleVariant.variant.boolValue);
+			break;
 
 		default:
-			throw SpeckleConversionException("Invalid property value type.");
+			throw SpeckleConversionException("Invalid property value type");
 		}
+
+		if (propertyValue.empty())
+			throw SpeckleConversionException("Property value was empty");
+
+		return propertyValue;
 	}
 
 	std::vector<std::string> GetListCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
@@ -133,6 +143,9 @@ namespace
 			}
 		}
 
+		if (propertyValues.empty())
+			throw SpeckleConversionException("Property value was empty");
+
 		return propertyValues;
 	}
 
@@ -140,6 +153,7 @@ namespace
 	{
 		API_Property  prop = {};
 		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
+		std::string propertyValue = "";
 
 		auto selectedValueGuid = prop.value.singleVariant.variant.guidValue;
 		for (const auto& variant : propertyDefinition.possibleEnumValues)
@@ -149,21 +163,30 @@ namespace
 				switch (propertyDefinition.valueType)
 				{
 				case API_PropertyStringValueType:
-					return variant.displayVariant.uniStringValue.ToCStr().Get();
+					propertyValue = variant.displayVariant.uniStringValue.ToCStr().Get();
+					break;
 				case API_PropertyIntegerValueType:
-					return std::to_string(variant.displayVariant.intValue);
+					propertyValue = std::to_string(variant.displayVariant.intValue);
+					break;
 				case API_PropertyRealValueType:
-					return std::to_string(variant.displayVariant.doubleValue);
+					propertyValue = std::to_string(variant.displayVariant.doubleValue);
+					break;
 				case API_PropertyBooleanValueType:
-					return std::to_string(variant.displayVariant.boolValue);
+					propertyValue = std::to_string(variant.displayVariant.boolValue);
+					break;
 
 				default:
-					throw SpeckleConversionException("Invalid property value type.");
+					throw SpeckleConversionException("Invalid property value type");
 				}
+
+				break;
 			}
 		}
 
-		return "";
+		if (propertyValue.empty())
+			throw SpeckleConversionException("Property value was empty");
+
+		return propertyValue;
 	}
 
 	std::vector<std::string> GetMultipleChoiceEnumerationCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
@@ -200,6 +223,9 @@ namespace
 				}
 			}
 		}
+
+		if (propertyValues.empty())
+			throw SpeckleConversionException("Property value was empty");
 
 		return propertyValues;
 	}
