@@ -38,4 +38,5 @@ public:
 	virtual nlohmann::json GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyFilter filter) = 0;
 	virtual nlohmann::json GetElementProperties(const std::string& elemId) = 0;
 	virtual nlohmann::json GetWorkingUnits() = 0;
+	virtual std::string GetResourceString(short resourceId) = 0;
 };

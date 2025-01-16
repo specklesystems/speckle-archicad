@@ -21,4 +21,5 @@ public:
 	nlohmann::json GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyFilter filter) override;
 	nlohmann::json GetElementProperties(const std::string& elemId) override;
 	nlohmann::json GetWorkingUnits() override;
+	std::string GetResourceString(short resourceId) override;
 };
