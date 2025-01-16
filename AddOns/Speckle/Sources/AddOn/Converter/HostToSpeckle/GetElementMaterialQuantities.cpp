@@ -5,40 +5,35 @@
 #include "ACAPinc.h"
 #include "CheckError.h"
 #include "SpeckleConversionException.h"
+#include "WorkingUnits.h"
 
 namespace
 {
-	std::string GetMaterialName(API_AttributeIndex materialId)
+	// TODO: move this to converter utils
+	std::string GetAttributeName(API_AttributeIndex attributeIndex, API_AttrTypeID attributeType)
 	{
 		API_Attribute attr;
 		BNZeroMemory(&attr, sizeof(attr));
-		attr.header.typeID = API_MaterialID;
-		attr.header.index = materialId;
+		attr.header.typeID = attributeType;
+		attr.header.index = attributeIndex;
 		ACAPI_Attribute_Get(&attr);
 
 		return attr.header.name;
+	}
+
+	std::string GetMaterialName(API_AttributeIndex materialId)
+	{
+		return GetAttributeName(materialId, API_MaterialID);
 	}
 
 	std::string GetBuildingMaterialName(API_AttributeIndex materialId)
 	{
-		API_Attribute attr;
-		BNZeroMemory(&attr, sizeof(attr));
-		attr.header.typeID = API_BuildingMaterialID;
-		attr.header.index = materialId;
-		ACAPI_Attribute_Get(&attr);
-
-		return attr.header.name;
+		return GetAttributeName(materialId, API_BuildingMaterialID);
 	}
 
 	std::string GetCompositeMaterialName(API_AttributeIndex materialId)
 	{
-		API_Attribute attr;
-		BNZeroMemory(&attr, sizeof(attr));
-		attr.header.typeID = API_CompWallID;
-		attr.header.index = materialId;
-		ACAPI_Attribute_Get(&attr);
-
-		return attr.header.name;
+		return GetAttributeName(materialId, API_CompWallID);
 	}
 
 	API_ElementQuantity GetElementQuantity(const API_Guid apiGuid)
@@ -59,7 +54,7 @@ namespace
 		return quantity;
 	}
 
-	nlohmann::json GetWallQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
+	nlohmann::json GetWallQuantity(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
@@ -80,7 +75,8 @@ namespace
 			quantities[materialName]["materialName"] = materialName;
 			quantities[materialName]["volume"] = elementQuantity.wall.volume;
 			quantities[materialName]["area"] = totalSurface;
-			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+			// TODO this is centimeters while area is square meters and volume is cubic meters
+			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
 		}
 
 		if (apiElem.wall.sidMat.hasValue)
@@ -88,7 +84,7 @@ namespace
 			std::string sideMatName = GetMaterialName(apiElem.wall.sidMat.value);
 			quantities[sideMatName]["materialName"] = sideMatName;
 			quantities[sideMatName]["area"] = elementQuantity.wall.surface3;
-			quantities[sideMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[sideMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.wall.refMat.hasValue)
@@ -96,7 +92,7 @@ namespace
 			std::string refMatName = GetMaterialName(apiElem.wall.refMat.value);
 			quantities[refMatName]["materialName"] = refMatName;
 			quantities[refMatName]["area"] = elementQuantity.wall.surface1;
-			quantities[refMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[refMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.wall.oppMat.hasValue)
@@ -104,13 +100,13 @@ namespace
 			std::string oppMatName = GetMaterialName(apiElem.wall.oppMat.value);
 			quantities[oppMatName]["materialName"] = oppMatName;
 			quantities[oppMatName]["area"] = elementQuantity.wall.surface2;
-			quantities[oppMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[oppMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		return quantities;
 	}
 
-	nlohmann::json GetSlabQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
+	nlohmann::json GetSlabQuantity(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
@@ -131,7 +127,8 @@ namespace
 			quantities[materialName]["materialName"] = materialName;
 			quantities[materialName]["volume"] = elementQuantity.slab.volume;
 			quantities[materialName]["area"] = totalSurface;
-			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+			// TODO this is centimeters while area is square meters and volume is cubic meters
+			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
 		}
 
 		if (apiElem.slab.topMat.hasValue)
@@ -139,7 +136,7 @@ namespace
 			std::string topMatName = GetMaterialName(apiElem.slab.topMat.value);
 			quantities[topMatName]["materialName"] = topMatName;
 			quantities[topMatName]["area"] = elementQuantity.slab.topSurface;
-			quantities[topMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[topMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.slab.botMat.hasValue)
@@ -147,7 +144,7 @@ namespace
 			std::string bottomMatName = GetMaterialName(apiElem.slab.botMat.value);
 			quantities[bottomMatName]["materialName"] = bottomMatName;
 			quantities[bottomMatName]["area"] = elementQuantity.slab.bottomSurface;
-			quantities[bottomMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[bottomMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.slab.sideMat.hasValue)
@@ -155,25 +152,25 @@ namespace
 			std::string sideMatName = GetMaterialName(apiElem.slab.sideMat.value);
 			quantities[sideMatName]["materialName"] = sideMatName;
 			quantities[sideMatName]["area"] = elementQuantity.slab.edgeSurface;
-			quantities[sideMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[sideMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		return quantities;
 	}
 
-	nlohmann::json GetBeamQuantity(const API_Element& /*apiElem*/, nlohmann::json /*workingUnits*/)
+	nlohmann::json GetBeamQuantity(const API_Element& /*apiElem*/, const WorkingUnits& /*workingUnits*/)
 	{
 		// TODO: change this when we export beams as segmented elements
 		return {};
 	}
 
-	nlohmann::json GetColumnQuantity(const API_Element& /*apiElem*/, nlohmann::json /*workingUnits*/)
+	nlohmann::json GetColumnQuantity(const API_Element& /*apiElem*/, const WorkingUnits& /*workingUnits*/)
 	{
 		// TODO: change this when we export beams as segmented elements
 		return {};
 	}
 
-	nlohmann::json GetRoofQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
+	nlohmann::json GetRoofQuantity(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
@@ -193,7 +190,8 @@ namespace
 			quantities[materialName]["materialName"] = materialName;
 			quantities[materialName]["volume"] = elementQuantity.roof.volume;
 			quantities[materialName]["area"] = elementQuantity.roof.contourArea;
-			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+			// TODO this is centimeters while area is square meters and volume is cubic meters
+			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
 		}
 
 		if (apiElem.roof.shellBase.topMat.hasValue)
@@ -201,7 +199,7 @@ namespace
 			std::string topMatName = GetMaterialName(apiElem.roof.shellBase.topMat.value);
 			quantities[topMatName]["materialName"] = topMatName;
 			quantities[topMatName]["area"] = elementQuantity.roof.topSurface;
-			quantities[topMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[topMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.roof.shellBase.botMat.hasValue)
@@ -209,7 +207,7 @@ namespace
 			std::string bottomMatName = GetMaterialName(apiElem.roof.shellBase.botMat.value);
 			quantities[bottomMatName]["materialName"] = bottomMatName;
 			quantities[bottomMatName]["area"] = elementQuantity.roof.bottomSurface;
-			quantities[bottomMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[bottomMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.roof.shellBase.sidMat.hasValue)
@@ -217,13 +215,13 @@ namespace
 			std::string sideMatName = GetMaterialName(apiElem.roof.shellBase.sidMat.value);
 			quantities[sideMatName]["materialName"] = sideMatName;
 			quantities[sideMatName]["area"] = elementQuantity.roof.edgeSurface;
-			quantities[sideMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[sideMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		return quantities;
 	}
 
-	nlohmann::json GetShellQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
+	nlohmann::json GetShellQuantity(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
@@ -243,7 +241,8 @@ namespace
 			quantities[materialName]["materialName"] = materialName;
 			quantities[materialName]["volume"] = elementQuantity.shell.volume;
 			quantities[materialName]["area"] = elementQuantity.shell.floorplanArea;
-			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+			// TODO this is centimeters while area is square meters and volume is cubic meters
+			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
 		}
 
 		if (apiElem.shell.shellBase.topMat.hasValue)
@@ -251,7 +250,7 @@ namespace
 			std::string topMatName = GetMaterialName(apiElem.shell.shellBase.topMat.value);
 			quantities[topMatName]["materialName"] = topMatName;
 			quantities[topMatName]["area"] = elementQuantity.shell.grossOppositeSurf;
-			quantities[topMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[topMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.shell.shellBase.botMat.hasValue)
@@ -259,7 +258,7 @@ namespace
 			std::string bottomMatName = GetMaterialName(apiElem.shell.shellBase.botMat.value);
 			quantities[bottomMatName]["materialName"] = bottomMatName;
 			quantities[bottomMatName]["area"] = elementQuantity.shell.grossReferenceSurf;
-			quantities[bottomMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[bottomMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.shell.shellBase.sidMat.hasValue)
@@ -267,13 +266,13 @@ namespace
 			std::string sideMatName = GetMaterialName(apiElem.shell.shellBase.sidMat.value);
 			quantities[sideMatName]["materialName"] = sideMatName;
 			quantities[sideMatName]["area"] = elementQuantity.shell.grossEdgeSurf;
-			quantities[sideMatName]["units"] = workingUnits["lengthUnits"];
+			quantities[sideMatName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		return quantities;
 	}
 
-	nlohmann::json GetMorphQuantity(const API_Element& apiElem, nlohmann::json workingUnits)
+	nlohmann::json GetMorphQuantity(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
 		auto elementQuantity = GetElementQuantity(apiElem.header.guid);
 		nlohmann::json quantities;
@@ -284,7 +283,8 @@ namespace
 			quantities[materialName]["materialName"] = materialName;
 			quantities[materialName]["volume"] = elementQuantity.morph.volume;
 			quantities[materialName]["area"] = elementQuantity.morph.floorPlanArea;
-			quantities[materialName]["units"] = workingUnits["lengthUnits"];
+			// TODO this is centimeters while area is square meters and volume is cubic meters
+			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
 		}
 
 		return quantities;
@@ -294,7 +294,7 @@ namespace
 nlohmann::json HostToSpeckleConverter::GetElementMaterialQuantities(const std::string& elemId)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
-	auto workingUnits = GetWorkingUnits();
+	WorkingUnits workingUnits = GetWorkingUnits();
 
 	switch (apiElem.header.type.typeID)
 	{

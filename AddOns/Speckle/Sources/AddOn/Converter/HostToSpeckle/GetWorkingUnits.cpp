@@ -60,13 +60,21 @@ namespace
 
 nlohmann::json HostToSpeckleConverter::GetWorkingUnits()
 {
-	API_WorkingUnitPrefs prefs{};
-	ACAPI_ProjectSetting_GetPreferences(&prefs, APIPrefs_WorkingUnitsID);
+	API_WorkingUnitPrefs workingPrefs{};
+	CHECK_ERROR(ACAPI_ProjectSetting_GetPreferences(&workingPrefs, APIPrefs_WorkingUnitsID));
+
+    API_CalcUnitPrefs calcPrefs{};
+    CHECK_ERROR(ACAPI_ProjectSetting_GetPreferences(&calcPrefs, APIPrefs_CalcUnitsID));
 
     WorkingUnits units;
-	units.lengthUnits = LengthTypeToString(prefs.lengthUnit);
-	units.areaUnits = AreaTypeToString(prefs.areaUnit);
-	units.volumeUnits = VolumeTypeToString(prefs.volumeUnit);
+
+	units.workingLengthUnits = LengthTypeToString(workingPrefs.lengthUnit);
+	units.workingAreaUnits = AreaTypeToString(workingPrefs.areaUnit);
+	units.workingVolumeUnits = VolumeTypeToString(workingPrefs.volumeUnit);
+
+    units.calculatedLengthUnits = LengthTypeToString(calcPrefs.length.unit);
+    units.calculatedAreaUnits = AreaTypeToString(calcPrefs.area.unit);
+    units.calculatedVolumeUnits = VolumeTypeToString(calcPrefs.volume.unit);
 
     return units;
 }
