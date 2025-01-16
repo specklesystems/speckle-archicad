@@ -76,7 +76,7 @@ namespace
 			quantities[materialName]["volume"] = elementQuantity.wall.volume;
 			quantities[materialName]["area"] = totalSurface;
 			// TODO this is centimeters while area is square meters and volume is cubic meters
-			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
+			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.wall.sidMat.hasValue)
@@ -128,7 +128,7 @@ namespace
 			quantities[materialName]["volume"] = elementQuantity.slab.volume;
 			quantities[materialName]["area"] = totalSurface;
 			// TODO this is centimeters while area is square meters and volume is cubic meters
-			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
+			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.slab.topMat.hasValue)
@@ -191,7 +191,7 @@ namespace
 			quantities[materialName]["volume"] = elementQuantity.roof.volume;
 			quantities[materialName]["area"] = elementQuantity.roof.contourArea;
 			// TODO this is centimeters while area is square meters and volume is cubic meters
-			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
+			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.roof.shellBase.topMat.hasValue)
@@ -242,7 +242,7 @@ namespace
 			quantities[materialName]["volume"] = elementQuantity.shell.volume;
 			quantities[materialName]["area"] = elementQuantity.shell.floorplanArea;
 			// TODO this is centimeters while area is square meters and volume is cubic meters
-			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
+			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		if (apiElem.shell.shellBase.topMat.hasValue)
@@ -284,7 +284,7 @@ namespace
 			quantities[materialName]["volume"] = elementQuantity.morph.volume;
 			quantities[materialName]["area"] = elementQuantity.morph.floorPlanArea;
 			// TODO this is centimeters while area is square meters and volume is cubic meters
-			quantities[materialName]["units"] = workingUnits.calculatedLengthUnits;
+			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
 		return quantities;

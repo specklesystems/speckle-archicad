@@ -337,14 +337,27 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 
 	if (isSystemType) 
 	{
-		properties["Material Quantities"] = GetElementMaterialQuantities(elemId);
-		properties["Element Properties"]["Classifications"] = GetElementClassifications(elemId);
-		properties["Element Properties"]["Dimensional Properties"] = GetElementPropertiesByPropertyFilter(elemId, PropertyFilter::Dimensional);
-		properties["User Defined Properties"] = GetElementPropertiesByPropertyType(elemId, ArchicadPropertyType::UserDefined);
+		nlohmann::json materialQuantities = GetElementMaterialQuantities(elemId);
+		if (!materialQuantities.empty())
+			properties["Material Quantities"] = materialQuantities;
+
+		nlohmann::json classifications = GetElementClassifications(elemId);
+		if (!classifications.empty())
+			properties["Element Properties"]["Classifications"] = classifications;
+
+		nlohmann::json dimensionalProperties = GetElementPropertiesByPropertyFilter(elemId, PropertyFilter::Dimensional);
+		if (!dimensionalProperties.empty())
+			properties["Element Properties"]["Dimensional Properties"] = dimensionalProperties;
+		
+		nlohmann::json userDefinedProperties = GetElementPropertiesByPropertyType(elemId, ArchicadPropertyType::UserDefined);
+		if (!userDefinedProperties.empty())
+			properties["User Defined Properties"] = userDefinedProperties;
 	}
 	else 
 	{
-		properties["Element Properties"]["Classifications"] = GetElementClassifications(elemId);
+		nlohmann::json classifications = GetElementClassifications(elemId);
+		if (!classifications.empty())
+			properties["Element Properties"]["Classifications"] = classifications;
 	}
 
 	return properties;

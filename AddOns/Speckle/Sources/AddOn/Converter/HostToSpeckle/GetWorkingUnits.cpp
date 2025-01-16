@@ -29,14 +29,14 @@ namespace
     std::string AreaTypeToString(API_AreaTypeID areaType) 
     {
         switch (areaType) {
-        case API_AreaTypeID::SquareMeter: return "SquareMeter";
-        case API_AreaTypeID::SquareKiloMeter: return "SquareKiloMeter";
-        case API_AreaTypeID::SquareDeciMeter: return "SquareDeciMeter";
-        case API_AreaTypeID::SquareCentimeter: return "SquareCentimeter";
-        case API_AreaTypeID::SquareMillimeter: return "SquareMillimeter";
-        case API_AreaTypeID::SquareFoot: return "SquareFoot";
-        case API_AreaTypeID::SquareInch: return "SquareInch";
-        case API_AreaTypeID::SquareYard: return "SquareYard";
+        case API_AreaTypeID::SquareMeter: return "Meter";
+        case API_AreaTypeID::SquareKiloMeter: return "KiloMeter";
+        case API_AreaTypeID::SquareDeciMeter: return "DeciMeter";
+        case API_AreaTypeID::SquareCentimeter: return "Centimeter";
+        case API_AreaTypeID::SquareMillimeter: return "Millimeter";
+        case API_AreaTypeID::SquareFoot: return "Foot";
+        case API_AreaTypeID::SquareInch: return "Inch";
+        case API_AreaTypeID::SquareYard: return "Yard";
         default: return "Unknown";
         }
     }
@@ -44,14 +44,14 @@ namespace
     std::string VolumeTypeToString(API_VolumeTypeID volumeType) 
     {
         switch (volumeType) {
-        case API_VolumeTypeID::CubicMeter: return "CubicMeter";
-        case API_VolumeTypeID::CubicKiloMeter: return "CubicKiloMeter";
+        case API_VolumeTypeID::CubicMeter: return "Meter";
+        case API_VolumeTypeID::CubicKiloMeter: return "KiloMeter";
         case API_VolumeTypeID::Liter: return "Liter";
-        case API_VolumeTypeID::CubicCentimeter: return "CubicCentimeter";
-        case API_VolumeTypeID::CubicMillimeter: return "CubicMillimeter";
-        case API_VolumeTypeID::CubicFoot: return "CubicFoot";
-        case API_VolumeTypeID::CubicInch: return "CubicInch";
-        case API_VolumeTypeID::CubicYard: return "CubicYard";
+        case API_VolumeTypeID::CubicCentimeter: return "Centimeter";
+        case API_VolumeTypeID::CubicMillimeter: return "Millimeter";
+        case API_VolumeTypeID::CubicFoot: return "Foot";
+        case API_VolumeTypeID::CubicInch: return "Inch";
+        case API_VolumeTypeID::CubicYard: return "Yard";
         case API_VolumeTypeID::Gallon: return "Gallon";
         default: return "Unknown";
         }
