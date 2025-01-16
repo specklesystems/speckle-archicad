@@ -8,6 +8,7 @@
 #include "ISpeckleToHostConverter.h"
 #include "HostAppEvents.h"
 #include "IDataStorage.h"
+#include "IProcessWindow.h"
 
 #include <memory>
 
@@ -22,6 +23,7 @@ private:
 	std::unique_ptr<IHostToSpeckleConverter> hostToSpeckleConverter;
 	std::unique_ptr<ISpeckleToHostConverter> speckleToHostConverter;
 	std::unique_ptr<HostAppEvents> hostAppEvents;
+	std::unique_ptr<IProcessWindow> processWindow;
 
 public:
 	Connector(Connector& other) = delete;
@@ -34,4 +36,5 @@ public:
 	IHostToSpeckleConverter& GetHostToSpeckleConverter();
 	ISpeckleToHostConverter& GetSpeckleToHostConverter();
 	HostAppEvents& GetHostAppEvents();
+	IProcessWindow& GetProcessWindow();
 };

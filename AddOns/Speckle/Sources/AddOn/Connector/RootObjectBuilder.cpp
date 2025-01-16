@@ -2,6 +2,7 @@
 #include "Connector.h"
 #include "ArchiCadApiException.h"
 #include "SpeckleConversionException.h"
+#include "UserCancelledException.h"
 
 
 RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elementIds, std::vector<SendConversionResult>& conversionResults)
@@ -9,8 +10,12 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
     RootObject rootObject;
     std::vector<ElementBody> bodies;
 
+    CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(elementIds.size()));
+    int elemCount = 0;
     for (const auto& elemId : elementIds)
     {
+        elemCount++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(elemCount);
         SendConversionResult conversionResult{};   
         ElementBody body{};
         ArchicadObject archicadObject;
@@ -60,8 +65,15 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         }
 
         conversionResults.push_back(conversionResult);
+
+        if (CONNECTOR.GetProcessWindow().IsProcessCanceled())
+        {
+            CONNECTOR.GetProcessWindow().Close();
+            throw UserCancelledException("The user cancelled the send operation");
+        }
     }
 
+    CONNECTOR.GetProcessWindow().Init("Converting render materials", static_cast<int>(elementIds.size()));
     std::map<int, RenderMaterialProxy> collectedProxies;
     for (const auto& body : bodies)
     {
@@ -76,6 +88,12 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             }
 
             collectedProxies[materialIndex].objects.push_back(mesh.applicationId);
+        }
+
+        if (CONNECTOR.GetProcessWindow().IsProcessCanceled())
+        {
+            CONNECTOR.GetProcessWindow().Close();
+            throw std::exception("The user cancelled the operation");
         }
     }
 
