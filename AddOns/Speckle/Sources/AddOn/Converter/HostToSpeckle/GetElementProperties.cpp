@@ -284,7 +284,7 @@ namespace
 	}
 }
 
-nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& elemId, const ArchicadPropertyType propertyType)
+nlohmann::json HostToSpeckleConverter::GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyType propertyType)
 {
 	nlohmann::json propertyListJson;
 
@@ -299,7 +299,7 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	return GetElementPropertiesAsJson(apiElem.header.guid, definitions);
 }
 
-nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& elemId, const PropertyFilter filter)
+nlohmann::json HostToSpeckleConverter::GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyFilter filter)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
 	auto propertyFilter = GetPropertyFilter(filter);
@@ -324,4 +324,28 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	}
 
 	return GetElementPropertiesAsJson(apiElem.header.guid, definitions);
+}
+
+nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& elemId)
+{
+	auto apiElem = ConverterUtils::GetElement(elemId);
+	nlohmann::json properties;
+
+	auto elemType = apiElem.header.type.typeID;
+	std::vector<API_ElemTypeID> systemTypes = { API_WallID, API_SlabID, API_BeamID, API_ColumnID, API_RoofID, API_ShellID, API_MorphID };
+	bool isSystemType = std::find(systemTypes.begin(), systemTypes.end(), elemType) != systemTypes.end();
+
+	if (isSystemType) 
+	{
+		properties["Material Quantities"] = GetElementMaterialQuantities(elemId);
+		properties["Element Properties"]["Classifications"] = GetElementClassifications(elemId);
+		properties["Element Properties"]["Dimensional Properties"] = GetElementPropertiesByPropertyFilter(elemId, PropertyFilter::Dimensional);
+		properties["User Defined Properties"] = GetElementPropertiesByPropertyType(elemId, ArchicadPropertyType::UserDefined);
+	}
+	else 
+	{
+		properties["Element Properties"]["Classifications"] = GetElementClassifications(elemId);
+	}
+
+	return properties;
 }

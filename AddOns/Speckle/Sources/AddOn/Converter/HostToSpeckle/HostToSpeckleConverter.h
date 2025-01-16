@@ -17,7 +17,8 @@ public:
 	ProjectInfo GetProjectInfo() override;
 	std::string GetHostAppReleaseInfo() override;
 	nlohmann::json GetElementMaterialQuantities(const std::string& elemId) override;
-	nlohmann::json GetElementProperties(const std::string& elemId, const ArchicadPropertyType propertyType) override;
-	nlohmann::json GetElementProperties(const std::string& elemId, const PropertyFilter filter) override;
+	nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyType propertyType) override;
+	nlohmann::json GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyFilter filter) override;
+	nlohmann::json GetElementProperties(const std::string& elemId) override;
 	nlohmann::json GetWorkingUnits() override;
 };

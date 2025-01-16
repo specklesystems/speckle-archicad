@@ -34,7 +34,8 @@ public:
 	virtual ProjectInfo GetProjectInfo() = 0;
 	virtual std::string GetHostAppReleaseInfo() = 0;
 	virtual nlohmann::json GetElementMaterialQuantities(const std::string& elemId) = 0;
-	virtual nlohmann::json GetElementProperties(const std::string& elemId, const ArchicadPropertyType propertyType) = 0;
-	virtual nlohmann::json GetElementProperties(const std::string& elemId, const PropertyFilter filter) = 0;
+	virtual nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyType propertyType) = 0;
+	virtual nlohmann::json GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyFilter filter) = 0;
+	virtual nlohmann::json GetElementProperties(const std::string& elemId) = 0;
 	virtual nlohmann::json GetWorkingUnits() = 0;
 };

@@ -28,11 +28,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             conversionResult.resultId = "";
             conversionResult.resultType = "Mesh";
             archicadObject.level = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
-
-            archicadObject.properties["Material Quantities"] = CONNECTOR.GetHostToSpeckleConverter().GetElementMaterialQuantities(elemId);
-            archicadObject.properties["Element Properties"]["Classifications"] = CONNECTOR.GetHostToSpeckleConverter().GetElementClassifications(elemId);
-            archicadObject.properties["Element Properties"]["Dimensional Properties"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, PropertyFilter::Dimensional);
-            archicadObject.properties["User Defined Properties"] = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId, ArchicadPropertyType::UserDefined);
+            archicadObject.properties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId);
 
             if (rootObject.elements.find(archicadObject.level) == rootObject.elements.end())
             {
