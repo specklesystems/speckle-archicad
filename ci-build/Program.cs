@@ -3,6 +3,7 @@ using Build;
 using GlobExpressions;
 using static Bullseye.Targets;
 using static SimpleExec.Command;
+using System.Reflection;
 
 const string CLEAN = "clean";
 const string BUILD = "build";
@@ -68,6 +69,27 @@ Target(
     var version = Environment.GetEnvironmentVariable("GitVersion_FullSemVer") ?? "3.0.0-localBuild";
     var fileVersion = Environment.GetEnvironmentVariable("GitVersion_AssemblySemFileVer") ?? "3.0.0.9999";
     Console.WriteLine($"Version: {version} & {fileVersion}");
+	
+	void ReplaceStringInFile(string filePath, string targetString, string replacementString)
+    {
+        try
+        {
+            string fileContent = File.ReadAllText(filePath);
+            string updatedContent = fileContent.Replace(targetString, replacementString);
+            File.WriteAllText(filePath, updatedContent);
+
+            Console.WriteLine("Replacement successful.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+	
+	string assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+	string archicadResourcefilePath = Path.Combine(assemblyDir, "..", "..", "..", "..", "AddOns", "Speckle", "Sources", "AddOnResources", "RINT", "AddOn.grc");
+	ReplaceStringInFile(archicadResourcefilePath, "connector_build_num", version);
+	
     Run("msbuild", $"./build/{s}/archicad-speckle.sln /p:Configuration=Release /p:Version={version} /p:FileVersion={fileVersion}");
   }
 );
