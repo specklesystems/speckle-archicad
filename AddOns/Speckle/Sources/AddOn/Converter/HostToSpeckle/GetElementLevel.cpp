@@ -46,7 +46,16 @@ std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 		}
 	}
 
-	return floorName;
+	if (!floorName.empty())
+	{
+		return floorName;
+	}
+	else
+	{
+		std::ostringstream oss;
+		oss << floorInd << ". Story";
+		return oss.str();
+	}
 }
 
 #pragma warning(pop) // Restore the previous warning state
