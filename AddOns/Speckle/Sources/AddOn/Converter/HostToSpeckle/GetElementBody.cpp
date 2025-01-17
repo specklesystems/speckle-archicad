@@ -227,5 +227,8 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 		}
 	}
 
+	if (elementBody.meshes.empty())
+		throw SpeckleConversionException("Element DisplayValue was empty");
+
 	return elementBody;
 }
