@@ -3,6 +3,9 @@
 #include "ElementBody.h"
 #include "Material.h"
 #include "ProjectInfo.h"
+#include "WorkingUnits.h"
+#include "ArchicadObject.h"
+#include "SendConversionResult.h"
 
 enum class ArchicadPropertyType
 {
@@ -37,5 +40,6 @@ public:
 	virtual nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyType propertyType) = 0;
 	virtual nlohmann::json GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyFilter filter) = 0;
 	virtual nlohmann::json GetElementProperties(const std::string& elemId) = 0;
-	virtual nlohmann::json GetWorkingUnits() = 0;
+	virtual WorkingUnits GetWorkingUnits() = 0;
+	virtual ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult) = 0;
 };

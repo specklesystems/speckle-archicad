@@ -58,7 +58,7 @@ namespace
     }
 }
 
-nlohmann::json HostToSpeckleConverter::GetWorkingUnits()
+WorkingUnits HostToSpeckleConverter::GetWorkingUnits()
 {
 	API_WorkingUnitPrefs workingPrefs{};
 	CHECK_ERROR(ACAPI_ProjectSetting_GetPreferences(&workingPrefs, APIPrefs_WorkingUnitsID));

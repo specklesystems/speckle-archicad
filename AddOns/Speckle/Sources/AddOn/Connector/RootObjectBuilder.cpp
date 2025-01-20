@@ -17,23 +17,11 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         elemCount++;
         CONNECTOR.GetProcessWindow().SetProcessValue(elemCount);
         SendConversionResult conversionResult{};   
-        ElementBody body{};
-        ArchicadObject archicadObject;
 
         try
         {
-            archicadObject.applicationId = elemId;
-            archicadObject.name = CONNECTOR.GetHostToSpeckleConverter().GetElementName(elemId);
-            archicadObject.type = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
-            conversionResult.sourceType = archicadObject.type;
-            conversionResult.sourceId = elemId;
-            body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
-            bodies.push_back(body);
-            archicadObject.displayValue = body;
-            conversionResult.resultId = "";
-            conversionResult.resultType = "Mesh";
-            archicadObject.level = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
-            archicadObject.properties = CONNECTOR.GetHostToSpeckleConverter().GetElementProperties(elemId);
+            auto archicadObject = CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult);
+            bodies.push_back(archicadObject.displayValue);
 
             if (rootObject.elements.find(archicadObject.level) == rootObject.elements.end())
             {
