@@ -14,6 +14,7 @@ struct ArchicadObject
     std::string units = "m"; // default to meters
     ElementBody displayValue;
     nlohmann::json properties;
+    std::vector<ArchicadObject> elements;
 };
 
 void to_json(nlohmann::json& j, const ArchicadObject& elem);

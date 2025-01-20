@@ -13,4 +13,5 @@ void to_json(nlohmann::json& j, const ArchicadObject& elem)
         j["@displayValue"] = elem.displayValue;
     }
     j["properties"] = elem.properties;
+    j["elements"] = elem.elements;
 }

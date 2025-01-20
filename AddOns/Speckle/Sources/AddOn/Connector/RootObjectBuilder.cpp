@@ -21,7 +21,18 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
         try
         {
             auto archicadObject = CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult);
-            bodies.push_back(archicadObject.displayValue);
+            
+            if (archicadObject.displayValue.meshes.empty())
+            {
+                for (const auto& subElement : archicadObject.elements)
+                {
+                    bodies.push_back(subElement.displayValue);
+                }
+            }
+            else
+            {
+                bodies.push_back(archicadObject.displayValue);
+            }
 
             if (rootObject.elements.find(archicadObject.level) == rootObject.elements.end())
             {

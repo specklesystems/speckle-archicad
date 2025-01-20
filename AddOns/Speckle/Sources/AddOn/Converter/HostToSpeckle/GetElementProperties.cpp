@@ -332,7 +332,7 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	nlohmann::json properties;
 
 	auto elemType = apiElem.header.type.typeID;
-	std::vector<API_ElemTypeID> systemTypes = { API_WallID, API_SlabID, API_BeamID, API_ColumnID, API_RoofID, API_ShellID, API_MorphID };
+	std::vector<API_ElemTypeID> systemTypes = { API_WallID, API_SlabID, API_BeamID, API_BeamSegmentID, API_ColumnID, API_ColumnSegmentID, API_RoofID, API_ShellID, API_MorphID };
 	bool isSystemType = std::find(systemTypes.begin(), systemTypes.end(), elemType) != systemTypes.end();
 
 	if (isSystemType) 
