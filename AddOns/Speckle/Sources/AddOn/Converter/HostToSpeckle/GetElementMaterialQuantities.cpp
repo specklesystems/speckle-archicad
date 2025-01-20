@@ -216,6 +216,28 @@ namespace
 		nlohmann::json quantities;
 		std::string materialName = "";
 
+		double sideSurface = 0.0;
+		if (apiElem.columnSegment.venThick > 0.001)
+		{
+			sideSurface = elementQuantity.columnSegment.veneerSideSurface;
+		}
+		else
+		{
+			sideSurface = elementQuantity.columnSegment.coreGrossSurface;
+		}
+
+		double topAndBottomSurface = elementQuantity.columnSegment.coreGrossBottomSurface + elementQuantity.columnSegment.coreGrossTopSurface;
+		if (apiElem.columnSegment.venThick > 0.001)
+		{
+			topAndBottomSurface += (elementQuantity.columnSegment.veneerGrossBottomSurface + elementQuantity.columnSegment.veneerGrossTopSurface);
+		}
+
+		double volume = elementQuantity.columnSegment.coreGrossVolume;
+		if (apiElem.columnSegment.venThick > 0.001)
+		{
+			volume += elementQuantity.columnSegment.veneerGrossVolume;
+		}
+
 		if (apiElem.columnSegment.assemblySegmentData.modelElemStructureType == API_BasicStructure)
 		{
 			materialName = GetBuildingMaterialName(apiElem.columnSegment.assemblySegmentData.buildingMaterial);
@@ -223,22 +245,20 @@ namespace
 
 		if (!materialName.empty())
 		{
-			double totalSurface = elementQuantity.columnSegment.coreGrossBottomSurface + elementQuantity.columnSegment.coreGrossTopSurface + elementQuantity.columnSegment.coreGrossSurface;
 			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["volume"] = elementQuantity.columnSegment.coreGrossVolume;
-			quantities[materialName]["area"] = totalSurface;
+			quantities[materialName]["volume"] = volume;
+			quantities[materialName]["area"] = (sideSurface + topAndBottomSurface);
 			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
-		if (apiElem.columnSegment.assemblySegmentData.modelElemStructureType == API_BasicStructure)
+		if (apiElem.columnSegment.extrusionSurfaceMaterial.hasValue)
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.columnSegment.venBuildingMaterial), elementQuantity.columnSegment.veneerGrossSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.columnSegment.extrusionSurfaceMaterial.value), sideSurface, workingUnits);
 		}
 
 		if (apiElem.columnSegment.endsMaterial.hasValue)
 		{
-			double endsArea = elementQuantity.columnSegment.coreGrossBottomSurface + elementQuantity.columnSegment.coreGrossTopSurface;
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.columnSegment.endsMaterial.value), endsArea, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.columnSegment.endsMaterial.value), topAndBottomSurface, workingUnits);
 		}
 
 		return quantities;
