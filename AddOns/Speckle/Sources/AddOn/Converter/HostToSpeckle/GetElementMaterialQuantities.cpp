@@ -161,30 +161,51 @@ namespace
 			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
 		}
 
-		if (apiElem.beamSegment.topMaterial.hasValue)
+		// this is needed because if the materials have been overridden on the basic structure settings page
+		// then the hasValue will return true even if the Beam is set as profiled structure
+		if (apiElem.beamSegment.assemblySegmentData.modelElemStructureType == API_BasicStructure)
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.topMaterial.value), elementQuantity.beamSegment.topSurface, workingUnits);
-		}
+			if (apiElem.beamSegment.topMaterial.hasValue)
+			{
+				AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.topMaterial.value), elementQuantity.beamSegment.topSurface, workingUnits);
+			}
 
-		if (apiElem.beamSegment.bottomMaterial.hasValue)
-		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.bottomMaterial.value), elementQuantity.beamSegment.bottomSurface, workingUnits);
+			if (apiElem.beamSegment.bottomMaterial.hasValue)
+			{
+				AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.bottomMaterial.value), elementQuantity.beamSegment.bottomSurface, workingUnits);
+			}
+
+			if (apiElem.beamSegment.rightMaterial.hasValue)
+			{
+				AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.rightMaterial.value), elementQuantity.beamSegment.rightSurface, workingUnits);
+			}
 		}
 
 		if (apiElem.beamSegment.leftMaterial.hasValue)
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.leftMaterial.value), elementQuantity.beamSegment.leftSurface, workingUnits);
-		}
-
-		if (apiElem.beamSegment.rightMaterial.hasValue)
-		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.rightMaterial.value), elementQuantity.beamSegment.rightSurface, workingUnits);
+			double leftSurface = elementQuantity.beamSegment.leftSurface;
+#if defined(AC27)
+			if (apiElem.beamSegment.assemblySegmentData.modelElemStructureType == API_ProfileStructure)
+			{
+				// AC27 hack to get the extrusion surface
+				// in AC 27 only apiElem.beamSegment.leftMaterial.hasValue will be true if we have a profiled structure
+				leftSurface = elementQuantity.beamSegment.topSurface + elementQuantity.beamSegment.bottomSurface + elementQuantity.beamSegment.leftSurface + elementQuantity.beamSegment.rightSurface;
+			}
+#endif
+			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.leftMaterial.value), leftSurface, workingUnits);
 		}
 
 		if (apiElem.beamSegment.endsMaterial.hasValue)
 		{
 			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.endsMaterial.value), elementQuantity.beamSegment.endSurface, workingUnits);
 		}
+#if defined(AC28)
+		if (apiElem.beamSegment.extrusionMaterial.hasValue)
+		{
+			double extrusionSurface = elementQuantity.beamSegment.topSurface + elementQuantity.beamSegment.bottomSurface + elementQuantity.beamSegment.leftSurface + elementQuantity.beamSegment.rightSurface;
+			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.extrusionMaterial.value), extrusionSurface, workingUnits);
+		}
+#endif
 
 		return quantities;
 	}
