@@ -1,4 +1,8 @@
-﻿/* Add-On Information */
+/* Add-On Information */
+
+'STR#' 5010 "connector version"{
+/* [  1] */	"connector_build_num"
+} 
 
 'STR#' 32000 "Information" {
 /* [  1] */	"Speckle ArchiCAD Connector"

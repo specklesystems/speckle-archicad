@@ -107,8 +107,10 @@ void BaseBridge::AddModel(const RunMethodEventArgs& args)
 
 void BaseBridge::GetConnectorVersion(const RunMethodEventArgs& args) 
 {
-    // TODO what should this number be?
-    args.eventSource->SetResult(args.methodId, "3.0.0");
+    // TODO move this id to ResourceIds.hpp
+    short versionStringResourceId = 5010;
+    auto versionInfo = CONNECTOR.GetHostToSpeckleConverter().GetResourceString(versionStringResourceId);
+    args.eventSource->SetResult(args.methodId, versionInfo);
 }
 
 void BaseBridge::GetDocumentInfo(const RunMethodEventArgs& args) 
