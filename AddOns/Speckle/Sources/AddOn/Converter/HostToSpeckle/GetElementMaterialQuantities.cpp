@@ -24,6 +24,11 @@ namespace
 		return ConverterUtils::GetAttributeName(materialId, API_CompWallID);
 	}
 
+	std::string GetProfileName(API_AttributeIndex materialId)
+	{
+		return ConverterUtils::GetAttributeName(materialId, API_ProfileID);
+	}
+
 	API_ElementQuantity GetElementQuantity(const API_Guid apiGuid)
 	{
 		API_ElementQuantity quantity{};
@@ -70,6 +75,10 @@ namespace
 		else if (apiElem.wall.modelElemStructureType == API_CompositeStructure)
 		{
 			materialName = GetCompositeMaterialName(apiElem.wall.composite);
+		}
+		else if (apiElem.wall.modelElemStructureType == API_ProfileStructure)
+		{
+			materialName = GetCompositeMaterialName(apiElem.wall.profileAttr);
 		}
 
 		if (!materialName.empty())
@@ -150,6 +159,10 @@ namespace
 		if (apiElem.beamSegment.assemblySegmentData.modelElemStructureType == API_BasicStructure)
 		{
 			materialName = GetBuildingMaterialName(apiElem.beamSegment.assemblySegmentData.buildingMaterial);
+		}
+		else if (apiElem.beamSegment.assemblySegmentData.modelElemStructureType == API_ProfileStructure)
+		{
+			materialName = GetProfileName(apiElem.beamSegment.assemblySegmentData.profileAttr);
 		}
 
 		if (!materialName.empty())
@@ -241,6 +254,10 @@ namespace
 		if (apiElem.columnSegment.assemblySegmentData.modelElemStructureType == API_BasicStructure)
 		{
 			materialName = GetBuildingMaterialName(apiElem.columnSegment.assemblySegmentData.buildingMaterial);
+		}
+		else if (apiElem.columnSegment.assemblySegmentData.modelElemStructureType == API_ProfileStructure)
+		{
+			materialName = GetProfileName(apiElem.columnSegment.assemblySegmentData.profileAttr);
 		}
 
 		if (!materialName.empty())
