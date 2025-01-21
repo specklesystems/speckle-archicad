@@ -5,6 +5,7 @@
 #include "ACAPinc.h"
 #include "CheckError.h"
 
+
 ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult)
 {
 	ArchicadObject archicadObject{};
@@ -16,29 +17,8 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
     conversionResult.sourceType = archicadObject.type;
     conversionResult.sourceId = elemId;  
 
-    auto apiElem = ConverterUtils::GetElement(elemId);
-    auto apiElemMemo = ConverterUtils::GetElementMemo(elemId);
-
-    SendConversionResult segmentConversionResult{};
-    if (archicadObject.type == "Beam")
-    {
-        for (UInt32 i = 0; i < apiElem.beam.nSegments; i++)
-        {
-            auto segment = (apiElemMemo.beamSegments)[i];
-            auto segmentId = APIGuidToString(segment.head.guid).ToCStr().Get();
-            archicadObject.elements.push_back(GetArchicadObject(segmentId, segmentConversionResult));
-        }
-    }
-    else if (archicadObject.type == "Column")
-    {
-        for (UInt32 i = 0; i < apiElem.column.nSegments; i++)
-        {
-            auto segment = (apiElemMemo.columnSegments)[i];
-            auto segmentId = APIGuidToString(segment.head.guid).ToCStr().Get();
-            archicadObject.elements.push_back(GetArchicadObject(segmentId, segmentConversionResult));
-        }
-    }
-    else
+    archicadObject.elements = GetElementChildren(elemId);
+    if (archicadObject.elements.empty())
     {
         archicadObject.displayValue = GetElementBody(elemId);
         archicadObject.properties = GetElementProperties(elemId);

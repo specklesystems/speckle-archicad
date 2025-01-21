@@ -22,5 +22,6 @@ public:
 	nlohmann::json GetElementProperties(const std::string& elemId) override;
 	WorkingUnits GetWorkingUnits() override;
 	ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult) override;
+	std::vector<ArchicadObject> GetElementChildren(const std::string& elemId) override;
 	std::string GetResourceString(short resourceId) override;
 };
