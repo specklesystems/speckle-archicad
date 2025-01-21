@@ -14,9 +14,7 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
     archicadObject.type = GetElementType(elemId);
     archicadObject.level = GetElementLevel(elemId);
     conversionResult.sourceType = archicadObject.type;
-    conversionResult.sourceId = elemId;
-    conversionResult.resultId = "";
-    conversionResult.resultType = "ArchicadObject";
+    conversionResult.sourceId = elemId;  
 
     auto apiElem = ConverterUtils::GetElement(elemId);
     auto apiElemMemo = ConverterUtils::GetElementMemo(elemId);
@@ -45,6 +43,9 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
         archicadObject.displayValue = GetElementBody(elemId);
         archicadObject.properties = GetElementProperties(elemId);
     }
+
+    conversionResult.resultId = "";
+    conversionResult.resultType = "ArchicadObject";
 
 	return archicadObject;
 }
