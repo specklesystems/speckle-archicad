@@ -2,6 +2,7 @@
 #include "Connector.h"
 #include "ArchiCadApiException.h"
 #include "SpeckleConversionException.h"
+#include "UserCancelledException.h"
 
 
 RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elementIds, std::vector<SendConversionResult>& conversionResults)
@@ -9,23 +10,47 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
     RootObject rootObject;
     std::vector<ElementBody> bodies;
 
+    CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(elementIds.size()));
+    int elemCount = 0;
     for (const auto& elemId : elementIds)
     {
+        elemCount++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(elemCount);
         SendConversionResult conversionResult{};   
-
-        ElementBody body{};
-        std::string levelName;
-        std::string elementType;
 
         try
         {
-            elementType = CONNECTOR.GetHostToSpeckleConverter().GetElementType(elemId);
-            conversionResult.sourceType = elementType;
-            conversionResult.sourceId = elemId;
-            body = CONNECTOR.GetHostToSpeckleConverter().GetElementBody(elemId);
-            conversionResult.resultId = "";
-            conversionResult.resultType = "Mesh";
-            levelName = CONNECTOR.GetHostToSpeckleConverter().GetElementLevel(elemId);
+            auto archicadObject = CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult);
+            
+            if (archicadObject.displayValue.meshes.empty())
+            {
+                for (const auto& subElement : archicadObject.elements)
+                {
+                    bodies.push_back(subElement.displayValue);
+                }
+            }
+            else
+            {
+                bodies.push_back(archicadObject.displayValue);
+            }
+
+            if (rootObject.elements.find(archicadObject.level) == rootObject.elements.end())
+            {
+                Level level{};
+                level.name = archicadObject.level;
+                rootObject.elements[archicadObject.level] = level;
+            }
+
+            Level& level = rootObject.elements[archicadObject.level];
+            if (level.elements.find(archicadObject.type) == level.elements.end())
+            {
+                ElementTypeCollection collection{};
+                collection.name = archicadObject.type;
+                level.elements[archicadObject.type] = collection;
+            }
+
+            ElementTypeCollection& elementTypeCollection = level.elements[archicadObject.type];
+            elementTypeCollection.elements.push_back(archicadObject);
         }
         catch (const ArchiCadApiException& ae)
         {
@@ -38,38 +63,22 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
             conversionResult.error.message = se.what();
         }
 
-        bodies.push_back(body);
-        ModelElement modelElement;
-        modelElement.applicationId = elemId;
-        modelElement.displayValue = body;
-
-        if (rootObject.elements.find(levelName) == rootObject.elements.end())
-        {
-            Level level{};
-            level.name = levelName;
-            rootObject.elements[levelName] = level;
-        }
-
-        Level& level = rootObject.elements[levelName];
-        if (level.elements.find(elementType) == level.elements.end())
-        {
-            ElementTypeCollection collection{};
-            collection.name = elementType;
-            level.elements[elementType] = collection;
-        }
-
-        ElementTypeCollection& elementTypeCollection = level.elements[elementType];
-        elementTypeCollection.elements.push_back(modelElement);
-
         conversionResults.push_back(conversionResult);
+
+        if (CONNECTOR.GetProcessWindow().IsProcessCanceled())
+        {
+            CONNECTOR.GetProcessWindow().Close();
+            throw UserCancelledException("The user cancelled the send operation");
+        }
     }
 
+    CONNECTOR.GetProcessWindow().Init("Converting render materials", static_cast<int>(elementIds.size()));
     std::map<int, RenderMaterialProxy> collectedProxies;
     for (const auto& body : bodies)
     {
         for (const auto& mesh : body.meshes)
         {
-            int materialIndex = mesh.second.materialIndex;
+            int materialIndex = mesh.materialIndex;
             if (collectedProxies.find(materialIndex) == collectedProxies.end())
             {
                 RenderMaterialProxy renderMaterialProxy;
@@ -77,7 +86,13 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
                 collectedProxies[materialIndex] = renderMaterialProxy;
             }
 
-            collectedProxies[materialIndex].objects.push_back(mesh.second.applicationId);
+            collectedProxies[materialIndex].objects.push_back(mesh.applicationId);
+        }
+
+        if (CONNECTOR.GetProcessWindow().IsProcessCanceled())
+        {
+            CONNECTOR.GetProcessWindow().Close();
+            throw std::exception("The user cancelled the operation");
         }
     }
 

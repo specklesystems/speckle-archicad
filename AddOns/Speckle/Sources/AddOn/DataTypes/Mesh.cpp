@@ -1,18 +1,5 @@
 #include "Mesh.h"
 
-void Mesh::AddFace(std::vector<double> verticesToAdd)
-{
-    int faceSize = static_cast<int>(verticesToAdd.size() / 3);
-    int lastVertexCount = static_cast<int>(vertices.size() / 3);
-    faces.push_back(faceSize);
-
-    for (const auto& v : verticesToAdd)
-        vertices.push_back(v);
-
-    for (int i = 0; i < faceSize; i++)
-        faces.push_back(lastVertexCount + i);
-}
-
 void to_json(nlohmann::json& j, const Mesh& mesh)
 {
     j["speckle_type"] = mesh.speckle_type;

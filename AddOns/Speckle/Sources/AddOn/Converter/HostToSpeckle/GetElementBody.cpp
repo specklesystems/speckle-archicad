@@ -5,6 +5,7 @@
 #include "CheckError.h"
 #include "ConverterUtils.h"
 #include "SpeckleConversionException.h"
+#include "MeshFace.h"
 
 #include <AttributeIndex.hpp>
 #include <ConvexPolygon.hpp>
@@ -76,6 +77,61 @@ namespace
 		}
 		return partIDs;
 	}
+
+	void AddHardMeshesToElementBody(const std::map<int, std::vector<MeshFace>>& materialMeshFaceMap, ElementBody& elementBody)
+	{
+		for (const auto& item : materialMeshFaceMap)
+		{
+			Mesh mesh{};
+			int currVertex = 0;
+			mesh.materialIndex = item.first;
+			for (const auto& face : item.second)
+			{
+				mesh.faces.push_back(face.size);
+				for (const auto& v : face.vertices)
+				{
+					mesh.faces.push_back(currVertex);
+					currVertex++;
+
+					mesh.vertices.push_back(v.x);
+					mesh.vertices.push_back(v.y);
+					mesh.vertices.push_back(v.z);
+				}
+			}
+			elementBody.meshes.push_back(mesh);
+		}
+	}
+
+	void AddSoftMeshesToElementBody(const std::map<int, std::vector<MeshFace>>& materialMeshFaceMap, ElementBody& elementBody)
+	{
+		for (const auto& item : materialMeshFaceMap)
+		{
+			Mesh mesh{};
+			int vertexIndexCount = 0;
+			std::map<int, int> vertexIndexMap;
+
+			mesh.materialIndex = item.first;
+			for (const auto& face : item.second)
+			{
+				mesh.faces.push_back(face.size);
+				for (const auto& v : face.vertices)
+				{
+					bool newIndex = (vertexIndexMap.count(v.archicadVertexIndex) == 0);
+					if (newIndex)
+					{
+						vertexIndexMap[v.archicadVertexIndex] = vertexIndexCount;
+						vertexIndexCount++;
+						mesh.vertices.push_back(v.x);
+						mesh.vertices.push_back(v.y);
+						mesh.vertices.push_back(v.z);
+					}
+
+					mesh.faces.push_back(vertexIndexMap[v.archicadVertexIndex]);				
+				}
+			}
+			elementBody.meshes.push_back(mesh);
+		}
+	}
 }
 
 ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
@@ -108,6 +164,9 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 		{
 			ModelerAPI::MeshBody body{};
 			elem.GetTessellatedBody(bodyIndex, &body);
+			bool isHardBody = body.HasSharpEdge();
+
+			std::map<int, std::vector<MeshFace>> materialMeshFaceMap;
 
 			// Get polygons
 			Int32 polyCount = body.GetPolygonCount();
@@ -116,7 +175,6 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 				ModelerAPI::Polygon polygon{};
 				body.GetPolygon(polyIndex, &polygon);
 
-				std::vector<double> vertices;
 				ModelerAPI::AttributeIndex matIdx{};
 				polygon.GetMaterialIndex(matIdx);
 				int materialIndex = matIdx.GetIndex();
@@ -129,21 +187,43 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 					polygon.GetConvexPolygon(convPolyIndex, &convexPolygon);
 
 					// Get vertices
+					MeshFace mFace{};
 					Int32 vertexCount = convexPolygon.GetVertexCount();
+					mFace.size = vertexCount;
 					for (Int32 vertexIndex = 1; vertexIndex <= vertexCount; ++vertexIndex)
 					{
 						ModelerAPI::Vertex vertex{};
-						body.GetVertex(convexPolygon.GetVertexIndex(vertexIndex), &vertex);
-
-						vertices.push_back(vertex.x);
-						vertices.push_back(vertex.y);
-						vertices.push_back(vertex.z);
+						FaceVertex fVert{};
+						fVert.archicadVertexIndex = convexPolygon.GetVertexIndex(vertexIndex);
+						body.GetVertex(fVert.archicadVertexIndex, &vertex);
+						fVert.x = vertex.x;
+						fVert.y = vertex.y;
+						fVert.z = vertex.z;
+						mFace.vertices.push_back(fVert);
 					}
-
-					elementBody.AddFace(vertices, materialIndex);
-					vertices.clear();
+					materialMeshFaceMap[materialIndex].push_back(mFace);
 				}
 			}
+
+			// Add Meshes to elementBody
+			// This logic is potentially buggy
+			// We need to find a better way to decide if an edge is soft or hard
+			if (apiElem.header.type.typeID == API_ObjectID)
+			{
+				if (isHardBody)
+				{
+					AddHardMeshesToElementBody(materialMeshFaceMap, elementBody);
+				}
+				else
+				{
+					AddSoftMeshesToElementBody(materialMeshFaceMap, elementBody);
+				}
+			}
+			else
+			{
+				AddHardMeshesToElementBody(materialMeshFaceMap, elementBody);
+			}
+
 		}
 	}
 

@@ -11,11 +11,8 @@ struct Mesh
     std::vector<double> vertices;
     std::vector<int> faces;
     std::vector<int> colors;
+    std::map<int, int> archcicadVertexIndexMap;
     int materialIndex = 0;
-
-    // if face size is 4 you have to provide 12 double values in the vertices array 
-    // x, y, z values for each vertex
-    void AddFace(std::vector<double> verticesToAdd);
 };
 
 void to_json(nlohmann::json& j, const Mesh& mesh);

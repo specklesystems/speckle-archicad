@@ -8,6 +8,7 @@
 #include "ArchiCadApiException.h"
 #include "BaseObjectSerializer.h"
 #include "AfterSendObjectsArgs.h"
+#include "UserCancelledException.h"
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
@@ -96,6 +97,8 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     std::string modelCardId = args.data[0].get<std::string>();
     SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId);
 
+    CONNECTOR.GetProcessWindow().Init("Sending...", 1);
+
     SendViaBrowserArgs sendArgs{};
     sendArgs.modelCardId = modelCard.modelCardId;
     sendArgs.projectId = modelCard.projectId;
@@ -105,26 +108,36 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
 
     CONNECTOR.GetSpeckleToHostConverter().ShowAllIn3D();
-    nlohmann::json sendObj;
-    RootObjectBuilder rootObjectBuilder{};
-    auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResultCache);
 
-    BaseObjectSerializer serializer{};
-    auto rootObjectId = serializer.Serialize(root);
-    auto batches = serializer.BatchObjects();
-
-    sendArgs.referencedObjectId = rootObjectId;
-
-    int i = 1;
-    int batchSize = static_cast<int>(batches.size());
-    for (const auto& b : batches)
+    try
     {
-        sendArgs.batch = b;
-        sendArgs.currentBatch = i;
-        i++;
-        sendArgs.totalBatch = batchSize;
-        args.eventSource->SendBatchViaBrowser(args.methodId, sendArgs);
+        nlohmann::json sendObj;
+        RootObjectBuilder rootObjectBuilder{};
+        auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResultCache);
+
+        BaseObjectSerializer serializer{};
+        auto rootObjectId = serializer.Serialize(root);
+        auto batches = serializer.BatchObjects();
+
+        sendArgs.referencedObjectId = rootObjectId;
+
+        int i = 1;
+        int batchSize = static_cast<int>(batches.size());
+        for (const auto& b : batches)
+        {
+            sendArgs.batch = b;
+            sendArgs.currentBatch = i;
+            i++;
+            sendArgs.totalBatch = batchSize;
+            args.eventSource->SendBatchViaBrowser(args.methodId, sendArgs);
+        }
     }
+    catch (const UserCancelledException&)
+    {
+        args.eventSource->Send("triggerCancel", sendArgs.modelCardId);
+    }
+
+    CONNECTOR.GetProcessWindow().Close();
 }
 
 void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)

@@ -26,8 +26,8 @@ namespace
 std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 {
 	std::string floorName = "";
-	auto apielem = ConverterUtils::GetElement(elemId);
-	auto floorInd = apielem.header.floorInd;
+	auto apiElem = ConverterUtils::GetElement(elemId);
+	auto floorInd = apiElem.header.floorInd;
 	
 	API_StoryInfo storyInfo{};
 	CHECK_ERROR(ACAPI_ProjectSetting_GetStorySettings(&storyInfo));
@@ -46,7 +46,16 @@ std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 		}
 	}
 
-	return floorName;
+	if (!floorName.empty())
+	{
+		return floorName;
+	}
+	else
+	{
+		std::ostringstream oss;
+		oss << floorInd << ". Story";
+		return oss.str();
+	}
 }
 
 #pragma warning(pop) // Restore the previous warning state

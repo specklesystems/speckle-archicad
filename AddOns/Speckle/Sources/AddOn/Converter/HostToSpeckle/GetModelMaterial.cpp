@@ -19,8 +19,10 @@ Material HostToSpeckleConverter::GetModelMaterial(int materialIndex)
 	auto color = modelerMaterial.GetSurfaceColor();
 	Material material;
 	material.diffuse = ARGBColorConverter::PackARGB(1.0, color.red, color.green, color.blue);
-	material.opacity = 1.0 - (static_cast<double>(modelerMaterial.GetTransparency()) / 100.0);
-	material.roughness = 1.0 - (static_cast<double>(modelerMaterial.GetShining()) / 10000.0);
-
+	double transparent = modelerMaterial.GetTransparency();
+	double shiny = modelerMaterial.GetShining();
+	material.opacity = 1.0 - transparent;
+	material.roughness = 1.0 - (shiny / 100.0);
+	
 	return material;
 }

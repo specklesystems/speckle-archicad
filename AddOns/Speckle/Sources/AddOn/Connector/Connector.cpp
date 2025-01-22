@@ -4,6 +4,7 @@
 #include "HostToSpeckleConverter.h"
 #include "SpeckleToHostConverter.h"
 #include "ArchiCadDataStorage.h"
+#include "ProcessWindow.h"
 
 std::unique_ptr<Connector> Connector::instance = nullptr;
 
@@ -23,6 +24,7 @@ void Connector::InitConnector()
 	hostToSpeckleConverter = std::make_unique<HostToSpeckleConverter>();
 	speckleToHostConverter = std::make_unique<SpeckleToHostConverter>();
 	hostAppEvents = std::make_unique<HostAppEvents>();
+    processWindow = std::make_unique<ProcessWindow>();
 }
 
 IAccountDatabase& Connector::GetAccountDatabase() 
@@ -63,4 +65,12 @@ HostAppEvents& Connector::GetHostAppEvents()
         throw std::runtime_error("HostAppEvents not initialized");
 
     return *hostAppEvents;
+}
+
+IProcessWindow& Connector::GetProcessWindow()
+{
+    if (!processWindow)
+        throw std::runtime_error("ProcessWindow not initialized");
+
+    return *processWindow;
 }
