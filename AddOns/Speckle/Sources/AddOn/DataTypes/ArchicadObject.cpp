@@ -7,11 +7,7 @@ void to_json(nlohmann::json& j, const ArchicadObject& elem)
     j["level"] = elem.level;
     j["speckle_type"] = elem.speckle_type;
     j["applicationId"] = elem.applicationId;
-    j["units"] = elem.units;
-    if (!elem.displayValue.meshes.empty())
-    {
-        j["@displayValue"] = elem.displayValue;
-    }
+    j["@displayValue"] = elem.displayValue;
     j["properties"] = elem.properties;
     j["@elements"] = elem.elements;
 }

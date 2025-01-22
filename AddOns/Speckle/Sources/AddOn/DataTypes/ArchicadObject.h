@@ -11,7 +11,6 @@ struct ArchicadObject
     std::string level = "";
     std::string speckle_type = "Objects.Data.ArchicadObject";
     std::string applicationId = "";
-    std::string units = "m"; // default to meters
     ElementBody displayValue;
     nlohmann::json properties;
     std::vector<ArchicadObject> elements;
