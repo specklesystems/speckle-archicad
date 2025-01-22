@@ -143,7 +143,7 @@ void BaseBridge::GetDocumentState(const RunMethodEventArgs& args)
 
 void BaseBridge::GetSourceApplicationName(const RunMethodEventArgs& args) 
 {
-    args.eventSource->SetResult(args.methodId, "ArchiCAD");
+    args.eventSource->SetResult(args.methodId, "archicad");
 }
 
 void BaseBridge::GetSourceApplicationVersion(const RunMethodEventArgs& args) 
