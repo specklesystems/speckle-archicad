@@ -117,7 +117,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
 
         BaseObjectSerializer serializer{};
         auto rootObjectId = serializer.Serialize(root);
-        auto batches = serializer.BatchObjects();
+        auto batches = serializer.BatchObjects(10);
 
         sendArgs.referencedObjectId = rootObjectId;
 
