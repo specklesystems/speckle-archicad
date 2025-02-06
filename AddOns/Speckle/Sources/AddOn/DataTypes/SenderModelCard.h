@@ -2,7 +2,7 @@
 
 #include "SendFilter.h"
 
-struct SendModelCard
+struct SenderModelCard
 {
     std::string typeDiscriminator;
     SendFilter sendFilter;
@@ -14,5 +14,5 @@ struct SendModelCard
     std::string modelCardId;
 };
 
-void to_json(nlohmann::json& j, const SendModelCard& c);
-void from_json(const nlohmann::json& j, SendModelCard& card);
+void to_json(nlohmann::json& j, const SenderModelCard& c);
+void from_json(const nlohmann::json& j, SenderModelCard& card);

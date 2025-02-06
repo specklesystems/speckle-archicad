@@ -100,7 +100,7 @@ void BaseBridge::AddModel(const RunMethodEventArgs& args)
     if (args.data.size() < 1)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
-    SendModelCard modelCard = args.data[0].get<SendModelCard>();
+    ModelCard modelCard = args.data[0].get<ModelCard>();
     CONNECTOR.GetModelCardDatabase().AddModel(modelCard);
     args.eventSource->ResponseReady(args.methodId);
 }
@@ -158,9 +158,11 @@ void BaseBridge::HighlightModel(const RunMethodEventArgs& args)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
     auto id = args.data[0].get<std::string>();
-    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
-    auto selection = modelCard.sendFilter.selectedObjectIds;
-    CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
+    ModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
+
+    // TODO fix selection
+    //auto selection = modelCard.sendFilter.selectedObjectIds;
+    //CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
 }
 
 void BaseBridge::HighlightObjects(const RunMethodEventArgs& args) 
@@ -187,7 +189,7 @@ void BaseBridge::RemoveModel(const RunMethodEventArgs& args)
     if (args.data.size() < 1)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
-    SendModelCard modelCard = args.data[0].get<SendModelCard>();
+    ModelCard modelCard = args.data[0].get<ModelCard>();
     CONNECTOR.GetModelCardDatabase().RemoveModel(modelCard.modelCardId);
     args.eventSource->ResponseReady(args.methodId);
 }
@@ -197,7 +199,7 @@ void BaseBridge::UpdateModel(const RunMethodEventArgs& args)
     if (args.data.size() < 1)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
-    SendModelCard modelCard = args.data[0].get<SendModelCard>();
+    ModelCard modelCard = args.data[0].get<ModelCard>();
     CONNECTOR.GetModelCardDatabase().AddModel(modelCard);
     args.eventSource->ResponseReady(args.methodId);
 }

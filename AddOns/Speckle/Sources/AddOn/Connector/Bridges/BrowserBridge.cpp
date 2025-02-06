@@ -19,6 +19,7 @@ void BrowserBridge::InitBrowserBridge(IBrowserAdapter* browserAdapter)
 	configBridge = std::make_unique<ConfigBridge>(browserAdapter);
 	selectionBridge = std::make_unique<SelectionBridge>(browserAdapter);
 	sendBridge = std::make_unique<SendBridge>(browserAdapter);
+	receiveBridge = std::make_unique<ReceiveBridge>(browserAdapter);
 	testBridge = std::make_unique<TestBridge>(browserAdapter);	
 }
 
@@ -69,6 +70,14 @@ SendBridge& BrowserBridge::GetSendBridge()
         throw std::runtime_error("SendBridge not initialized");
 
     return *sendBridge;
+}
+
+ReceiveBridge& BrowserBridge::GetReceiveBridge()
+{
+    if (!receiveBridge)
+        throw std::runtime_error("ReceiveBridge not initialized");
+
+    return *receiveBridge;
 }
 
 TestBridge& BrowserBridge::GetTestBridge()

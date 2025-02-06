@@ -14,6 +14,7 @@
 #include "ConfigBridge.h"
 #include "SelectionBridge.h"
 #include "SendBridge.h"
+#include "ReceiveBridge.h"
 #include "TestBridge.h"
 
 class BrowserBridge
@@ -28,6 +29,7 @@ private:
 	std::unique_ptr<ConfigBridge> configBridge;
 	std::unique_ptr<SelectionBridge> selectionBridge;
 	std::unique_ptr<SendBridge> sendBridge;
+	std::unique_ptr<ReceiveBridge> receiveBridge;
 	std::unique_ptr<TestBridge> testBridge;
 
 public:
@@ -44,5 +46,6 @@ public:
 	ConfigBridge& GetConfigBridge();
 	SelectionBridge& GetSelectionBridge();
 	SendBridge& GetSendBridge();
+	ReceiveBridge& GetReceiveBridge();
 	TestBridge& GetTestBridge();
 };

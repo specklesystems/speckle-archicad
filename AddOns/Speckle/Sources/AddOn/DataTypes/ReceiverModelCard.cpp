@@ -1,9 +1,8 @@
-#include "SendModelCard.h"
+#include "ReceiverModelCard.h"
 
-void to_json(nlohmann::json& j, const SendModelCard& card)
+void to_json(nlohmann::json& j, const ReceiverModelCard& card)
 {
     j["typeDiscriminator"] = card.typeDiscriminator;
-    j["sendFilter"] = nlohmann::json(card.sendFilter);
     j["modelId"] = card.modelId;
     j["projectId"] = card.projectId;
     j["accountId"] = card.accountId;
@@ -12,10 +11,9 @@ void to_json(nlohmann::json& j, const SendModelCard& card)
     j["modelCardId"] = card.modelCardId;
 }
 
-void from_json(const nlohmann::json& j, SendModelCard& card)
+void from_json(const nlohmann::json& j, ReceiverModelCard& card)
 {
     card.typeDiscriminator = j.at("typeDiscriminator").get<std::string>();
-    card.sendFilter = j.at("sendFilter").get<SendFilter>();
     card.modelId = j.at("modelId").get<std::string>();
     card.projectId = j.at("projectId").get<std::string>();
     card.accountId = j.at("accountId").get<std::string>();

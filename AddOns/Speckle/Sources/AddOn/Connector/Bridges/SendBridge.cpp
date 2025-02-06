@@ -95,7 +95,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();
-    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId);
+    SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
 
     CONNECTOR.GetProcessWindow().Init("Sending...", 1);
 
@@ -146,7 +146,7 @@ void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();
-    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId);
+    SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
 
     AfterSendObjectsArgs afterSendObjectsArgs{};
     afterSendObjectsArgs.modelCardId = modelCard.modelCardId;
