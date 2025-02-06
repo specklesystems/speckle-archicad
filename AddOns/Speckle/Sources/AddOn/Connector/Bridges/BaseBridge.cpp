@@ -160,9 +160,16 @@ void BaseBridge::HighlightModel(const RunMethodEventArgs& args)
     auto id = args.data[0].get<std::string>();
     ModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(id);
 
-    // TODO fix selection
-    //auto selection = modelCard.sendFilter.selectedObjectIds;
-    //CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
+    if (modelCard.IsSenderModelCard())
+    {
+        auto selection = modelCard.AsSenderModelCard().sendFilter.selectedObjectIds;
+        CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
+    }
+    else
+    {
+        // TODO implement for receiver cards??
+    }
+    
 }
 
 void BaseBridge::HighlightObjects(const RunMethodEventArgs& args) 
