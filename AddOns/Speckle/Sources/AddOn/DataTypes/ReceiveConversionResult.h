@@ -4,7 +4,7 @@
 #include "EConversionResultStatus.h"
 #include "ConversionError.h"
 
-struct SendConversionResult
+struct ReceiveConversionResult
 {
     ConversionResultStatus status = ConversionResultStatus::CONVERSION_SUCCESS;
     std::string sourceId = "";
@@ -14,4 +14,4 @@ struct SendConversionResult
     ConversionError error;
 };
 
-void to_json(nlohmann::json& j, const SendConversionResult& result);
+void to_json(nlohmann::json& j, const ReceiveConversionResult& result);

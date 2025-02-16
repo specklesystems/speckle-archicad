@@ -2,6 +2,8 @@
 
 void to_json(nlohmann::json& j, const ReceiverModelCard& card)
 {
+    j["projectName"] = card.projectName;
+    j["modelName"] = card.modelName;
     j["typeDiscriminator"] = card.typeDiscriminator;
     j["modelId"] = card.modelId;
     j["projectId"] = card.projectId;
@@ -14,6 +16,8 @@ void to_json(nlohmann::json& j, const ReceiverModelCard& card)
 
 void from_json(const nlohmann::json& j, ReceiverModelCard& card)
 {
+    card.projectName = j.at("projectName").get<std::string>();
+    card.modelName = j.at("modelName").get<std::string>();
     card.typeDiscriminator = j.at("typeDiscriminator").get<std::string>();
     card.modelId = j.at("modelId").get<std::string>();
     card.projectId = j.at("projectId").get<std::string>();

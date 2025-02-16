@@ -3,6 +3,7 @@
 #include "ArchiCadApiException.h"
 #include "Connector.h"
 #include "HostObjectBuilder.h"
+#include "UserCancelledException.h"
 
 ReceiveBridge::ReceiveBridge(IBrowserAdapter* browser)
 {
@@ -74,18 +75,26 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     args.eventSource->Send("receiveByBrowser", receiveArgs);
 }
 
-
-
 void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)
-        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+        throw std::invalid_argument("Too few arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();
-    nlohmann::json receivedData = args.data[2];
-
-    HostObjectBuilder hostObjectBuilder{};
-    hostObjectBuilder.Build(receivedData);
-
     ReceiverModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
+
+    CONNECTOR.GetProcessWindow().Init("Receiving...", 1);
+
+    try
+    {
+        nlohmann::json receivedData = args.data[2];
+        HostObjectBuilder hostObjectBuilder{};
+        hostObjectBuilder.Build(receivedData, modelCard.projectName, modelCard.modelName);
+    }
+    catch (const UserCancelledException&)
+    {
+        args.eventSource->Send("triggerCancel", modelCardId);
+    }
+
+    CONNECTOR.GetProcessWindow().Close(); 
 }

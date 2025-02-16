@@ -4,6 +4,8 @@
 
 struct ReceiverModelCard
 {
+    std::string projectName;
+    std::string modelName;
     std::string typeDiscriminator;
     std::string modelId;
     std::string projectId;
