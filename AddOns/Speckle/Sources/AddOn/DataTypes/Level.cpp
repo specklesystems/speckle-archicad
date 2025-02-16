@@ -13,3 +13,9 @@ void to_json(nlohmann::json& j, const Level& level)
 
     j["@elements"] = elementTypes;
 }
+
+void from_json(const nlohmann::json& j, Level& level)
+{
+    level.speckle_type = j.at("speckle_type").get<std::string>();
+    level.name = j.at("name").get<std::string>();
+}

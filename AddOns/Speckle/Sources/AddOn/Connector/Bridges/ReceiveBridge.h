@@ -16,4 +16,5 @@ private:
     void RunMethod(const RunMethodEventArgs& args);
 
     void Receive(const RunMethodEventArgs& args);
+    void AfterGetObjects(const RunMethodEventArgs& args);
 };

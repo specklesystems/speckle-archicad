@@ -9,6 +9,7 @@ void to_json(nlohmann::json& j, const ReceiverModelCard& card)
     j["serverUrl"] = card.serverUrl;
     j["expired"] = card.expired;
     j["modelCardId"] = card.modelCardId;
+    j["selectedVersionId"] = card.selectedVersionId;
 }
 
 void from_json(const nlohmann::json& j, ReceiverModelCard& card)
@@ -20,4 +21,5 @@ void from_json(const nlohmann::json& j, ReceiverModelCard& card)
     card.serverUrl = j.at("serverUrl").get<std::string>();
     card.expired = j.at("expired").get<bool>();
     card.modelCardId = j.at("modelCardId").get<std::string>();
+    card.selectedVersionId = j.at("selectedVersionId").get<std::string>();
 }

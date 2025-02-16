@@ -14,7 +14,6 @@ struct ModelCard
     bool IsReceiverModelCard();
     SenderModelCard AsSenderModelCard();
     ReceiverModelCard AsReceiverModelCard();
-
 };
 
 void to_json(nlohmann::json& j, const ModelCard& c);

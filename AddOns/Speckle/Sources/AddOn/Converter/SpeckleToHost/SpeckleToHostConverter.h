@@ -9,4 +9,6 @@ public:
 
 	void SetSelection(std::vector<std::string> guids) override;
 	void ShowAllIn3D() override;
+	int CreateMaterial(const std::string& materialName, const Material& material) override;
+	std::string CreateMorph(const Mesh& mesh) override;
 };

@@ -36,9 +36,7 @@ ReceiverModelCard ModelCard::AsReceiverModelCard()
 
 void to_json(nlohmann::json& j, const ModelCard& card)
 {
-    j["typeDiscriminator"] = card.typeDiscriminator;
-    j["modelCardId"] = card.modelCardId;
-    j["data"] = card.data;
+    j = card.data;
 }
 
 void from_json(const nlohmann::json& j, ModelCard& card)

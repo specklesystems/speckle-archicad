@@ -2,13 +2,13 @@
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
 #include "Connector.h"
-
+#include "HostObjectBuilder.h"
 
 ReceiveBridge::ReceiveBridge(IBrowserAdapter* browser)
 {
     receiveBinding = std::make_unique<Binding>(
         "receiveBinding",
-        std::vector<std::string>{ "Receive" },
+        std::vector<std::string>{ "Receive", "AfterGetObjects" },
         browser
     );
 
@@ -45,6 +45,10 @@ void ReceiveBridge::RunMethod(const RunMethodEventArgs& args)
     {
         Receive(args);
     }
+    else if (args.methodName == "afterGetObjects")
+    {
+        AfterGetObjects(args);
+    }
     else
     {
         throw InvalidMethodNameException(args.methodName);
@@ -57,7 +61,31 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();
-    ReceiverModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
+    ReceiverModelCard card = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
 
-    std::cout << modelCardId;
+    nlohmann::json receiveArgs;
+
+    receiveArgs["modelId"] = card.modelId;
+    receiveArgs["projectId"] = card.projectId;
+    receiveArgs["accountId"] = card.accountId;
+    receiveArgs["modelCardId"] = card.modelCardId;
+    receiveArgs["selectedVersionId"] = card.selectedVersionId;
+
+    args.eventSource->Send("receiveByBrowser", receiveArgs);
+}
+
+
+
+void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
+{
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    std::string modelCardId = args.data[0].get<std::string>();
+    nlohmann::json receivedData = args.data[2];
+
+    HostObjectBuilder hostObjectBuilder{};
+    hostObjectBuilder.Build(receivedData);
+
+    ReceiverModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
 }

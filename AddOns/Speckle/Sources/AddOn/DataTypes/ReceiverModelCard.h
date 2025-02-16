@@ -11,6 +11,7 @@ struct ReceiverModelCard
     std::string serverUrl;
     bool expired;
     std::string modelCardId;
+    std::string selectedVersionId;
 };
 
 void to_json(nlohmann::json& j, const ReceiverModelCard& c);

@@ -92,7 +92,7 @@ void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 void SendBridge::Send(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)
-        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+        throw std::invalid_argument("Too few arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();
     SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
