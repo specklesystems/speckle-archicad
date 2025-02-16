@@ -1,13 +1,15 @@
 #pragma once
 
 #include "json.hpp"
+#include "HostObjectBuilderResult.h"
 
-class HostObjectBuilder 
+class HostObjectBuilder
 {
 public:
 	HostObjectBuilder() = default;
-	void Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName);
+	HostObjectBuilderResult Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName);
 
 private:
-	void BakeObjects(const nlohmann::json& rootObject);
+	HostObjectBuilderResult BakeObjects(const nlohmann::json& rootObject);
+	void GroupObjects(const std::vector<std::string>& objectIds);
 };

@@ -85,16 +85,27 @@ void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
 
     CONNECTOR.GetProcessWindow().Init("Receiving...", 1);
 
+    HostObjectBuilderResult buildResult{};
+
     try
     {
         nlohmann::json receivedData = args.data[2];
         HostObjectBuilder hostObjectBuilder{};
-        hostObjectBuilder.Build(receivedData, modelCard.projectName, modelCard.modelName);
+        buildResult = hostObjectBuilder.Build(receivedData, modelCard.projectName, modelCard.modelName);
     }
     catch (const UserCancelledException&)
     {
         args.eventSource->Send("triggerCancel", modelCardId);
     }
 
-    CONNECTOR.GetProcessWindow().Close(); 
+    CONNECTOR.GetProcessWindow().Close();
+
+    modelCard.bakedObjectIds = buildResult.bakedObjectIds;
+
+    nlohmann::json res{};
+    res["modelCardId"] = modelCardId;
+    res["bakedObjectIds"] = buildResult.bakedObjectIds;
+    res["conversionResults"] = buildResult.conversionResults;
+
+    args.eventSource->Send("setModelReceiveResult", res);
 }

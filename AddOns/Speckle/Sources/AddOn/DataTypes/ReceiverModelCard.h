@@ -14,6 +14,7 @@ struct ReceiverModelCard
     bool expired;
     std::string modelCardId;
     std::string selectedVersionId;
+    std::vector<std::string> bakedObjectIds;
 };
 
 void to_json(nlohmann::json& j, const ReceiverModelCard& c);

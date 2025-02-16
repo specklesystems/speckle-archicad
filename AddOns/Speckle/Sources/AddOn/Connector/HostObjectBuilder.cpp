@@ -7,17 +7,27 @@
 #include "ReceiveConversionResult.h"
 
 
-void HostObjectBuilder::Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName)
+HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName)
 {
 	std::cout << projectName;
 	std::cout << modelName;
 
-	BakeObjects(rootObject);
+	// TODO Bake Materials here
+
+
+	auto buildResult = BakeObjects(rootObject);
+	GroupObjects(buildResult.bakedObjectIds);
+	return buildResult;
 }
 
-void HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject)
+HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject)
 {
+	// TODO Remove static material
+	Material mat;
+	int matind = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial("speckle", mat);
+
 	std::vector<ReceiveConversionResult> conversionResults;
+	std::vector<std::string> bakedObjectIds;
 
 	RootObjectUnpacker unpacker{};
 	auto unpackedMeshes = unpacker.UnpackMeshes(rootObject);
@@ -33,7 +43,8 @@ void HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject)
 
 		try
 		{
-			CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh);
+			auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh, matind);
+			bakedObjectIds.push_back(objectId);
 		}
 		catch (const ArchiCadApiException& ae)
 		{
@@ -51,7 +62,14 @@ void HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject)
 		if (CONNECTOR.GetProcessWindow().IsProcessCanceled())
 		{
 			CONNECTOR.GetProcessWindow().Close();
-			throw UserCancelledException("The user cancelled the send operation");
+			throw UserCancelledException("The user cancelled the receive operation");
 		}
 	}
+
+	return { bakedObjectIds, conversionResults };
+}
+
+void HostObjectBuilder::GroupObjects(const std::vector<std::string>& objectIds)
+{
+	CONNECTOR.GetSpeckleToHostConverter().CreateGroup(objectIds);
 }

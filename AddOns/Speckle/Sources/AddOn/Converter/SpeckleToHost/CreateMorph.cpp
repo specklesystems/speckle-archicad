@@ -1,35 +1,10 @@
 #include "SpeckleToHostConverter.h"
-
 #include "APIEnvir.h"
 #include "ACAPinc.h"
 #include "CheckError.h"
 
-static API_AttributeIndex CreateNewMaterial() 
-{
-    API_Attribute materialAttr;
-    BNZeroMemory(&materialAttr, sizeof(API_Attribute));
 
-    materialAttr.header.typeID = API_MaterialID;
-    CHCopyC("specklemat", materialAttr.header.name);
-
-    // Define material properties
-    materialAttr.material.ambientPc = 50;  // Ambient reflection
-    materialAttr.material.diffusePc = 100;  // Diffuse reflection
-    materialAttr.material.specularPc = 0; // Specular reflection
-    materialAttr.material.transpPc = 0;   // Transparency
-    materialAttr.material.shine = 0;     // Shininess
-    materialAttr.material.emissionAtt = 0; // Emission
-    materialAttr.material.surfaceRGB.f_red = 0.8;  // Red component
-    materialAttr.material.surfaceRGB.f_green = 0.8; // Green component
-    materialAttr.material.surfaceRGB.f_blue = 0.8; // Blue component
-
-    // Optional: Add a texture (set materialAttr.material.texture file path)
-
-    CHECK_ERROR(ACAPI_Attribute_Create(&materialAttr, nullptr));
-    return materialAttr.header.index;
-}
-
-std::string SpeckleToHostConverter::CreateMorph(const Mesh& mesh)
+std::string SpeckleToHostConverter::CreateMorph(const Mesh& mesh, const int materialIndex)
 {
     API_Element element = {};
     element.header.type = API_MorphID;
@@ -74,8 +49,7 @@ std::string SpeckleToHostConverter::CreateMorph(const Mesh& mesh)
     }
 
     API_OverriddenAttribute material;
-    material = CreateNewMaterial();
-
+    material = ACAPI_CreateAttributeIndex(materialIndex);
     // Add polygons
     std::vector<UInt32> polygons;
     size_t faceIndex = 0;
