@@ -43,7 +43,7 @@ static void UnpackARGB(uint32_t argb, double& A, double& R, double& G, double& B
     B = (argb & 0xFF) / 255.0;
 }
 
-int SpeckleToHostConverter::CreateMaterial(const Material& material, const std::string& baseGroupName)
+int SpeckleToHostConverter::CreateMaterial(const Material& material, const std::string& materialName)
 {
     short transp = 100 - static_cast<short>(material.opacity * 100);
     short shine = static_cast<short>((1.0 - material.roughness) * 100);
@@ -51,10 +51,6 @@ int SpeckleToHostConverter::CreateMaterial(const Material& material, const std::
     API_Attribute materialAttr;
     BNZeroMemory(&materialAttr, sizeof(API_Attribute));
     materialAttr.header.typeID = API_MaterialID;
-
-    std::ostringstream oss;
-    oss << baseGroupName << "_" << std::to_string(material.diffuse);
-    std::string materialName = oss.str();
 
     CHCopyC(materialName.c_str(), materialAttr.header.name);
 

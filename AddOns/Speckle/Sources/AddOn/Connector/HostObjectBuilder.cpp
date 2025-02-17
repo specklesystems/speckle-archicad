@@ -8,6 +8,7 @@
 #include <string>
 #include <format>
 #include <iostream>
+#include <set>
 
 
 HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName)
@@ -26,13 +27,28 @@ HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObjec
 std::map<std::string, int> HostObjectBuilder::BakeMaterials(const nlohmann::json& rootObject, const std::string& baseGroupName)
 {
 	std::map<std::string, int> materialTable;
+	std::map<std::string, int> createdMaterials;
 
 	RootObjectUnpacker unpacker{};
 	auto unpackedMaterialProxies = unpacker.UnpackRenderMaterialProxies(rootObject);
 
 	for (const auto& proxy : unpackedMaterialProxies)
 	{
-		int materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(proxy.value, baseGroupName);
+		std::ostringstream oss;
+		oss << baseGroupName << "_" << std::to_string(proxy.value.diffuse);
+		std::string materialName = oss.str();
+
+		int materialIndex = 0;
+		if (createdMaterials.find(materialName) != createdMaterials.end())
+		{
+			materialIndex = createdMaterials[materialName];
+		}
+		else
+		{
+			materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(proxy.value, materialName);
+			createdMaterials[materialName] = materialIndex;
+		}
+
 		for (const auto& elementId : proxy.objects)
 		{
 			materialTable[elementId] = materialIndex;
