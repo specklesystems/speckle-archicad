@@ -16,19 +16,34 @@ HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObjec
 	oss << "Project " << projectName << ": Model " << modelName;
 	std::string baseGroupName = oss.str();
 
-	// TODO Bake Materials here
+	auto bakedMaterials = BakeMaterials(rootObject, baseGroupName);
 
-	auto buildResult = BakeObjects(rootObject, baseGroupName);
+	auto buildResult = BakeObjects(rootObject, baseGroupName, bakedMaterials);
 	GroupObjects(buildResult.bakedObjectIds);
 	return buildResult;
 }
 
-HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject, const std::string& baseGroupName)
+std::map<std::string, int> HostObjectBuilder::BakeMaterials(const nlohmann::json& rootObject, const std::string& baseGroupName)
 {
-	// TODO Remove static material
-	Material mat;
-	int matind = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial("speckle", mat);
+	std::map<std::string, int> materialTable;
 
+	RootObjectUnpacker unpacker{};
+	auto unpackedMaterialProxies = unpacker.UnpackRenderMaterialProxies(rootObject);
+
+	for (const auto& proxy : unpackedMaterialProxies)
+	{
+		int materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(proxy.value, baseGroupName);
+		for (const auto& elementId : proxy.objects)
+		{
+			materialTable[elementId] = materialIndex;
+		}
+	}
+
+	return materialTable;
+}
+
+HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject, const std::string& baseGroupName, const std::map<std::string, int>& materialTable)
+{
 	std::vector<ReceiveConversionResult> conversionResults;
 	std::vector<std::string> bakedObjectIds;
 
@@ -46,7 +61,8 @@ HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& roo
 
 		try
 		{
-			auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh, matind, baseGroupName);
+			int materialIndex = materialTable.at(mesh.applicationId);
+			auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh, materialIndex, baseGroupName);
 			bakedObjectIds.push_back(objectId);
 		}
 		catch (const ArchiCadApiException& ae)

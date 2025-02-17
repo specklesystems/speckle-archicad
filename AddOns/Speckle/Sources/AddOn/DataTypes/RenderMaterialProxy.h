@@ -13,3 +13,4 @@ struct RenderMaterialProxy
 };
 
 void to_json(nlohmann::json& j, const RenderMaterialProxy& proxy);
+void from_json(const nlohmann::json& j, RenderMaterialProxy& proxy);
