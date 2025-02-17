@@ -4,7 +4,7 @@
 #include "CheckError.h"
 
 
-std::string SpeckleToHostConverter::CreateMorph(const Mesh& mesh, const int materialIndex)
+std::string SpeckleToHostConverter::CreateMorph(const Mesh& mesh, const int materialIndex, const std::string& baseGroupName)
 {
     API_Element element = {};
     element.header.type = API_MorphID;
@@ -82,6 +82,12 @@ std::string SpeckleToHostConverter::CreateMorph(const Mesh& mesh, const int mate
         }));
 
     ACAPI_DisposeElemMemoHdls(&memo);
+
+    GS::UniString infoString = baseGroupName.c_str();
+    CHECK_ERROR(ACAPI_CallUndoableCommand("Set InfoString",
+        [&]() -> GSErrCode {
+            return ACAPI_Element_ChangeElementInfoString(&element.header.guid, &infoString);
+        }));
 
     return APIGuidToString(element.header.guid).ToCStr().Get();
 }

@@ -5,22 +5,25 @@
 #include "UserCancelledException.h"
 #include "RootObjectUnpacker.h"
 #include "ReceiveConversionResult.h"
+#include <string>
+#include <format>
+#include <iostream>
 
 
 HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName)
 {
-	std::cout << projectName;
-	std::cout << modelName;
+	std::ostringstream oss;
+	oss << "Project " << projectName << ": Model " << modelName;
+	std::string baseGroupName = oss.str();
 
 	// TODO Bake Materials here
 
-
-	auto buildResult = BakeObjects(rootObject);
+	auto buildResult = BakeObjects(rootObject, baseGroupName);
 	GroupObjects(buildResult.bakedObjectIds);
 	return buildResult;
 }
 
-HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject)
+HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject, const std::string& baseGroupName)
 {
 	// TODO Remove static material
 	Material mat;
@@ -43,7 +46,7 @@ HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& roo
 
 		try
 		{
-			auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh, matind);
+			auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh, matind, baseGroupName);
 			bakedObjectIds.push_back(objectId);
 		}
 		catch (const ArchiCadApiException& ae)
