@@ -39,6 +39,7 @@ jobs:
           name: output-${{ env.GitVersion_FullSemVer }}
           path: output/*.zip
           retention-days: 1
+          if-no-files-found: error
 
       - id: set-version
         name: Set version to output
@@ -56,7 +57,6 @@ jobs:
     steps:
       - name: 🔫 Trigger Build Installers
         uses: ALEEF02/workflow-dispatch@v3.0.0
-        continue-on-error: true
         with:
           workflow: build-cpp-installers
           repo: specklesystems/connector-installers
