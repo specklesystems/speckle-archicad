@@ -1,12 +1,13 @@
 #pragma once
 
 #include "json.hpp"
+#include "GuidGenerator.h"
 
 struct Material
 {
     std::string speckle_type = "Objects.Other.RenderMaterial";
-    std::string name = "RenderMaterial";
-    std::string applicationId = "D2417E06-1AA5-1714-D29A-1EC8F0830654"; //TODO: remove default
+    std::string name = "";
+    std::string applicationId = GuidGenerator::NewGuid();
     uint32_t diffuse = 0;
     double opacity = 1.0;
     double emissive = 0.0;
