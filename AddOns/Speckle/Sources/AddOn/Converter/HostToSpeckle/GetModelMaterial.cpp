@@ -17,7 +17,10 @@ Material HostToSpeckleConverter::GetModelMaterial(int materialIndex)
 	acModel.GetMaterial(attributeIndex, &modelerMaterial);
 
 	auto color = modelerMaterial.GetSurfaceColor();
+	auto name = modelerMaterial.GetName().ToCStr().Get();
+
 	Material material;
+	material.name = name;
 	material.diffuse = ARGBColorConverter::PackARGB(1.0, color.red, color.green, color.blue);
 	double transparent = modelerMaterial.GetTransparency();
 	double shiny = modelerMaterial.GetShining();

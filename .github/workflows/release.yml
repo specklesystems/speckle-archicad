@@ -7,7 +7,7 @@ name: Build and Deploy Archicad
 
 on:
   push:
-    branches: ["main", "dev", "release/*", "alan/*"] # Continuous delivery on every long-lived branch
+    branches: ["main", "dev", "release/*"] # Continuous delivery on every long-lived branch
     tags: ["v3.*"] # Manual delivery on every 3.x tag
 
 permissions:
@@ -39,6 +39,7 @@ jobs:
           name: output-${{ env.GitVersion_FullSemVer }}
           path: output/*.zip
           retention-days: 1
+          if-no-files-found: error
 
       - id: set-version
         name: Set version to output
@@ -56,13 +57,11 @@ jobs:
     steps:
       - name: 🔫 Trigger Build Installers
         uses: ALEEF02/workflow-dispatch@v3.0.0
-        continue-on-error: true
         with:
           workflow: build-cpp-installers
           repo: specklesystems/connector-installers
           token: ${{ secrets.CONNECTORS_GH_TOKEN }}
           inputs: '{ "run_id": "${{ github.run_id }}", "version": "${{ needs.build.outputs.version }}", "file_version": "${{needs.build.outputs.file_version}}", "public_release": ${{ env.IS_TAG_BUILD }}, "store_artifacts": ${{ env.IS_RELEASE_BRANCH }} }'
-          ref: alan/update-archicad-installer
           wait-for-completion: true
           wait-for-completion-interval: 10s
           wait-for-completion-timeout: 10m
