@@ -20,7 +20,7 @@ HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObjec
 	auto bakedMaterials = BakeMaterials(rootObject, baseGroupName);
 
 	auto buildResult = BakeObjects(rootObject, baseGroupName, bakedMaterials);
-	GroupObjects(buildResult.bakedObjectIds);
+	//GroupObjects(buildResult.bakedObjectIds);
 	return buildResult;
 }
 
@@ -78,7 +78,8 @@ HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& roo
 		try
 		{
 			int materialIndex = materialTable.at(mesh.applicationId);
-			auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh, materialIndex, baseGroupName);
+			//auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh, materialIndex, baseGroupName);
+			auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateLibPart(mesh, materialIndex, baseGroupName, elemCount);
 			bakedObjectIds.push_back(objectId);
 		}
 		catch (const ArchiCadApiException& ae)

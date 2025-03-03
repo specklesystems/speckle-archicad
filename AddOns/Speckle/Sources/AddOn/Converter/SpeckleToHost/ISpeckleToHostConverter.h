@@ -14,5 +14,6 @@ public:
 	virtual void ShowAllIn3D() = 0;
 	virtual int CreateMaterial(const Material& material, const std::string& baseGroupName) = 0;
 	virtual std::string CreateMorph(const Mesh& mesh, const int materialIndex, const std::string& baseGroupName) = 0;
+	virtual std::string CreateLibPart(const Mesh& mesh, const int materialIndex, const std::string& baseGroupName, int runningNumber) = 0;
 	virtual std::string CreateGroup(const std::vector<std::string>& memberIds) = 0;
 };
