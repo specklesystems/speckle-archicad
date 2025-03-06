@@ -10,7 +10,9 @@ SelectionBridge::SelectionBridge(IBrowserAdapter* browser)
     selectionBinding = std::make_unique<Binding>(
         "selectionBinding",
         std::vector<std::string>{ "GetSelection" },
-        browser);
+        browser,
+        this
+    );
 
     selectionBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }

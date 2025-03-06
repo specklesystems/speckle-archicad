@@ -10,7 +10,8 @@ ReceiveBridge::ReceiveBridge(IBrowserAdapter* browser)
     receiveBinding = std::make_unique<Binding>(
         "receiveBinding",
         std::vector<std::string>{ "Receive", "AfterGetObjects" },
-        browser
+        browser,
+        this
     );
 
     receiveBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
@@ -90,8 +91,10 @@ void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
     try
     {
         nlohmann::json receivedData = args.data[2];
+        auto s =receivedData.size();
         HostObjectBuilder hostObjectBuilder{};
         buildResult = hostObjectBuilder.Build(receivedData, modelCard.projectName, modelCard.modelName);
+        std::cout << s;
     }
     catch (const UserCancelledException&)
     {

@@ -2,8 +2,8 @@
 #include "Base64GuidGenerator.h"
 #include "Debug.h"
 
-Binding::Binding(const std::string& name, const std::vector<std::string>& methodNames, IBrowserAdapter* browserAdapter)
-    : _name(name), _methodNames(methodNames), _browserAdapter(browserAdapter)
+Binding::Binding(const std::string& name, const std::vector<std::string>& methodNames, IBrowserAdapter* browserAdapter, IBridge* bridge)
+    : _name(name), _methodNames(methodNames), _browserAdapter(browserAdapter), _bridge(bridge)
 {
 	_browserAdapter->RegisterBinding(this);
 }
@@ -101,4 +101,9 @@ void Binding::ClearResult(const std::string& methodId)
 void Binding::SetToastNotification(const ToastNotification& toast)
 {
 	Send("setGlobalNotification", toast);
+}
+
+void Binding::RunMethod(const RunMethodEventArgs& args)
+{
+	_bridge->RunMethod(args);
 }

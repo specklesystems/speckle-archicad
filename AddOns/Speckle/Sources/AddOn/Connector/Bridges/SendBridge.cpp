@@ -16,7 +16,9 @@ SendBridge::SendBridge(IBrowserAdapter* browser)
     sendBinding = std::make_unique<Binding>(
         "sendBinding",
         std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send", "AfterSendObjects" },
-        browser);
+        browser,
+        this
+    );
 
     sendBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }

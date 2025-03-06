@@ -9,7 +9,9 @@ AccountBridge::AccountBridge(IBrowserAdapter* browser)
 	accountsBinding = std::make_unique<Binding>(
 		"accountsBinding",
 		std::vector<std::string>{ "GetAccounts" },
-		browser);
+		browser,
+        this
+    );
 
 	accountsBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }

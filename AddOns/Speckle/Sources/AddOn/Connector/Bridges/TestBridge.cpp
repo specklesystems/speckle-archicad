@@ -9,7 +9,9 @@ TestBridge::TestBridge(IBrowserAdapter* browser)
     testBinding = std::make_unique<Binding>(
         "testBinding",
         std::vector<std::string>{ "GetComplexType", "GoAway", "SayHi", "TriggerEvent" },
-        browser);
+        browser,
+        this
+    );
 
     testBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }

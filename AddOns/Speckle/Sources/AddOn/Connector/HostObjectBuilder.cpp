@@ -5,10 +5,15 @@
 #include "UserCancelledException.h"
 #include "RootObjectUnpacker.h"
 #include "ReceiveConversionResult.h"
+#include "UnpackedElement.h"
 #include <string>
 #include <format>
 #include <iostream>
 #include <set>
+
+#include "LibpartBuilder.h"
+#include "JsonFileWriter.h"
+#include <StopWatch.h>
 
 
 HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName)
@@ -18,15 +23,14 @@ HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObjec
 	std::string baseGroupName = oss.str();
 
 	auto bakedMaterials = BakeMaterials(rootObject, baseGroupName);
-
 	auto buildResult = BakeObjects(rootObject, baseGroupName, bakedMaterials);
-	//GroupObjects(buildResult.bakedObjectIds);
+
 	return buildResult;
 }
 
-std::map<std::string, int> HostObjectBuilder::BakeMaterials(const nlohmann::json& rootObject, const std::string& baseGroupName)
+std::map<std::string, std::string> HostObjectBuilder::BakeMaterials(const nlohmann::json& rootObject, const std::string& baseGroupName)
 {
-	std::map<std::string, int> materialTable;
+	std::map<std::string, std::string> materialTable;
 	std::map<std::string, int> createdMaterials;
 
 	RootObjectUnpacker unpacker{};
@@ -51,35 +55,53 @@ std::map<std::string, int> HostObjectBuilder::BakeMaterials(const nlohmann::json
 
 		for (const auto& elementId : proxy.objects)
 		{
-			materialTable[elementId] = materialIndex;
+			materialTable[elementId] = materialName;
 		}
 	}
 
 	return materialTable;
 }
 
-HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject, const std::string& baseGroupName, const std::map<std::string, int>& materialTable)
+HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject, const std::string& /*baseGroupName*/, const std::map<std::string, std::string>& materialTable)
 {
 	std::vector<ReceiveConversionResult> conversionResults;
 	std::vector<std::string> bakedObjectIds;
 
 	RootObjectUnpacker unpacker{};
-	auto unpackedMeshes = unpacker.UnpackMeshes(rootObject);
+	auto unpackedElements = unpacker.UnpackElements(rootObject, materialTable);
+	LibpartBuilder libpartBuilder{};
 
-	CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(unpackedMeshes.size()));
-	int elemCount = 0;
+	//CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(unpackedDisplayValues.size()));
+	
 
-	for (const auto& mesh : unpackedMeshes)
+	/*for (auto& displayValue : unpackedDisplayValues)
+	{
+		for (auto& unpackedMesh : displayValue)
+		{
+			try
+			{
+				std::string materialName = materialTable.at(unpackedMesh.mesh.applicationId);
+				unpackedMesh.materialName = materialName;
+			}
+			catch (const std::exception& ex)
+			{
+				std::string msg = ex.what();
+				std::cout << msg;
+			}
+			
+		}
+	}*/
+	
+	/*for (const auto& dv : unpackedDisplayValues)
 	{
 		elemCount++;
+
 		CONNECTOR.GetProcessWindow().SetProcessValue(elemCount);
 		ReceiveConversionResult conversionResult{};
 
 		try
-		{
-			int materialIndex = materialTable.at(mesh.applicationId);
-			//auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateMorph(mesh, materialIndex, baseGroupName);
-			auto objectId = CONNECTOR.GetSpeckleToHostConverter().CreateLibPart(mesh, materialIndex, baseGroupName, elemCount);
+		{	
+			auto objectId = libpartBuilder.CreateLibPart(dv, baseGroupName, elemCount);
 			bakedObjectIds.push_back(objectId);
 		}
 		catch (const ArchiCadApiException& ae)
@@ -99,8 +121,11 @@ HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& roo
 		{
 			CONNECTOR.GetProcessWindow().Close();
 			throw UserCancelledException("The user cancelled the receive operation");
-		}
-	}
+		}*
+	}*/
+
+	libpartBuilder.CreateLibParts(unpackedElements);
+	libpartBuilder.PlaceLibparts();
 
 	return { bakedObjectIds, conversionResults };
 }

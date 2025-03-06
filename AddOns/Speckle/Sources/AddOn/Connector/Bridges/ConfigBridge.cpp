@@ -8,7 +8,8 @@ ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
     configBinding = std::make_unique<Binding>(
         "configBinding",
         std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig" },
-        browser
+        browser,
+        this
     );
 
     configBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };

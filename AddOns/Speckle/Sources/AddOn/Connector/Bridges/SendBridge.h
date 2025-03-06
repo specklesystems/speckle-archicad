@@ -1,10 +1,11 @@
 #pragma once
 
+#include "IBridge.h"
 #include "IBrowserAdapter.h"
 #include "Binding.h"
 #include "SendConversionResult.h"
 
-class SendBridge {
+class SendBridge : public IBridge {
 public:
     SendBridge(IBrowserAdapter* browser);
 

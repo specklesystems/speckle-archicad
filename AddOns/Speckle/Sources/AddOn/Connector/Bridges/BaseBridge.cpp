@@ -13,7 +13,8 @@ BaseBridge::BaseBridge(IBrowserAdapter* browser)
             "GetSourceApplicationName", "GetSourceApplicationVersion", "HighlightModel",
             "HighlightObjects", "OpenUrl", "RemoveModel", "UpdateModel"
     },
-        browser
+        browser,
+        this
     );
 
     baseBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
