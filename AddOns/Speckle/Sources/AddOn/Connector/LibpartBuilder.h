@@ -5,22 +5,27 @@
 #include "ACAPinc.h"
 #include "BuiltInLibrary.hpp"
 #include "Folder.hpp"
-
 #include "UnpackedElement.h"
+#include <ReceiveConversionResult.h>
 
 class LibpartBuilder
 {
 public:
-	LibpartBuilder();
-	std::string CreateLibPart(const UnpackedElement& element, const std::string& baseGroupName, int runningNumber);
-	std::string CreateLibParts(const std::vector<UnpackedElement>& elements);
+	LibpartBuilder(const std::string& baseGroupName);
+	void CreateLibParts(const std::vector<UnpackedElement>& elements);
 	void PlaceLibparts();
+
+	std::vector<ReceiveConversionResult> conversionResults;
+	std::vector<std::string> bakedObjectIds;
 
 private:
 	IO::Location* _location;
+	UInt32 _elementCount = 1;
+	std::string _baseGroupName;
 
 	GSErrCode GetLocation(IO::Location*& loc, bool useEmbeddedLibrary);
-	GSErrCode PlaceLibpart(GS::Int32 libIndex);
+	void CreateLibPart(const UnpackedElement& element);
+	std::string PlaceLibpart(GS::Int32 libIndex);
 
 	std::vector<Int32> libpartIndices;
 	std::vector<std::string> placedElementIds;

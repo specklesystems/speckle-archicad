@@ -56,19 +56,16 @@ std::map<std::string, std::string> HostObjectBuilder::BakeMaterials(const nlohma
 	return materialTable;
 }
 
-HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject, const std::string& /*baseGroupName*/, const std::map<std::string, std::string>& materialTable)
+HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject, const std::string& baseGroupName, const std::map<std::string, std::string>& materialTable)
 {
-	std::vector<ReceiveConversionResult> conversionResults;
-	std::vector<std::string> bakedObjectIds;
-
 	RootObjectUnpacker unpacker{};
 	auto unpackedElements = unpacker.UnpackElements(rootObject, materialTable);
-	LibpartBuilder libpartBuilder{};
+	LibpartBuilder libpartBuilder(baseGroupName);
 
 	libpartBuilder.CreateLibParts(unpackedElements);
 	libpartBuilder.PlaceLibparts();
 
-	return { bakedObjectIds, conversionResults };
+	return { libpartBuilder.bakedObjectIds, libpartBuilder.conversionResults };
 }
 
 void HostObjectBuilder::GroupObjects(const std::vector<std::string>& objectIds)

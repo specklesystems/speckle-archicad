@@ -42,7 +42,9 @@ namespace
 		GSErrCode error = ACAPI_Element_GetQuantities(apiGuid, &params, &quantities, &mask);
 
 		if (error)
+		{
 			throw SpeckleConversionException("Could not get Element Quantities");
+		}
 
 		return quantity;
 	}

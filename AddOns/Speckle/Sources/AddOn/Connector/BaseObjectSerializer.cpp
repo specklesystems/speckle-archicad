@@ -26,7 +26,7 @@ std::pair<std::string, nlohmann::json> BaseObjectSerializer::TraverseBase(const 
 	auto traversedBase = nlohmann::json::object();
 	if (!base.contains("speckle_type") || !base["speckle_type"].is_string())
 	{
-		throw "arrgh";
+		throw "speckle tpye not found or was not a string";
 	}
 	traversedBase["speckle_type"] = base["speckle_type"];
 	TraverseBaseProps(base, traversedBase);
