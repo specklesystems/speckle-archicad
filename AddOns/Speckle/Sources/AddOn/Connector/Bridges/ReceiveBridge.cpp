@@ -91,10 +91,8 @@ void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
     try
     {
         nlohmann::json receivedData = args.data[2];
-        auto s =receivedData.size();
         HostObjectBuilder hostObjectBuilder{};
         buildResult = hostObjectBuilder.Build(receivedData, modelCard.projectName, modelCard.modelName);
-        std::cout << s;
     }
     catch (const UserCancelledException&)
     {
