@@ -23,4 +23,5 @@ private:
 	GSErrCode PlaceLibpart(GS::Int32 libIndex);
 
 	std::vector<Int32> libpartIndices;
+	std::vector<std::string> placedElementIds;
 };

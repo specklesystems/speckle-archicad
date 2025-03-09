@@ -2,12 +2,45 @@
 #include "APIHelper.hpp"
 #include "Box3DData.h"
 
+static API_DatabaseInfo GetCurrentDB(void)
+{
+	API_DatabaseInfo databaseInfo;
+	BNZeroMemory(&databaseInfo, sizeof(API_DatabaseInfo));
+	GSErrCode err = ACAPI_Database_GetCurrentDatabase(&databaseInfo);
+
+	if (err != NoError)
+	{
+		databaseInfo.typeID = API_ZombieWindowID;
+	}
+
+	return databaseInfo;
+}
+
+static void SetCurrentDB(API_DatabaseInfo& databaseInfo)
+{
+	GSErrCode err = ACAPI_Database_ChangeCurrentDatabase(&databaseInfo);
+	if (err != NoError)
+	{
+		return;
+	}
+}
+
+static void SwitchToFloorPlanDB()
+{
+	API_DatabaseInfo databaseInfo;
+	BNZeroMemory(&databaseInfo, sizeof(API_DatabaseInfo));
+	databaseInfo.typeID = APIWind_FloorPlanID;
+	SetCurrentDB(databaseInfo);
+}
+
 static GSErrCode CreateSubFolder(const GS::UniString& name, IO::Location& location)
 {
 	GSErrCode err = NoError;
 
 	if (location.IsEmpty() || name.IsEmpty())
+	{
 		return err;
+	}
 
 	GSTimeRecord gsTimeRecord;
 	GSTime gsTime(0);
@@ -24,7 +57,9 @@ static GSErrCode CreateSubFolder(const GS::UniString& name, IO::Location& locati
 	IO::Folder folder(location);
 	err = folder.CreateFolder(folderName);
 	if (err != NoError)
+	{
 		return err;
+	}
 
 	location.AppendToLocal(folderName);
 
@@ -47,30 +82,18 @@ GSErrCode LibpartBuilder::GetLocation(IO::Location*& loc, bool useEmbeddedLibrar
 		// get embedded library location
 		if (ACAPI_LibraryManagement_GetLibraries(&libInfo, &embeddedLibraryIndex) == NoError && embeddedLibraryIndex >= 0) 
 		{
-			// TODO remove
-			loc = new IO::Location(libInfo[embeddedLibraryIndex].location);
-
-			if (loc != nullptr) 
+			try
 			{
-				/*IO::Location ownFolderLoc(*loc);
-				ownFolderLoc.AppendToLocal(IO::Name("LibPart_Test Library"));
-				err = IO::fileSystem.CreateFolder(ownFolderLoc);
-				if (err == NoError || err == IO::FileSystem::TargetExists)
-					loc->AppendToLocal(IO::Name("LibPart_Test Library"));*/
+				loc = new IO::Location(libInfo[embeddedLibraryIndex].location);
+			}
+			catch (std::bad_alloc&)
+			{
+				return APIERR_MEMFULL;
+			}
 
-				try 
-				{
-					loc = new IO::Location(libInfo[embeddedLibraryIndex].location);
-				}
-				catch (std::bad_alloc&) 
-				{
-					return APIERR_MEMFULL;
-				}
-
-				if (loc != nullptr) 
-				{
-					CreateSubFolder("Speckle Library", *loc);
-				}
+			if (loc != nullptr)
+			{
+				CreateSubFolder("Speckle Library", *loc);
 			}
 		}
 	}
@@ -416,17 +439,14 @@ std::string LibpartBuilder::CreateLibParts(const std::vector<UnpackedElement>& e
 {
 	int elemCount = 0;
 
-	ACAPI_CallUndoableCommand("Create Libparts",
+	ACAPI_CallUndoableCommand("Creating received objects",
 		[&]() -> GSErrCode {
 			LibraryHelper helper(false);
+			
 			for (const auto& elem : elements)
 			{
 				elemCount++;
 				auto objectId = CreateLibPart(elem, "baseGroupName", elemCount);
-				if (elemCount > 100)
-				{
-					//return NoError;
-				}
 			}
 			return NoError;
 		});
@@ -436,9 +456,12 @@ std::string LibpartBuilder::CreateLibParts(const std::vector<UnpackedElement>& e
 
 void LibpartBuilder::PlaceLibparts()
 {
-	ACAPI_CallUndoableCommand("Place Libparts",
+	ACAPI_CallUndoableCommand("Placing received objects",
 		[&]() -> GSErrCode {
 			LibraryHelper helper(false);
+
+			auto originalDB = GetCurrentDB();
+			SwitchToFloorPlanDB();
 
 			API_DatabaseInfo databaseInfo;
 			BNZeroMemory(&databaseInfo, sizeof(API_DatabaseInfo));
@@ -450,6 +473,9 @@ void LibpartBuilder::PlaceLibparts()
 			{
 				PlaceLibpart(idx);
 			}
+
+			SetCurrentDB(originalDB);
+
 			return NoError;
 		});
 }

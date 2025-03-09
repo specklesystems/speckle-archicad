@@ -38,7 +38,6 @@ UnpackedElement::UnpackedElement(const std::vector<Mesh>& meshes, const std::map
 
             edges.push_back({ prevIndex, firstIndex });
 
-
             std::string materialName = "";
             auto it = materialMap.find(mesh.applicationId);
             if (it != materialMap.end())

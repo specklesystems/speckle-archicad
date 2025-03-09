@@ -212,8 +212,7 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 			{
 				if (isHardBody)
 				{
-					//AddHardMeshesToElementBody(materialMeshFaceMap, elementBody);
-					AddSoftMeshesToElementBody(materialMeshFaceMap, elementBody);
+					AddHardMeshesToElementBody(materialMeshFaceMap, elementBody);
 				}
 				else
 				{
@@ -222,8 +221,7 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 			}
 			else
 			{
-				//AddHardMeshesToElementBody(materialMeshFaceMap, elementBody);
-				AddSoftMeshesToElementBody(materialMeshFaceMap, elementBody);
+				AddHardMeshesToElementBody(materialMeshFaceMap, elementBody);
 			}
 
 		}
