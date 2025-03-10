@@ -36,6 +36,80 @@ std::vector<RenderMaterialProxy> RootObjectUnpacker::UnpackRenderMaterialProxies
     return proxies;
 }
 
+static void CollectInstanceProxies(const nlohmann::json& data, std::vector<InstanceProxy>& proxies)
+{
+    if (data.is_object())
+    {
+        auto it = data.find("speckle_type");
+        if (it != data.end() && it->is_string() && *it == "Speckle.Core.Models.Instances.InstanceProxy")
+        {
+            proxies.push_back(data);
+        }
+
+        for (const auto& [key, value] : data.items())
+        {
+            CollectInstanceProxies(value, proxies);
+        }
+    }
+    else if (data.is_array())
+    {
+        for (const auto& item : data)
+        {
+            CollectInstanceProxies(item, proxies);
+        }
+    }
+}
+
+std::map<std::string, InstanceProxy> RootObjectUnpacker::UnpackInstanceProxies(const nlohmann::json& rootObject)
+{
+    std::vector<InstanceProxy> proxies;
+    CollectInstanceProxies(rootObject, proxies);
+
+    std::map<std::string, InstanceProxy> proxyMap;
+    for (const auto& p : proxies)
+    {
+        proxyMap[p.applicationId] = p;
+    }
+    return proxyMap;
+}
+
+static void CollectInstanceDefinitionProxies(const nlohmann::json& data, std::vector<InstanceDefinitionProxy>& proxies)
+{
+    if (data.is_object())
+    {
+        auto it = data.find("speckle_type");
+        if (it != data.end() && it->is_string() && *it == "Speckle.Core.Models.Instances.InstanceDefinitionProxy")
+        {
+            proxies.push_back(data);
+        }
+
+        for (const auto& [key, value] : data.items())
+        {
+            CollectInstanceDefinitionProxies(value, proxies);
+        }
+    }
+    else if (data.is_array())
+    {
+        for (const auto& item : data)
+        {
+            CollectInstanceDefinitionProxies(item, proxies);
+        }
+    }
+}
+
+std::map<std::string, InstanceDefinitionProxy> RootObjectUnpacker::UnpackInstanceDefinitionProxies(const nlohmann::json& rootObject)
+{
+    std::vector<InstanceDefinitionProxy> proxies;
+    CollectInstanceDefinitionProxies(rootObject, proxies);
+
+    std::map<std::string, InstanceDefinitionProxy> proxyMap;
+    for (const auto& p : proxies)
+    {
+        proxyMap[p.applicationId] = p;
+    }
+    return proxyMap;
+}
+
 static void CollectMeshesFlat(const nlohmann::json& data, std::vector<Mesh>& meshes)
 {
     if (data.is_object())
@@ -113,14 +187,14 @@ std::vector<std::vector<Mesh>> RootObjectUnpacker::UnpackMeshes(const nlohmann::
 
 std::vector<UnpackedElement> RootObjectUnpacker::UnpackElements(const nlohmann::json& rootObject, const std::map<std::string, std::string>& materialTable)
 {
-    auto unpackedMeshes = UnpackMeshes(rootObject);
+    auto unpackedObjects = UnpackObjects(rootObject);
     std::vector<UnpackedElement> unpackedElements;
 
-    for (auto& mesh : unpackedMeshes)
+    for (auto& obj : unpackedObjects)
     {
         try
         {
-            unpackedElements.push_back(UnpackedElement(mesh, materialTable));
+            unpackedElements.push_back(UnpackedElement(obj.second.displayValue, materialTable));
         }
         catch (const std::exception& ex)
         {
@@ -130,4 +204,58 @@ std::vector<UnpackedElement> RootObjectUnpacker::UnpackElements(const nlohmann::
     }
 
     return unpackedElements;
+}
+
+static void CollectObjects(const nlohmann::json& obj, std::vector<UnpackedObject>& collected) 
+{
+    if (!obj.is_object()) return;
+
+    // Check if this object has a "displayValue" key
+    if (obj.contains("displayValue") && obj["displayValue"].is_array() && !obj["displayValue"].empty()) {
+        UnpackedObject unpackedObj;
+
+        // Extract applicationId if available
+        if (obj.contains("applicationId") && obj["applicationId"].is_string()) {
+            unpackedObj.applicationId = obj["applicationId"].get<std::string>();
+        }
+
+        // Iterate over the displayValue array and extract meshes
+        for (const auto& item : obj["displayValue"]) {
+            if (item.is_object() && item.contains("speckle_type") && item["speckle_type"] == "Objects.Geometry.Mesh") {
+                unpackedObj.displayValue.emplace_back(item);
+            }
+        }
+
+        // If we found any relevant meshes, add to collection
+        if (!unpackedObj.displayValue.empty()) {
+            collected.push_back(std::move(unpackedObj));
+        }
+    }
+
+    // Recursively process all sub-objects
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
+        if (it.value().is_object()) {
+            CollectObjects(it.value(), collected);
+        }
+        else if (it.value().is_array()) {
+            for (const auto& subItem : it.value()) {
+                if (subItem.is_object()) {
+                    CollectObjects(subItem, collected);
+                }
+            }
+        }
+    }
+}
+
+std::map<std::string, UnpackedObject> RootObjectUnpacker::UnpackObjects(const nlohmann::json& rootObject)
+{
+    std::vector<UnpackedObject> objects;
+    CollectObjects(rootObject, objects);
+
+    std::map<std::string, UnpackedObject> objectsMap;
+    for (const auto& obj : objects)
+    {
+        objectsMap[obj.applicationId] = obj;
+    }
+    return objectsMap;
 }

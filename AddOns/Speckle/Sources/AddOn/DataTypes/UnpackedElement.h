@@ -24,9 +24,11 @@ struct Face
 class UnpackedElement
 {
 public:
+    std::string applicationId = "";
     std::vector<Vertex> vertices;
     std::vector<Face> faces;
-    std::string id = "";
 
     UnpackedElement(const std::vector<Mesh>& meshes, const std::map<std::string, std::string>& materialMap);
+    void ApplyTransform(const std::vector<double>& transform);
+    void Scale(const double scale);
 };

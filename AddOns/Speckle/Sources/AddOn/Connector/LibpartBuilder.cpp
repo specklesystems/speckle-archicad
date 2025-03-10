@@ -1,5 +1,5 @@
 #include "LibpartBuilder.h"
-//#include "APIHelper.hpp"
+#include "APIHelper.hpp"
 #include "Box3DData.h"
 #include <CheckError.h>
 #include <SpeckleConversionException.h>
@@ -425,7 +425,7 @@ void LibpartBuilder::CreateLibParts(const std::vector<UnpackedElement>& elements
 {
 	ACAPI_CallUndoableCommand("Creating received objects",
 		[&]() -> GSErrCode {
-			//LibraryHelper helper(false);
+			LibraryHelper helper(false);
 			
 			for (const auto& elem : elements)
 			{
@@ -451,7 +451,7 @@ void LibpartBuilder::PlaceLibparts()
 {
 	ACAPI_CallUndoableCommand("Placing received objects",
 		[&]() -> GSErrCode {
-			//LibraryHelper helper(false);
+			LibraryHelper helper(false);
 			auto originalDB = GetCurrentDB();
 			SwitchToFloorPlanDB();
 
