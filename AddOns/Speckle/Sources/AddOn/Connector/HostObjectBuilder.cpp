@@ -17,7 +17,7 @@ HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObjec
 	oss << "Project " << projectName << ": Model " << modelName;
 	std::string baseGroupName = oss.str();
 
-	//JsonFileWriter::WriteJsonToFile(rootObject, "C:\\t\\nestedInstances.json");
+	//JsonFileWriter::WriteJsonToFile(rootObject, "C:\\t\\rhino_roof.json");
 
 	auto bakedMaterials = BakeMaterials(rootObject, baseGroupName);
 	auto buildResult = BakeObjects(rootObject, baseGroupName, bakedMaterials);
