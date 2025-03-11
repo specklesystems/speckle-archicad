@@ -15,7 +15,6 @@ struct Mesh
     int materialIndex = 0;
 
     void ApplyTransform(const std::vector<double>& transform);
-    void Scale(const double scale);
 };
 
 void to_json(nlohmann::json& j, const Mesh& mesh);

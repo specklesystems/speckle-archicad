@@ -50,26 +50,6 @@ UnpackedElement::UnpackedElement(const std::vector<Mesh>& meshes, const std::map
     }
 }
 
-void UnpackedElement::ApplyTransform(const std::vector<double>& transform)
-{
-    if (transform.size() != 16) 
-    {
-        throw std::invalid_argument("Transform matrix must have 16 elements.");
-    }
-
-    for (auto& vertex : vertices) 
-    {
-        double x = vertex.x;
-        double y = vertex.y;
-        double z = vertex.z;
-        double w = 1.0;
-
-        vertex.x = transform[0] * x + transform[1] * y + transform[2] * z + transform[3] * w;
-        vertex.y = transform[4] * x + transform[5] * y + transform[6] * z + transform[7] * w;
-        vertex.z = transform[8] * x + transform[9] * y + transform[10] * z + transform[11] * w;
-    }
-}
-
 void UnpackedElement::Scale(const double scale)
 {
     for (auto& vertex : vertices)
