@@ -18,3 +18,11 @@ uint32_t ARGBColorConverter::PackARGB(double A, double R, double G, double B)
     // Combine into a single 4-byte integer
     return (a << 24) | (r << 16) | (g << 8) | b;
 }
+
+void ARGBColorConverter::UnpackARGB(uint32_t argb, double& A, double& R, double& G, double& B)
+{
+    A = ((argb >> 24) & 0xFF) / 255.0;
+    R = ((argb >> 16) & 0xFF) / 255.0;
+    G = ((argb >> 8) & 0xFF) / 255.0;
+    B = (argb & 0xFF) / 255.0;
+}

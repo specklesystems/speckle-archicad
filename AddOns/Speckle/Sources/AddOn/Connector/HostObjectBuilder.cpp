@@ -10,6 +10,7 @@
 #include "JsonFileWriter.h"
 #include "Matrix_44.h"
 #include "Units.h"
+#include "ARGBColorConverter.h"
 #include <set>
 
 static std::string RemoveInvalidChars(const std::string& input) 
@@ -31,7 +32,7 @@ static std::string RemoveInvalidChars(const std::string& input)
 HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName)
 {
 	std::ostringstream oss;
-	oss << "Project " << projectName << " - ::<<Model " << modelName;
+	oss << "Project " << projectName << " - Model " << modelName;
 	std::string baseGroupName = oss.str();
 	baseGroupName = RemoveInvalidChars(baseGroupName);
 
@@ -82,12 +83,27 @@ std::map<std::string, std::string> HostObjectBuilder::BakeMaterials(const nlohma
 			{
 				std::cout << "Failed to create Archicad material: " << ex.what();
 			}
-		}
+		} 
 
 		for (const auto& elementId : proxy.objects)
 		{
 			materialTable[elementId] = materialName;
 		}
+	}
+
+	// create default mateiral
+	std::string materialName = "speckle_default_material";
+	int materialIndex = 0;
+	Material defaultMaterial;
+	defaultMaterial.diffuse = ARGBColorConverter::PackARGB(1, 0.6, 0.6, 0.6);
+	try
+	{
+		materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(defaultMaterial, materialName);
+		createdMaterials[materialName] = materialIndex;
+	}
+	catch (const std::exception& ex)
+	{
+		std::cout << "Failed to create Archicad material: " << ex.what();
 	}
 
 	return materialTable;
