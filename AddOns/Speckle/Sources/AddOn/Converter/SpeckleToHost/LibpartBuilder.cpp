@@ -1,5 +1,5 @@
 #include "LibpartBuilder.h"
-#include "APIHelper.hpp"
+//#include "APIHelper.hpp"
 #include "Box3DData.h"
 #include <CheckError.h>
 #include <SpeckleConversionException.h>
@@ -58,10 +58,10 @@ static GSErrCode CreateSubFolder(const GS::UniString& name, IO::Location& locati
 	{
 		location.AppendToLocal(folderName);
 		{
-			LibraryHelper helper(false);
+			//LibraryHelper helper(false);
 			err = ACAPI_LibraryManagement_DeleteEmbeddedLibItem(&location, false, true);
 		}
-		LibraryHelper helper(true);
+		//LibraryHelper helper(true);
 		err = folder.CreateFolder(folderName);
 	}
 
@@ -395,7 +395,7 @@ void LibpartBuilder::CreateLibParts(const std::vector<UnpackedElement>& elements
 {
 	ACAPI_CallUndoableCommand("Creating received objects",
 		[&]() -> GSErrCode {
-			LibraryHelper helper(false);
+			//LibraryHelper helper(false);
 			
 			for (const auto& elem : elements)
 			{
@@ -421,7 +421,7 @@ void LibpartBuilder::PlaceLibparts()
 {
 	ACAPI_CallUndoableCommand("Placing received objects",
 		[&]() -> GSErrCode {
-			LibraryHelper helper(false);
+			//LibraryHelper helper(false);
 			auto originalDB = GetCurrentDB();
 			SwitchToFloorPlanDB();
 
