@@ -8,16 +8,34 @@
 #include "UnpackedElement.h"
 #include "LibpartBuilder.h"
 #include "JsonFileWriter.h"
-#include <set>
 #include "Matrix_44.h"
+#include "Units.h"
+#include <set>
+
+static std::string RemoveInvalidChars(const std::string& input) 
+{
+	std::string output;
+	const std::string invalidChars = "<>:\"/\\|?*";
+
+	for (char c : input) 
+	{
+		if (invalidChars.find(c) == std::string::npos) 
+		{
+			output += c;
+		}
+	}
+
+	return output;
+}
 
 HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName)
 {
 	std::ostringstream oss;
-	oss << "Project " << projectName << ": Model " << modelName;
+	oss << "Project " << projectName << " - ::<<Model " << modelName;
 	std::string baseGroupName = oss.str();
+	baseGroupName = RemoveInvalidChars(baseGroupName);
 
-	//JsonFileWriter::WriteJsonToFile(rootObject, "C:\\t\\rhino_roof.json");
+	//JsonFileWriter::WriteJsonToFile(rootObject, "C:\\t\\hillside.json");
 
 	auto bakedMaterials = BakeMaterials(rootObject, baseGroupName);
 	auto buildResult = BakeObjects(rootObject, baseGroupName, bakedMaterials);
@@ -101,7 +119,7 @@ static void CollectMeshesForInstance(const InstanceProxy& instance, std::vector<
 						// hack to map object material to mesh
 						mesh.applicationId = obj.applicationId;
 					}
-					mesh.ApplyTransform(trafo.get());
+					mesh.ApplyTransform(trafo.AsVector());
 					meshes.push_back(mesh);
 				}
 			}
@@ -118,6 +136,8 @@ HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& roo
 	std::map<std::string, UnpackedObject> unpackedObjects;
 	std::map<std::string, InstanceProxy> unpackedInstanceProxies;
 	std::map<std::string, InstanceDefinitionProxy> unpackedInstanceDefinitionProxies;
+
+	std::string incomingUnits = "m";
 
 	try
 	{
@@ -149,14 +169,12 @@ HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& roo
 		}
 
 		std::vector<Mesh> meshes;
-		Matrix_44 t;
-		CollectMeshesForInstance(ip.second, meshes, unpackedObjects, unpackedInstanceProxies, unpackedInstanceDefinitionProxies, t);
+		CollectMeshesForInstance(ip.second, meshes, unpackedObjects, unpackedInstanceProxies, unpackedInstanceDefinitionProxies, Matrix_44::Identity());
 
 		if (meshes.size() > 0)
 		{
-			UnpackedElement u(meshes, materialTable);
-			u.Scale(0.001);
-			unpackedElements.push_back(u);
+			incomingUnits = meshes[0].units;
+			unpackedElements.push_back(UnpackedElement(meshes, materialTable));
 		}
 	}
 
@@ -180,10 +198,17 @@ HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& roo
 
 		if (meshes.size() > 0)
 		{
-			UnpackedElement u(meshes, materialTable);
-			u.Scale(0.001);
-			unpackedElements.push_back(u);
+			incomingUnits = meshes[0].units;
+			unpackedElements.push_back(UnpackedElement(meshes, materialTable));
 		}
+	}
+
+	// unit conversion
+	auto hostAppUnits = CONNECTOR.GetHostToSpeckleConverter().GetWorkingUnits();
+	double scaling = Units::GetConversionFactor(incomingUnits, hostAppUnits.workingLengthUnits);
+	for (auto& elem : unpackedElements)
+	{
+		elem.ApplyScaling(scaling);
 	}
 	
 	libpartBuilder.CreateLibParts(unpackedElements);

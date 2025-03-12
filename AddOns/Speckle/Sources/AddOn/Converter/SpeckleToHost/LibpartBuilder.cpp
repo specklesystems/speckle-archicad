@@ -1,5 +1,5 @@
 #include "LibpartBuilder.h"
-//#include "APIHelper.hpp"
+#include "APIHelper.hpp"
 #include "Box3DData.h"
 #include <CheckError.h>
 #include <SpeckleConversionException.h>
@@ -45,90 +45,60 @@ static GSErrCode CreateSubFolder(const GS::UniString& name, IO::Location& locati
 		return err;
 	}
 
-	GSTimeRecord gsTimeRecord;
-	GSTime gsTime(0);
-
-	TIGetTimeRecord(gsTime, &gsTimeRecord, TI_CURRENT_TIME);
-	GS::UniString folderNamePostfix(GS::UniString::SPrintf("%04u%02u%02u-%02u%02u%02u",
-		(UInt32)gsTimeRecord.year, (UInt32)gsTimeRecord.month, (UInt32)gsTimeRecord.day,
-		(UInt32)gsTimeRecord.hour, (UInt32)gsTimeRecord.minute, (UInt32)gsTimeRecord.second));
-
 	IO::Name folderName(name);
-	folderName.Append("_");
-	folderName.Append(folderNamePostfix);
-
 	IO::Folder folder(location);
-	err = folder.CreateFolder(folderName);
-	if (err != NoError)
-	{
-		return err;
-	}
 
-	location.AppendToLocal(folderName);
+	GSErrCode folderExistsErr = -2130640378;
+	err = folder.CreateFolder(folderName);
+	if (err == NoError)
+	{
+		location.AppendToLocal(folderName);
+	}
+	else if (err == folderExistsErr)
+	{
+		location.AppendToLocal(folderName);
+		{
+			LibraryHelper helper(false);
+			err = ACAPI_LibraryManagement_DeleteEmbeddedLibItem(&location, false, true);
+		}
+		LibraryHelper helper(true);
+		err = folder.CreateFolder(folderName);
+	}
 
 	return err;
 }
 
 LibpartBuilder::LibpartBuilder(const std::string& baseGroupName) : _baseGroupName(baseGroupName)
 {
-	GetLocation(_location, true);
+	GetLocation();
 }
 
-GSErrCode LibpartBuilder::GetLocation(IO::Location*& loc, bool useEmbeddedLibrary)
+void LibpartBuilder::GetLocation()
 {
 	GS::Array<API_LibraryInfo>	libInfo;
-	loc = nullptr;
+	IO::Location* loc = nullptr;
 
-	if (useEmbeddedLibrary) 
+	Int32 embeddedLibraryIndex = -1;
+	// get embedded library location
+	if (ACAPI_LibraryManagement_GetLibraries(&libInfo, &embeddedLibraryIndex) == NoError && embeddedLibraryIndex >= 0)
 	{
-		Int32 embeddedLibraryIndex = -1;
-		// get embedded library location
-		if (ACAPI_LibraryManagement_GetLibraries(&libInfo, &embeddedLibraryIndex) == NoError && embeddedLibraryIndex >= 0) 
+		try
 		{
-			try
-			{
-				loc = new IO::Location(libInfo[embeddedLibraryIndex].location);
-			}
-			catch (std::bad_alloc&)
-			{
-				return APIERR_MEMFULL;
-			}
-
-			if (loc != nullptr)
-			{
-				CreateSubFolder("Speckle Library", *loc);
-			}
+			loc = new IO::Location(libInfo[embeddedLibraryIndex].location);
 		}
-	}
-	else 
-	{
-		// register our own folder and create the library part in it
-		if (ACAPI_LibraryManagement_GetLibraries(&libInfo) == NoError) 
+		catch (std::bad_alloc&)
 		{
-			IO::Location folderLoc;
-			API_SpecFolderID specID = API_UserDocumentsFolderID;
-			ACAPI_ProjectSettings_GetSpecFolder(&specID, &folderLoc);
-			folderLoc.AppendToLocal(IO::Name("LibPart_Test Library"));
-			IO::Folder destFolder(folderLoc, IO::Folder::Create);
-			if (destFolder.GetStatus() != NoError || !destFolder.IsWriteable())
-				return APIERR_GENERAL;
+			std::cout << "could not get location";
+		}
 
-			loc = new IO::Location(folderLoc);
-
-			for (UInt32 ii = 0; ii < libInfo.GetSize(); ii++) 
-			{
-				if (folderLoc == libInfo[ii].location)
-					return NoError;
-			}
-
-			API_LibraryInfo li;
-			li.location = folderLoc;
-			libInfo.Push(li);
-			ACAPI_LibraryManagement_SetLibraries(&libInfo);
+		if (loc != nullptr)
+		{
+			GS::UniString folderName = _baseGroupName.c_str();
+			CreateSubFolder(folderName, *loc);
 		}
 	}
 
-	return NoError;
+	_location = loc;
 }
 
 std::string LibpartBuilder::PlaceLibpart(GS::Int32 libIndex)
@@ -425,7 +395,7 @@ void LibpartBuilder::CreateLibParts(const std::vector<UnpackedElement>& elements
 {
 	ACAPI_CallUndoableCommand("Creating received objects",
 		[&]() -> GSErrCode {
-			//LibraryHelper helper(false);
+			LibraryHelper helper(false);
 			
 			for (const auto& elem : elements)
 			{
@@ -451,7 +421,7 @@ void LibpartBuilder::PlaceLibparts()
 {
 	ACAPI_CallUndoableCommand("Placing received objects",
 		[&]() -> GSErrCode {
-			//LibraryHelper helper(false);
+			LibraryHelper helper(false);
 			auto originalDB = GetCurrentDB();
 			SwitchToFloorPlanDB();
 

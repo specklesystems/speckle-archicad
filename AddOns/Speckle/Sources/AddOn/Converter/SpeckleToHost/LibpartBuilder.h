@@ -23,7 +23,7 @@ private:
 	UInt32 _elementCount = 1;
 	std::string _baseGroupName;
 
-	GSErrCode GetLocation(IO::Location*& loc, bool useEmbeddedLibrary);
+	void GetLocation();
 	void CreateLibPart(const UnpackedElement& element);
 	std::string PlaceLibpart(GS::Int32 libIndex);
 

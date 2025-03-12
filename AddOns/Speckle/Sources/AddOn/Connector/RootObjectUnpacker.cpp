@@ -3,6 +3,7 @@
 #include "ArchiCadApiException.h"
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
+#include "GuidGenerator.h"
 
 
 static void CollectMaterialProxies(const nlohmann::json& data, std::vector<RenderMaterialProxy>& proxies)
@@ -206,43 +207,50 @@ std::vector<UnpackedElement> RootObjectUnpacker::UnpackElements(const nlohmann::
     return unpackedElements;
 }
 
-static void CollectObjects(const nlohmann::json& obj, std::vector<UnpackedObject>& collected) 
+static void CollectObjects(const nlohmann::json& j, std::vector<UnpackedObject>& collected) 
 {
-    if (!obj.is_object()) return;
+    if (j.is_object())
+    {
+        if (j.contains("displayValue") && j["displayValue"].is_array())
+        {
+            UnpackedObject unpackedObj;
 
-    // Check if this object has a "displayValue" key
-    if (obj.contains("displayValue") && obj["displayValue"].is_array() && !obj["displayValue"].empty()) {
-        UnpackedObject unpackedObj;
-
-        // Extract applicationId if available
-        if (obj.contains("applicationId") && obj["applicationId"].is_string()) {
-            unpackedObj.applicationId = obj["applicationId"].get<std::string>();
-        }
-
-        // Iterate over the displayValue array and extract meshes
-        for (const auto& item : obj["displayValue"]) {
-            if (item.is_object() && item.contains("speckle_type") && item["speckle_type"] == "Objects.Geometry.Mesh") {
-                unpackedObj.displayValue.emplace_back(item);
+            if (j.contains("applicationId") && j["applicationId"].is_string()) 
+            {
+                unpackedObj.applicationId = j["applicationId"].get<std::string>();
             }
-        }
+            else
+            {
+                unpackedObj.applicationId = GuidGenerator::NewGuid();
+            }
 
-        // If we found any relevant meshes, add to collection
-        if (!unpackedObj.displayValue.empty()) {
-            collected.push_back(std::move(unpackedObj));
-        }
-    }
-
-    // Recursively process all sub-objects
-    for (auto it = obj.begin(); it != obj.end(); ++it) {
-        if (it.value().is_object()) {
-            CollectObjects(it.value(), collected);
-        }
-        else if (it.value().is_array()) {
-            for (const auto& subItem : it.value()) {
-                if (subItem.is_object()) {
-                    CollectObjects(subItem, collected);
+            for (const auto& item : j["displayValue"])
+            {
+                if (item.is_object() && item.contains("speckle_type") && item["speckle_type"].is_string())
+                {
+                    if (item["speckle_type"] == "Objects.Geometry.Mesh")
+                    {
+                        unpackedObj.displayValue.emplace_back(item);
+                    }
                 }
             }
+
+            if (!unpackedObj.displayValue.empty())
+            {
+                collected.push_back(std::move(unpackedObj));
+            }
+        }
+
+        for (const auto& [key, value] : j.items())
+        {
+            CollectObjects(value, collected);
+        }
+    }
+    else if (j.is_array())
+    {
+        for (const auto& item : j)
+        {
+            CollectObjects(item, collected);
         }
     }
 }

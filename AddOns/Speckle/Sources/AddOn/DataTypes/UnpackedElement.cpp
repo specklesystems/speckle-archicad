@@ -50,7 +50,7 @@ UnpackedElement::UnpackedElement(const std::vector<Mesh>& meshes, const std::map
     }
 }
 
-void UnpackedElement::Scale(const double scale)
+void UnpackedElement::ApplyScaling(const double scale)
 {
     for (auto& vertex : vertices)
     {
