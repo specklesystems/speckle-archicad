@@ -207,7 +207,7 @@ std::vector<UnpackedElement> RootObjectUnpacker::UnpackElements(const nlohmann::
     return unpackedElements;
 }
 
-static void CollectObjects(const nlohmann::json& j, std::vector<UnpackedObject>& collected) 
+static void CollectObjects(const nlohmann::json& j, std::vector<UnpackedObject>& collected)
 {
     if (j.is_object())
     {
@@ -260,6 +260,20 @@ std::map<std::string, UnpackedObject> RootObjectUnpacker::UnpackObjects(const nl
     std::vector<UnpackedObject> objects;
     CollectObjects(rootObject, objects);
 
+    if (objects.size() == 0)
+    {
+        // Hack for SketchUp
+        // TODO remove when C# graph traversal is implemented in C++
+        auto meshes = UnpackMeshesFlat(rootObject);
+        for (const auto& m : meshes)
+        {
+            UnpackedObject u;
+            u.applicationId = m.applicationId;
+            u.displayValue.push_back(m);
+            objects.push_back(u);
+        }
+    }
+    
     std::map<std::string, UnpackedObject> objectsMap;
     for (const auto& obj : objects)
     {

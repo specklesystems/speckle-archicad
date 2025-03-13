@@ -17,4 +17,5 @@ private:
     void RunMethod(const RunMethodEventArgs& args);
 
     void GetAccounts(const RunMethodEventArgs& args);
+    void OpenUrl(const RunMethodEventArgs& args);
 };

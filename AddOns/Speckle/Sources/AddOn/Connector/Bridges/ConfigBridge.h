@@ -19,4 +19,5 @@ private:
     void GetConfig(const RunMethodEventArgs& args);
     void GetIsDevMode(const RunMethodEventArgs& args);
     void UpdateConfig(const RunMethodEventArgs& args);
+    void OpenUrl(const RunMethodEventArgs& args);
 };

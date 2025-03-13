@@ -7,7 +7,7 @@ ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
 {
     configBinding = std::make_unique<Binding>(
         "configBinding",
-        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig" },
+        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl" },
         browser,
         this
     );
@@ -53,6 +53,10 @@ void ConfigBridge::RunMethod(const RunMethodEventArgs& args)
     {
         UpdateConfig(args);
     }
+    else if (args.methodName == "OpenUrl")
+    {
+        OpenUrl(args);
+    }
     else
     {
         throw InvalidMethodNameException(args.methodName);
@@ -78,4 +82,14 @@ void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
 void ConfigBridge::UpdateConfig(const RunMethodEventArgs& /*args*/)
 {
     // TODO implement
+}
+
+void ConfigBridge::OpenUrl(const RunMethodEventArgs& args)
+{
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    std::string url = args.data[0].get<std::string>();
+    std::string command = "start " + url;
+    system(command.c_str());
 }

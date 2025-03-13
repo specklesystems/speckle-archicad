@@ -41,7 +41,14 @@ void from_json(const nlohmann::json& j, Mesh& mesh)
     
     mesh.vertices = j.at("vertices").get<std::vector<double>>();
     mesh.faces = j.at("faces").get<std::vector<int>>();
-    mesh.colors = j.at("colors").get<std::vector<int>>();
+    try
+    {
+        mesh.colors = j.at("colors").get<std::vector<int>>();
+    }
+    catch (const std::exception&)
+    {
+        mesh.colors = std::vector<int>();
+    }
 }
 
 void Mesh::ApplyTransform(const std::vector<double>& transform)

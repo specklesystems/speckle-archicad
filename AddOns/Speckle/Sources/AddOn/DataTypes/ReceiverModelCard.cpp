@@ -27,7 +27,7 @@ void from_json(const nlohmann::json& j, ReceiverModelCard& card)
     card.expired = j.at("expired").get<bool>();
     card.modelCardId = j.at("modelCardId").get<std::string>();
     card.selectedVersionId = j.at("selectedVersionId").get<std::string>();
-    if (j.contains("bakedObjecIds")) 
+    if (j.contains("bakedObjectIds")) 
     {
         card.bakedObjectIds = j.at("bakedObjectIds").get<std::vector<std::string>>();
     }

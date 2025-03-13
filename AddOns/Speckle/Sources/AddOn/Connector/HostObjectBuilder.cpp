@@ -36,7 +36,7 @@ HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObjec
 	std::string baseGroupName = oss.str();
 	baseGroupName = RemoveInvalidChars(baseGroupName);
 
-	//JsonFileWriter::WriteJsonToFile(rootObject, "C:\\t\\hillside.json");
+	//JsonFileWriter::WriteJsonToFile(rootObject, "C:\\t\\navis.json");
 
 	auto bakedMaterials = BakeMaterials(rootObject, baseGroupName);
 	auto buildResult = BakeObjects(rootObject, baseGroupName, bakedMaterials);
