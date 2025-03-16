@@ -13,6 +13,7 @@ struct Mesh
     std::vector<int> colors;
     std::map<int, int> archcicadVertexIndexMap;
     int materialIndex = 0;
+    std::string materialName = "";
 
     void ApplyTransform(const std::vector<double>& transform);
 };

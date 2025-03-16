@@ -84,8 +84,6 @@ void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
     std::string modelCardId = args.data[0].get<std::string>();
     ReceiverModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
 
-    CONNECTOR.GetProcessWindow().Init("Receiving...", 1);
-
     HostObjectBuilderResult buildResult{};
 
     try
@@ -98,8 +96,6 @@ void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
     {
         args.eventSource->Send("triggerCancel", modelCardId);
     }
-
-    CONNECTOR.GetProcessWindow().Close();
 
     modelCard.bakedObjectIds = buildResult.bakedObjectIds;
 

@@ -1,6 +1,6 @@
 #include "UnpackedElement.h"
 
-UnpackedElement::UnpackedElement(const std::vector<Mesh>& meshes, const std::map<std::string, std::string>& materialTable)
+UnpackedElement::UnpackedElement(const std::vector<Mesh>& meshes, const std::map<std::string, std::string>& /*materialTable*/)
 {
     std::unordered_map<int, int> vertexMap;
 
@@ -32,19 +32,19 @@ UnpackedElement::UnpackedElement(const std::vector<Mesh>& meshes, const std::map
                 newIndices.push_back(oldIndex + vertexOffset);
             }
 
-            std::string materialName = "speckle_default_material";
+            /*std::string materialName = "speckle_default_material";
             auto it = materialTable.find(mesh.applicationId);
             if (it != materialTable.end())
             {
                 materialName = it->second;
-            }
+            }*/
 
             if (polySize == 3)
             {
                 // Directly add triangles
                 faces.push_back({ 3, {newIndices[0], newIndices[1], newIndices[2]},
                                   { {newIndices[0], newIndices[1]}, {newIndices[1], newIndices[2]}, {newIndices[2], newIndices[0]} },
-                                  materialName });
+                                  mesh.materialName });
             }
             else
             {
@@ -53,7 +53,7 @@ UnpackedElement::UnpackedElement(const std::vector<Mesh>& meshes, const std::map
                 {
                     faces.push_back({ 3, {newIndices[0], newIndices[j], newIndices[j + 1]},
                                       { {newIndices[0], newIndices[j]}, {newIndices[j], newIndices[j + 1]}, {newIndices[j + 1], newIndices[0]} },
-                                      materialName });
+                                      mesh.materialName });
                 }
             }
         }

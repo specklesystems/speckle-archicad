@@ -18,9 +18,9 @@ public:
 	std::vector<ReceiveConversionResult> conversionResults;
 	std::vector<std::string> bakedObjectIds;
 
+	UInt32 _elementCount = 1;
 private:
 	IO::Location* _location;
-	UInt32 _elementCount = 1;
 	std::string _baseGroupName;
 
 	void GetLocation();

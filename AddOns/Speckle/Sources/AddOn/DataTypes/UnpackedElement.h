@@ -29,5 +29,6 @@ public:
     std::vector<Face> faces;
 
     UnpackedElement(const std::vector<Mesh>& meshes, const std::map<std::string, std::string>& materialTable);
+    //UnpackedElement(const std::vector<Mesh>& meshes);
     void ApplyScaling(const double scale);
 };

@@ -12,6 +12,8 @@
 #include "Units.h"
 #include "ARGBColorConverter.h"
 #include <set>
+#include "ROUnpacker.h"
+#include "StopWatch.h"
 
 static std::string RemoveInvalidChars(const std::string& input) 
 {
@@ -35,9 +37,6 @@ HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObjec
 	oss << "Project " << projectName << " - Model " << modelName;
 	std::string baseGroupName = oss.str();
 	baseGroupName = RemoveInvalidChars(baseGroupName);
-
-	//JsonFileWriter::WriteJsonToFile(rootObject, "C:\\t\\navis.json");
-
 	auto bakedMaterials = BakeMaterials(rootObject, baseGroupName);
 	auto buildResult = BakeObjects(rootObject, baseGroupName, bakedMaterials);
 
@@ -144,6 +143,17 @@ static void CollectMeshesForInstance(const InstanceProxy& instance, std::vector<
 }
 
 HostObjectBuilderResult HostObjectBuilder::BakeObjects(const nlohmann::json& rootObject, const std::string& baseGroupName, const std::map<std::string, std::string>& materialTable)
+{
+	std::cout << baseGroupName;
+	//JsonFileWriter::WriteJsonToFile(rootObject, "C:\\t\\navis.json");
+	ROUnpacker rou(new Node(rootObject, nullptr), &materialTable, baseGroupName);
+	//ROUnpacker rou(new Node(rootObject));
+	rou.Unpack();
+
+	return {};
+}
+
+HostObjectBuilderResult HostObjectBuilder::BakeObjects2(const nlohmann::json& rootObject, const std::string& baseGroupName, const std::map<std::string, std::string>& materialTable)
 {
 	LibpartBuilder libpartBuilder(baseGroupName);
 	RootObjectUnpacker unpacker{};

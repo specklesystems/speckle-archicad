@@ -4,6 +4,7 @@
 #include <CheckError.h>
 #include <SpeckleConversionException.h>
 #include <iostream>
+#include <Connector.h>
 
 static API_DatabaseInfo GetCurrentDB(void)
 {
@@ -390,6 +391,7 @@ void LibpartBuilder::CreateLibPart(const UnpackedElement& element)
 	CHECK_ERROR(ACAPI_LibraryPart_Save(&libPart));
 	libpartIndices.push_back(libPart.index);
 	_elementCount++;
+	CONNECTOR.GetProcessWindow().SetProcessValue(_elementCount);
 }
 
 void LibpartBuilder::CreateLibParts(const std::vector<UnpackedElement>& elements)
@@ -433,11 +435,14 @@ void LibpartBuilder::PlaceLibparts()
 			auto originalDB = GetCurrentDB();
 			SwitchToFloorPlanDB();
 
+			int placed = 0;
 			for (const auto& idx : libpartIndices)
 			{
 				try
 				{
 					std::string elemId = PlaceLibpart(idx);
+					placed++;
+					CONNECTOR.GetProcessWindow().SetProcessValue(placed);
 					bakedObjectIds.push_back(elemId);
 				}
 				catch (const std::exception& ex)
