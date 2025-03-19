@@ -16,6 +16,7 @@ struct Mesh
     std::string materialName = "";
 
     void ApplyTransform(const std::vector<double>& transform);
+    void ApplyScaling(const double scaling);
 };
 
 void to_json(nlohmann::json& j, const Mesh& mesh);

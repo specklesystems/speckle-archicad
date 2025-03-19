@@ -4,9 +4,11 @@
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
 #include "GuidGenerator.h"
-#include <stack>
 #include "Matrix_44.h"
 #include "LibpartBuilder.h"
+#include "Units.h"
+
+#include <stack>
 
 size_t CountWordInJsonString(const std::string& jsonStr, const std::string& word) 
 {
@@ -33,39 +35,41 @@ ROUnpacker::ROUnpacker(const Node* rootNode, const std::map<std::string, std::st
 
 void ROUnpacker::Unpack()
 {
-    int processPhases = 6;
+    int processPhases = 7;
     CONNECTOR.GetProcessWindow().Init("Receive", processPhases);
 
     // 1. traversing the root object
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Traversing Nodes", jsonSize);
     Traverse(rootNode);
-
-    meshCountAfterTraversal = static_cast<int>(meshes.size());
-    instanceCount = static_cast<int>(instanceProxies.size());
-
+    
     // 2. deserializing relevant items
     int dataSize = static_cast<int>(nodes.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Deserializing Data", dataSize);
     Deserialize();
 
-    // expanding instances
+    // 3. expanding instances
+    int instanceCount = static_cast<int>(instanceProxies.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Expanding Instances", instanceCount);
+    ExpandInstances();
 
-    // 3. processing nodes
+
+    // 4. processing nodes
+    meshCountAfterTraversal = static_cast<int>(meshes.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Processing Meshes", meshCountAfterTraversal);
     ProcessNodes();
-
-    // 4. unpack elements
+    
+    // 5. unpack elements
     int toUnpack = static_cast<int>(unpackedMeshes.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Unpacking Elements", toUnpack);
     UnpackElements();
 
-    // 5. create LibParts
+    // 6. create LibParts
     LibpartBuilder builder(baseGroupName);
     int toCreate = static_cast<int>(unpackedElements.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Creating Elements", toCreate);
     builder.CreateLibParts(unpackedElements);
 
-    // 6. place LibParts
+    // 7. place LibParts
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Placing Elements", builder._elementCount);
     builder.PlaceLibparts();
 
@@ -77,6 +81,13 @@ void ROUnpacker::Traverse(const Node* node)
     if (node->IsSpeckleType())
     {
         nodes[node->id] = node;
+        nodesByAppId[node->appId] = node;
+
+        if (node->IsMesh())
+        {
+            meshNodes.push_back(node);
+        }
+
         traversed++;
         CONNECTOR.GetProcessWindow().SetProcessValue(traversed);
         for (const auto& [key, value] : node->data->items())
@@ -121,7 +132,7 @@ void ROUnpacker::Deserialize()
         }
         else if (node->IsInstanceDefinitionProxy())
         {
-            instanceDefinitionProxies[node->id] = *node->data;
+            instanceDefinitionProxies[node->appId] = *node->data;
         }
     }
 }
@@ -133,28 +144,39 @@ void ROUnpacker::ExpandInstances()
     {
         if (node->IsInstanceProxy())
         {
-            ExpandInstance(node);
+            ExpandInstance(node, false);
             expanded++;
             CONNECTOR.GetProcessWindow().SetProcessValue(expanded);
         }
     }
 }
 
-void ROUnpacker::ExpandInstance(const Node* node)
+void ROUnpacker::ExpandInstance(const Node* node, bool addNew)
 {
     if (node->IsSpeckleType())
     {
-        if (node->IsMesh())
+        if (addNew && node->IsMesh())
         {
-            meshNodesAfterTraversal.push_back(node);
+            meshNodes.push_back(node);
         }
-        else if (node->IsInstanceProxy())
-        {
 
-        }
-        else if (node->IsInstanceDefinitionProxy())
+        if (node->IsInstanceProxy())
         {
+            InstanceProxy proxy = instanceProxies[node->id];
+            auto definitionId = proxy.definitionId;
+            InstanceDefinitionProxy defProxy = instanceDefinitionProxies[definitionId];
 
+            for (const auto& obj : defProxy.objects)
+            {
+                proxyDefinitionObjects.insert(obj);
+
+                auto it = nodesByAppId.find(obj);
+                if (it != nodesByAppId.end() && it->second)
+                {
+                    auto childData = it->second->data;
+                    ExpandInstance(new Node(*childData, node));
+                }
+            }
         }
         else
         {
@@ -162,7 +184,7 @@ void ROUnpacker::ExpandInstance(const Node* node)
             {
                 ExpandInstance(new Node(value, node));
             }
-        } 
+        }
     }
     else if (node->IsArray())
     {
@@ -176,14 +198,11 @@ void ROUnpacker::ExpandInstance(const Node* node)
 void ROUnpacker::ProcessNodes()
 {
     int processed = 0;
-    for (const auto& [id, node] : nodes)
+    for (const auto& node : meshNodes)
     {
-        if (node->IsMesh())
-        {
-            ProcessNode(node);
-            processed++;
-            CONNECTOR.GetProcessWindow().SetProcessValue(processed);
-        }
+        ProcessNode(node);
+        processed++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(processed);
     }
 }
 
@@ -206,27 +225,21 @@ void ROUnpacker::ProcessNode(const Node* node)
             }
         }
         
-        if (node->IsMesh())
+        if (node->IsMesh() && meshId == "0")
         {
-            if (meshId == "0")
-            {
-                meshId = node->id;
-                lastId = node->id;
-            }
+            meshId = node->id;
         }
-        else if (node->IsInstanceProxy())
+
+        if (node->IsInstanceProxy())
         {
             transformations.push(instanceProxies[node->id].transform);
         }
-        else if (node->IsCollection())
+
+        if ((node->IsInstanceProxy() || node->IsGeometryObject()) || node->IsDataObject())
         {
-            processed = true;
-        }
-        else
-        {
-            if (node->id != "" && node->id != "0")
+            if (node->appId != "0")
             {
-                lastId = node->id;
+                lastId = node->appId;
             }
         }
 
@@ -246,9 +259,16 @@ void ROUnpacker::ProcessNode(const Node* node)
     }
 
     Mesh mesh = meshes[meshId];
+    auto hostAppUnits = CONNECTOR.GetHostToSpeckleConverter().GetWorkingUnits();
+    double scaling = Units::GetConversionFactor(mesh.units, hostAppUnits.workingLengthUnits);
     mesh.ApplyTransform(transform.AsVector());
+    mesh.ApplyScaling(scaling);
     mesh.materialName = materialName;
-    unpackedMeshes[lastId].push_back(mesh);
+    
+    if (proxyDefinitionObjects.find(lastId) == proxyDefinitionObjects.end())
+    {
+        unpackedMeshes[lastId].push_back(mesh);
+    }
 }
 
 void ROUnpacker::UnpackElements()

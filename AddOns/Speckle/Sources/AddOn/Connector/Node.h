@@ -1,13 +1,6 @@
 #pragma once
 
-#include <vector>
-#include <map>
-#include "RenderMaterialProxy.h"
-#include "Mesh.h"
-#include "UnpackedElement.h"
-#include "UnpackedObject.h"
-#include "InstanceProxy.h"
-#include "InstanceDefinitionProxy.h"
+#include "json.hpp"
 
 class Node
 {
@@ -31,4 +24,6 @@ public:
 	bool IsInstanceProxy() const;
 	bool IsInstanceDefinitionProxy() const;
 	bool IsCollection() const;
+	bool IsGeometryObject() const;
+	bool IsDataObject() const;
 };

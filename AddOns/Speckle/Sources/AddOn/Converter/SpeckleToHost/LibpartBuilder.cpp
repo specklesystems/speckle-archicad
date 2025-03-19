@@ -230,6 +230,14 @@ void LibpartBuilder::CreateLibPart(const UnpackedElement& element)
 
 	Box3D box = Box3D::CreateEmpty();
 
+	// cutplane
+	line = GS::String::SPrintf("addz 1.1%s", GS::EOL);
+	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+	line = GS::String::SPrintf("cutplane%s", GS::EOL);
+	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+	line = GS::String::SPrintf("del 1%s", GS::EOL);
+	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+
 	// add vertices
 	UInt32 vertexCount = static_cast<UInt32>(element.vertices.size());
 	for (UInt32 vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
@@ -282,6 +290,10 @@ void LibpartBuilder::CreateLibPart(const UnpackedElement& element)
 	}
 
 	line = GS::String::SPrintf("BODY 4%s%s", GS::EOL, GS::EOL);
+	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+
+	// cutplane
+	line = GS::String::SPrintf("cutend%s", GS::EOL);
 	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 
 	// add HotSpots

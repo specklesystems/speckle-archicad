@@ -1,9 +1,4 @@
 #include "Node.h"
-#include "Connector.h"
-#include "ArchiCadApiException.h"
-#include "SpeckleConversionException.h"
-#include "UserCancelledException.h"
-#include "GuidGenerator.h"
 
 Node::Node(const nlohmann::json& j, const Node* parent) : parent(parent)
 {
@@ -68,5 +63,15 @@ bool Node::IsInstanceDefinitionProxy() const
 
 bool Node::IsCollection() const
 {
-	return speckle_type == "Speckle.Core.Models.Collections.Collection";
+	return speckle_type.find("Speckle.Core.Models.Collections.Collection") != std::string::npos;
+}
+
+bool Node::IsGeometryObject() const
+{
+	return speckle_type.find("Objects.Geometry") != std::string::npos;
+}
+
+bool Node::IsDataObject() const
+{
+	return speckle_type.find("Objects.Data") != std::string::npos;
 }

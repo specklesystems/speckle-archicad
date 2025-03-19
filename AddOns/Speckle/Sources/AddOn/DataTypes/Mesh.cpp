@@ -70,3 +70,11 @@ void Mesh::ApplyTransform(const std::vector<double>& transform)
         vertices[i + 2] = transform[8] * x + transform[9] * y + transform[10] * z + transform[11] * w;
     }
 }
+
+void Mesh::ApplyScaling(const double scaling)
+{
+    for (auto& v : vertices)
+    {
+        v *= scaling;
+    }
+}
