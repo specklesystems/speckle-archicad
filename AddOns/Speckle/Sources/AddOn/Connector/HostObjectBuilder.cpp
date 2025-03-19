@@ -45,8 +45,9 @@ HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObjec
 		std::string baseGroupName = oss.str();
 		baseGroupName = RemoveInvalidChars(baseGroupName);
 
-		RootObjectUnpacker rootObjectUnpacker(new Node(rootObject, nullptr), baseGroupName);
+		RootObjectUnpacker rootObjectUnpacker(std::make_shared<Node>(rootObject, nullptr), baseGroupName);
 		rootObjectUnpacker.Unpack();
+		hostObjectBuilderResult = rootObjectUnpacker.GetHostObjectBuilderResult();
 	}
 	catch (const std::exception& ex)
 	{

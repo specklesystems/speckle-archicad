@@ -9,12 +9,12 @@ private:
 
 public:
 	const nlohmann::json& data;
-	const Node* parent = nullptr;
+	const std::shared_ptr<Node> parent = nullptr;
 	std::string id = "";
 	std::string appId = "";
 	std::string speckle_type = "";
 
-	explicit Node(const nlohmann::json& j, const Node* parent);
+	explicit Node(const nlohmann::json& j, const std::shared_ptr<Node> parent);
 	bool IsObject() const;
 	bool IsArray() const;
 	bool IsSpeckleType() const;

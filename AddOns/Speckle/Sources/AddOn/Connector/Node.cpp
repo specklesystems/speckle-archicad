@@ -1,6 +1,6 @@
 #include "Node.h"
 
-Node::Node(const nlohmann::json& j, const Node* parent) : parent(parent), data(j)
+Node::Node(const nlohmann::json& j, const std::shared_ptr<Node> parent) : parent(parent), data(j)
 {
 	if (j.is_object() && j.contains("speckle_type"))
 	{

@@ -11,20 +11,25 @@
 #include <map>
 #include <set>
 
+#include "HostObjectBuilderResult.h"
+#include "LibpartBuilder.h"
+
 class RootObjectUnpacker
 {
 private:
-	const Node* rootNode;
+	const std::shared_ptr<Node> rootNode;
 	const std::string baseGroupName;
+	LibpartBuilder libPartBuilder;
+
 	std::map<std::string, std::string> materialTable;
-	std::map<std::string, const Node*> nodes;
-	std::map<std::string, const Node*> nodesByAppId;
+	std::map<std::string, std::shared_ptr<Node>> nodes;
+	std::map<std::string, std::shared_ptr<Node>> nodesByAppId;
 
 	std::map<std::string, Mesh> meshes;
 	std::map<std::string, InstanceProxy> instanceProxies;
 	std::map<std::string, InstanceDefinitionProxy> instanceDefinitionProxies;
 	std::vector<RenderMaterialProxy> renderMaterialProxies;
-	std::vector<const Node*> meshNodes;
+	std::vector<std::shared_ptr<Node>> meshNodes;
 	std::set<std::string> proxyDefinitionObjects;
 	
 	int jsonSize = 0;
@@ -34,19 +39,20 @@ private:
 	std::vector<std::string> errors;
 
 public:
-	RootObjectUnpacker(const Node* rootNode, const std::string& baseGroupName);
+	RootObjectUnpacker(const std::shared_ptr<Node>, const std::string& baseGroupName);
 	void Unpack();
+	HostObjectBuilderResult GetHostObjectBuilderResult();
 
 	std::map<std::string, std::vector<Mesh>> unpackedMeshes;
 	std::vector<UnpackedElement> unpackedElements;
 
 private:
-	void Traverse(const Node* node);
+	void Traverse(const std::shared_ptr<Node>& node);
 	void Deserialize();
 	void BakeMaterials();
 	void ExpandInstances();
-	void ExpandInstance(const Node* node, bool addNew = true);
+	void ExpandInstance(const std::shared_ptr<Node>& node, bool addNew = true);
 	void ProcessNodes();
-	void ProcessNode(const Node* node);
+	void ProcessNode(const std::shared_ptr<Node>& node);
 	void UnpackElements();
 };

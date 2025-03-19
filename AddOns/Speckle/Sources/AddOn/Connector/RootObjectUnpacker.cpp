@@ -5,7 +5,6 @@
 #include "UserCancelledException.h"
 #include "GuidGenerator.h"
 #include "Matrix_44.h"
-#include "LibpartBuilder.h"
 #include "Units.h"
 #include "ARGBColorConverter.h"
 
@@ -25,16 +24,22 @@ size_t CountWordInJsonString(const std::string& jsonStr, const std::string& word
     return count;
 }
 
-RootObjectUnpacker::RootObjectUnpacker(const Node* rootNode, const std::string& baseGroupName) :
+RootObjectUnpacker::RootObjectUnpacker(const std::shared_ptr<Node> rootNode, const std::string& baseGroupName) :
     rootNode(rootNode), 
     materialTable(materialTable),
-    baseGroupName(baseGroupName)
+    baseGroupName(baseGroupName),
+    libPartBuilder(baseGroupName)
 {
     // TODO remove this data->dump() later, adds noticable time to receive
     // only added this to implement process feedback on traversal
     // we need to know how many objects we have to traverse
     auto jstr = rootNode->data.dump();
     jsonSize = static_cast<int>(CountWordInJsonString(jstr, "speckle_type"));
+}
+
+HostObjectBuilderResult RootObjectUnpacker::GetHostObjectBuilderResult()
+{
+    return { libPartBuilder.bakedObjectIds, libPartBuilder.conversionResults };
 }
 
 void RootObjectUnpacker::Unpack()
@@ -72,19 +77,18 @@ void RootObjectUnpacker::Unpack()
     UnpackElements();
 
     // 7. create LibParts
-    LibpartBuilder builder(baseGroupName);
     int toCreate = static_cast<int>(unpackedElements.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Creating Elements", toCreate);
-    builder.CreateLibParts(unpackedElements);
+    libPartBuilder.CreateLibParts(unpackedElements);
 
     // 8. place LibParts
-    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Placing Elements", builder._elementCount);
-    builder.PlaceLibparts();
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Placing Elements", libPartBuilder._elementCount);
+    libPartBuilder.PlaceLibparts();
 
     CONNECTOR.GetProcessWindow().Close();
 }
 
-void RootObjectUnpacker::Traverse(const Node* node)
+void RootObjectUnpacker::Traverse(const std::shared_ptr<Node>& node)
 {
     if (node->IsSpeckleType())
     {
@@ -98,16 +102,17 @@ void RootObjectUnpacker::Traverse(const Node* node)
 
         traversed++;
         CONNECTOR.GetProcessWindow().SetProcessValue(traversed);
+
         for (const auto& [key, value] : node->data.items())
         {
-            Traverse(new Node(value, node));
+            Traverse(std::make_shared<Node>(value, node));
         }
     }
     else if (node->IsArray())
     {
         for (const auto& item : node->data)
         {
-            Traverse(new Node(item, node));
+            Traverse(std::make_shared<Node>(item, node));
         }
     }
 }
@@ -212,7 +217,7 @@ void RootObjectUnpacker::ExpandInstances()
     }
 }
 
-void RootObjectUnpacker::ExpandInstance(const Node* node, bool addNew)
+void RootObjectUnpacker::ExpandInstance(const std::shared_ptr<Node>& node, bool addNew)
 {
     if (node->IsSpeckleType())
     {
@@ -235,7 +240,7 @@ void RootObjectUnpacker::ExpandInstance(const Node* node, bool addNew)
                 if (it != nodesByAppId.end() && it->second)
                 {
                     auto childData = it->second->data;
-                    ExpandInstance(new Node(childData, node));
+                    ExpandInstance(std::make_shared<Node>(childData, node));
                 }
             }
         }
@@ -243,7 +248,7 @@ void RootObjectUnpacker::ExpandInstance(const Node* node, bool addNew)
         {
             for (const auto& [key, value] : node->data.items())
             {
-                ExpandInstance(new Node(value, node));
+                ExpandInstance(std::make_shared<Node>(value, node));
             }
         }
     }
@@ -251,7 +256,7 @@ void RootObjectUnpacker::ExpandInstance(const Node* node, bool addNew)
     {
         for (const auto& item : node->data)
         {
-            ExpandInstance(new Node(item, node));
+            ExpandInstance(std::make_shared<Node>(item, node));
         }
     }
 }
@@ -267,13 +272,14 @@ void RootObjectUnpacker::ProcessNodes()
     }
 }
 
-void RootObjectUnpacker::ProcessNode(const Node* node)
+void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
 {
     bool processed = false;
     std::string lastId = "0";
     std::string meshId = "0";
     std::string materialName = "speckle_default_material";
     std::stack<std::vector<double>> transformations;
+    std::shared_ptr<Node> node = child;
     
     while (!processed)
     {  
