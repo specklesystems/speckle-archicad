@@ -1,6 +1,6 @@
 #include "Node.h"
 
-Node::Node(const nlohmann::json& j, const Node* parent) : parent(parent)
+Node::Node(const nlohmann::json& j, const Node* parent) : parent(parent), data(j)
 {
 	if (j.is_object() && j.contains("speckle_type"))
 	{
@@ -17,18 +17,16 @@ Node::Node(const nlohmann::json& j, const Node* parent) : parent(parent)
 			appId = "0";
 		}
 	}
-
-	data = &j;
 }
 
 bool Node::IsObject() const
 {
-	return data->is_object();
+	return data.is_object();
 }
 
 bool Node::IsArray() const
 {
-	return data->is_array();
+	return data.is_array();
 }
 
 bool Node::IsSpeckleType() const

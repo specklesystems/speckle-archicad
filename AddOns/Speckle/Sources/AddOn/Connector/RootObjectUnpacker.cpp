@@ -33,7 +33,7 @@ RootObjectUnpacker::RootObjectUnpacker(const Node* rootNode, const std::string& 
     // TODO remove this data->dump() later, adds noticable time to receive
     // only added this to implement process feedback on traversal
     // we need to know how many objects we have to traverse
-    auto jstr = rootNode->data->dump();
+    auto jstr = rootNode->data.dump();
     jsonSize = static_cast<int>(CountWordInJsonString(jstr, "speckle_type"));
 }
 
@@ -98,14 +98,14 @@ void RootObjectUnpacker::Traverse(const Node* node)
 
         traversed++;
         CONNECTOR.GetProcessWindow().SetProcessValue(traversed);
-        for (const auto& [key, value] : node->data->items())
+        for (const auto& [key, value] : node->data.items())
         {
             Traverse(new Node(value, node));
         }
     }
     else if (node->IsArray())
     {
-        for (const auto& item : *node->data)
+        for (const auto& item : node->data)
         {
             Traverse(new Node(item, node));
         }
@@ -123,7 +123,7 @@ void RootObjectUnpacker::Deserialize()
 
         if (node->IsMesh())
         {
-            meshes[node->id] = *node->data;
+            meshes[node->id] = node->data;
         }
         else if (node->IsColorProxy())
         {
@@ -132,15 +132,15 @@ void RootObjectUnpacker::Deserialize()
         }
         else if (node->IsMaterialProxy())
         {
-            renderMaterialProxies.push_back(*node->data);
+            renderMaterialProxies.push_back(node->data);
         }
         else if (node->IsInstanceProxy())
         {
-            instanceProxies[node->id] = *node->data;
+            instanceProxies[node->id] = node->data;
         }
         else if (node->IsInstanceDefinitionProxy())
         {
-            instanceDefinitionProxies[node->appId] = *node->data;
+            instanceDefinitionProxies[node->appId] = node->data;
         }
     }
 }
@@ -235,13 +235,13 @@ void RootObjectUnpacker::ExpandInstance(const Node* node, bool addNew)
                 if (it != nodesByAppId.end() && it->second)
                 {
                     auto childData = it->second->data;
-                    ExpandInstance(new Node(*childData, node));
+                    ExpandInstance(new Node(childData, node));
                 }
             }
         }
         else
         {
-            for (const auto& [key, value] : node->data->items())
+            for (const auto& [key, value] : node->data.items())
             {
                 ExpandInstance(new Node(value, node));
             }
@@ -249,7 +249,7 @@ void RootObjectUnpacker::ExpandInstance(const Node* node, bool addNew)
     }
     else if (node->IsArray())
     {
-        for (const auto& item : *node->data)
+        for (const auto& item : node->data)
         {
             ExpandInstance(new Node(item, node));
         }

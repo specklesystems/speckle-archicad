@@ -14,14 +14,14 @@
 #include "StopWatch.h"
 #include "JsonFileWriter.h"
 
-static std::string RemoveInvalidChars(const std::string& input) 
+static std::string RemoveInvalidChars(const std::string& input)
 {
 	std::string output;
 	const std::string invalidChars = "<>:\"/\\|?*";
 
-	for (char c : input) 
+	for (char c : input)
 	{
-		if (invalidChars.find(c) == std::string::npos) 
+		if (invalidChars.find(c) == std::string::npos)
 		{
 			output += c;
 		}
@@ -36,14 +36,25 @@ static std::string RemoveInvalidChars(const std::string& input)
 
 HostObjectBuilderResult HostObjectBuilder::Build(const nlohmann::json& rootObject, const std::string& projectName, const std::string& modelName)
 {
-	std::ostringstream oss;
-	oss << "Project " << projectName << " - Model " << modelName;
-	std::string baseGroupName = oss.str();
-	baseGroupName = RemoveInvalidChars(baseGroupName);
+	HostObjectBuilderResult hostObjectBuilderResult;
 
-	RootObjectUnpacker rou(new Node(rootObject, nullptr), baseGroupName);
-	rou.Unpack();
+	try
+	{
+		std::ostringstream oss;
+		oss << "Project " << projectName << " - Model " << modelName;
+		std::string baseGroupName = oss.str();
+		baseGroupName = RemoveInvalidChars(baseGroupName);
 
-	//return buildResult;
-	return {};
+		RootObjectUnpacker rootObjectUnpacker(new Node(rootObject, nullptr), baseGroupName);
+		rootObjectUnpacker.Unpack();
+	}
+	catch (const std::exception& ex)
+	{
+		// TODO handle exception
+		auto what = ex.what();
+		std::cout << what;
+	}
+
+	// TODO return the real result
+	return hostObjectBuilderResult;
 }
