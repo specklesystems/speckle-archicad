@@ -4,280 +4,342 @@
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
 #include "GuidGenerator.h"
+#include "Matrix_44.h"
+#include "LibpartBuilder.h"
+#include "Units.h"
+#include "ARGBColorConverter.h"
 
+#include <stack>
 
-static void CollectMaterialProxies(const nlohmann::json& data, std::vector<RenderMaterialProxy>& proxies)
+size_t CountWordInJsonString(const std::string& jsonStr, const std::string& word) 
 {
-    if (data.is_object())
-    {
-        auto it = data.find("speckle_type");
-        if (it != data.end() && it->is_string() && *it == "Objects.Other.RenderMaterialProxy")
-        {
-            proxies.push_back(data);
-        }
+    size_t count = 0;
+    size_t pos = jsonStr.find(word, 0);
 
-        for (const auto& [key, value] : data.items())
-        {
-            CollectMaterialProxies(value, proxies);
-        }
-    }
-    else if (data.is_array())
+    while (pos != std::string::npos) 
     {
-        for (const auto& item : data)
-        {
-            CollectMaterialProxies(item, proxies);
-        }
+        count++;
+        pos = jsonStr.find(word, pos + word.length());
     }
+
+    return count;
 }
 
-std::vector<RenderMaterialProxy> RootObjectUnpacker::UnpackRenderMaterialProxies(const nlohmann::json& rootObject)
+RootObjectUnpacker::RootObjectUnpacker(const Node* rootNode, const std::string& baseGroupName) :
+    rootNode(rootNode), 
+    materialTable(materialTable),
+    baseGroupName(baseGroupName)
 {
-    std::vector<RenderMaterialProxy> proxies;
-    CollectMaterialProxies(rootObject, proxies);
-    return proxies;
+    // TODO remove this data->dump() later, adds noticable time to receive
+    // only added this to implement process feedback on traversal
+    // we need to know how many objects we have to traverse
+    auto jstr = rootNode->data->dump();
+    jsonSize = static_cast<int>(CountWordInJsonString(jstr, "speckle_type"));
 }
 
-static void CollectInstanceProxies(const nlohmann::json& data, std::vector<InstanceProxy>& proxies)
+void RootObjectUnpacker::Unpack()
 {
-    if (data.is_object())
-    {
-        auto it = data.find("speckle_type");
-        if (it != data.end() && it->is_string() && *it == "Speckle.Core.Models.Instances.InstanceProxy")
-        {
-            proxies.push_back(data);
-        }
+    int processPhases = 7;
+    CONNECTOR.GetProcessWindow().Init("Receive", processPhases);
 
-        for (const auto& [key, value] : data.items())
-        {
-            CollectInstanceProxies(value, proxies);
-        }
-    }
-    else if (data.is_array())
-    {
-        for (const auto& item : data)
-        {
-            CollectInstanceProxies(item, proxies);
-        }
-    }
-}
-
-std::map<std::string, InstanceProxy> RootObjectUnpacker::UnpackInstanceProxies(const nlohmann::json& rootObject)
-{
-    std::vector<InstanceProxy> proxies;
-    CollectInstanceProxies(rootObject, proxies);
-
-    std::map<std::string, InstanceProxy> proxyMap;
-    for (const auto& p : proxies)
-    {
-        proxyMap[p.applicationId] = p;
-    }
-    return proxyMap;
-}
-
-static void CollectInstanceDefinitionProxies(const nlohmann::json& data, std::vector<InstanceDefinitionProxy>& proxies)
-{
-    if (data.is_object())
-    {
-        auto it = data.find("speckle_type");
-        if (it != data.end() && it->is_string() && *it == "Speckle.Core.Models.Instances.InstanceDefinitionProxy")
-        {
-            proxies.push_back(data);
-        }
-
-        for (const auto& [key, value] : data.items())
-        {
-            CollectInstanceDefinitionProxies(value, proxies);
-        }
-    }
-    else if (data.is_array())
-    {
-        for (const auto& item : data)
-        {
-            CollectInstanceDefinitionProxies(item, proxies);
-        }
-    }
-}
-
-std::map<std::string, InstanceDefinitionProxy> RootObjectUnpacker::UnpackInstanceDefinitionProxies(const nlohmann::json& rootObject)
-{
-    std::vector<InstanceDefinitionProxy> proxies;
-    CollectInstanceDefinitionProxies(rootObject, proxies);
-
-    std::map<std::string, InstanceDefinitionProxy> proxyMap;
-    for (const auto& p : proxies)
-    {
-        proxyMap[p.applicationId] = p;
-    }
-    return proxyMap;
-}
-
-static void CollectMeshesFlat(const nlohmann::json& data, std::vector<Mesh>& meshes)
-{
-    if (data.is_object())
-    {
-        auto it = data.find("speckle_type");
-        if (it != data.end() && it->is_string() && *it == "Objects.Geometry.Mesh")
-        {
-            meshes.push_back(data);
-        }
-
-        for (const auto& [key, value] : data.items())
-        {
-            CollectMeshesFlat(value, meshes);
-        }
-    }
-    else if (data.is_array())
-    {
-        for (const auto& item : data)
-        {
-            CollectMeshesFlat(item, meshes);
-        }
-    }
-}
-
-std::vector<Mesh> RootObjectUnpacker::UnpackMeshesFlat(const nlohmann::json& rootObject)
-{
-    std::vector<Mesh> meshes;
-    CollectMeshesFlat(rootObject, meshes);
-    return meshes;
-}
-
-static void CollectMeshes(const nlohmann::json& j, std::vector<std::vector<Mesh>>& result)
-{
-    if (j.is_object()) 
-    {
-        if (j.contains("displayValue") && j["displayValue"].is_array()) 
-        {
-            std::vector<Mesh> meshes;
-            for (const auto& item : j["displayValue"]) 
-            {
-                if (item.is_object() && item.contains("speckle_type") && item["speckle_type"].is_string()) 
-                {
-                    if (item["speckle_type"] == "Objects.Geometry.Mesh") 
-                    {
-                        meshes.emplace_back(item);
-                    }
-                }
-            }
-            if (!meshes.empty()) 
-            {
-                result.push_back(std::move(meshes));
-            }
-        }
-
-        for (const auto& [key, value] : j.items()) 
-        {
-            CollectMeshes(value, result);
-        }
-    }
-    else if (j.is_array()) 
-    {
-        for (const auto& item : j)
-        {
-            CollectMeshes(item, result);
-        }
-    }
-}
-
-std::vector<std::vector<Mesh>> RootObjectUnpacker::UnpackMeshes(const nlohmann::json& rootObject)
-{
-    std::vector<std::vector<Mesh>> meshes;
-    CollectMeshes(rootObject, meshes);
-    return meshes;
-}
-
-std::vector<UnpackedElement> RootObjectUnpacker::UnpackElements(const nlohmann::json& rootObject, const std::map<std::string, std::string>& materialTable)
-{
-    auto unpackedObjects = UnpackObjects(rootObject);
-    std::vector<UnpackedElement> unpackedElements;
-
-    for (auto& obj : unpackedObjects)
-    {
-        try
-        {
-            unpackedElements.push_back(UnpackedElement(obj.second.displayValue, materialTable));
-        }
-        catch (const std::exception& ex)
-        {
-            std::string msg = ex.what();
-            std::cout << msg;
-        }
-    }
-
-    return unpackedElements;
-}
-
-static void CollectObjects(const nlohmann::json& j, std::vector<UnpackedObject>& collected)
-{
-    if (j.is_object())
-    {
-        if (j.contains("displayValue") && j["displayValue"].is_array())
-        {
-            UnpackedObject unpackedObj;
-
-            if (j.contains("applicationId") && j["applicationId"].is_string()) 
-            {
-                unpackedObj.applicationId = j["applicationId"].get<std::string>();
-            }
-            else
-            {
-                unpackedObj.applicationId = GuidGenerator::NewGuid();
-            }
-
-            for (const auto& item : j["displayValue"])
-            {
-                if (item.is_object() && item.contains("speckle_type") && item["speckle_type"].is_string())
-                {
-                    if (item["speckle_type"] == "Objects.Geometry.Mesh")
-                    {
-                        unpackedObj.displayValue.emplace_back(item);
-                    }
-                }
-            }
-
-            if (!unpackedObj.displayValue.empty())
-            {
-                collected.push_back(std::move(unpackedObj));
-            }
-        }
-
-        for (const auto& [key, value] : j.items())
-        {
-            CollectObjects(value, collected);
-        }
-    }
-    else if (j.is_array())
-    {
-        for (const auto& item : j)
-        {
-            CollectObjects(item, collected);
-        }
-    }
-}
-
-std::map<std::string, UnpackedObject> RootObjectUnpacker::UnpackObjects(const nlohmann::json& rootObject)
-{
-    std::vector<UnpackedObject> objects;
-    CollectObjects(rootObject, objects);
-
-    if (objects.size() == 0)
-    {
-        // Hack for SketchUp
-        // TODO remove when C# graph traversal is implemented in C++
-        auto meshes = UnpackMeshesFlat(rootObject);
-        for (const auto& m : meshes)
-        {
-            UnpackedObject u;
-            u.applicationId = m.applicationId;
-            u.displayValue.push_back(m);
-            objects.push_back(u);
-        }
-    }
+    // 1. traversing the root object
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Traversing Nodes", jsonSize);
+    Traverse(rootNode);
     
-    std::map<std::string, UnpackedObject> objectsMap;
-    for (const auto& obj : objects)
+    // 2. deserializing relevant items
+    int dataSize = static_cast<int>(nodes.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Deserializing Data", dataSize);
+    Deserialize();
+
+    // 3. bake materials
+    int toBake = static_cast<int>(renderMaterialProxies.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Baking Materials", toBake);
+    BakeMaterials();
+
+    // 3. expanding instances
+    int instanceCount = static_cast<int>(instanceProxies.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Expanding Instances", instanceCount);
+    ExpandInstances();
+
+    // 4. processing nodes
+    meshCountAfterTraversal = static_cast<int>(meshes.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Processing Meshes", meshCountAfterTraversal);
+    ProcessNodes();
+    
+    // 5. unpack elements
+    int toUnpack = static_cast<int>(unpackedMeshes.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Unpacking Elements", toUnpack);
+    UnpackElements();
+
+    // 6. create LibParts
+    LibpartBuilder builder(baseGroupName);
+    int toCreate = static_cast<int>(unpackedElements.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Creating Elements", toCreate);
+    builder.CreateLibParts(unpackedElements);
+
+    // 7. place LibParts
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Placing Elements", builder._elementCount);
+    builder.PlaceLibparts();
+
+    CONNECTOR.GetProcessWindow().Close();
+}
+
+void RootObjectUnpacker::Traverse(const Node* node)
+{
+    if (node->IsSpeckleType())
     {
-        objectsMap[obj.applicationId] = obj;
+        nodes[node->id] = node;
+        nodesByAppId[node->appId] = node;
+
+        if (node->IsMesh())
+        {
+            meshNodes.push_back(node);
+        }
+
+        traversed++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(traversed);
+        for (const auto& [key, value] : node->data->items())
+        {
+            Traverse(new Node(value, node));
+        }
     }
-    return objectsMap;
+    else if (node->IsArray())
+    {
+        for (const auto& item : *node->data)
+        {
+            Traverse(new Node(item, node));
+        }
+    }
+}
+
+void RootObjectUnpacker::Deserialize()
+{
+    int processed = 0;    
+    
+    for (const auto& [id, node] : nodes)
+    {
+        processed++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(processed);
+
+        if (node->IsMesh())
+        {
+            meshes[node->id] = *node->data;
+        }
+        else if (node->IsColorProxy())
+        {
+            // TODO add
+            //colors.push_back(*node->data);
+        }
+        else if (node->IsMaterialProxy())
+        {
+            renderMaterialProxies.push_back(*node->data);
+        }
+        else if (node->IsInstanceProxy())
+        {
+            instanceProxies[node->id] = *node->data;
+        }
+        else if (node->IsInstanceDefinitionProxy())
+        {
+            instanceDefinitionProxies[node->appId] = *node->data;
+        }
+    }
+}
+
+void RootObjectUnpacker::BakeMaterials()
+{
+    std::map<std::string, int> createdMaterials;
+    int baked = 0;
+
+    for (const auto& proxy : renderMaterialProxies)
+    {
+        std::ostringstream oss;
+        oss << baseGroupName << "_" << std::to_string(proxy.value.diffuse);
+        std::string materialName = oss.str();
+
+        int materialIndex = 0;
+        if (createdMaterials.find(materialName) != createdMaterials.end())
+        {
+            materialIndex = createdMaterials[materialName];
+        }
+        else
+        {
+            try
+            {
+                materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(proxy.value, materialName);
+                createdMaterials[materialName] = materialIndex;
+                baked++;
+                CONNECTOR.GetProcessWindow().SetProcessValue(baked);
+            }
+            catch (const std::exception& ex)
+            {
+                std::cout << "Failed to create Archicad material: " << ex.what();
+            }
+        }
+
+        for (const auto& elementId : proxy.objects)
+        {
+            materialTable[elementId] = materialName;
+        }
+    }
+
+    // create default mateiral
+    std::string materialName = "speckle_default_material";
+    int materialIndex = 0;
+    Material defaultMaterial;
+    defaultMaterial.diffuse = ARGBColorConverter::PackARGB(1, 0.6, 0.6, 0.6);
+    try
+    {
+        materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(defaultMaterial, materialName);
+        createdMaterials[materialName] = materialIndex;
+    }
+    catch (const std::exception& ex)
+    {
+        std::cout << "Failed to create Archicad material: " << ex.what();
+    }
+}
+
+void RootObjectUnpacker::ExpandInstances()
+{
+    int expanded = 0;
+    for (const auto& [id, node] : nodes)
+    {
+        if (node->IsInstanceProxy())
+        {
+            ExpandInstance(node, false);
+            expanded++;
+            CONNECTOR.GetProcessWindow().SetProcessValue(expanded);
+        }
+    }
+}
+
+void RootObjectUnpacker::ExpandInstance(const Node* node, bool addNew)
+{
+    if (node->IsSpeckleType())
+    {
+        if (addNew && node->IsMesh())
+        {
+            meshNodes.push_back(node);
+        }
+
+        if (node->IsInstanceProxy())
+        {
+            InstanceProxy proxy = instanceProxies[node->id];
+            auto definitionId = proxy.definitionId;
+            InstanceDefinitionProxy defProxy = instanceDefinitionProxies[definitionId];
+
+            for (const auto& obj : defProxy.objects)
+            {
+                proxyDefinitionObjects.insert(obj);
+
+                auto it = nodesByAppId.find(obj);
+                if (it != nodesByAppId.end() && it->second)
+                {
+                    auto childData = it->second->data;
+                    ExpandInstance(new Node(*childData, node));
+                }
+            }
+        }
+        else
+        {
+            for (const auto& [key, value] : node->data->items())
+            {
+                ExpandInstance(new Node(value, node));
+            }
+        }
+    }
+    else if (node->IsArray())
+    {
+        for (const auto& item : *node->data)
+        {
+            ExpandInstance(new Node(item, node));
+        }
+    }
+}
+
+void RootObjectUnpacker::ProcessNodes()
+{
+    int processed = 0;
+    for (const auto& node : meshNodes)
+    {
+        ProcessNode(node);
+        processed++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(processed);
+    }
+}
+
+void RootObjectUnpacker::ProcessNode(const Node* node)
+{
+    bool processed = false;
+    std::string lastId = "0";
+    std::string meshId = "0";
+    std::string materialName = "speckle_default_material";
+    std::stack<std::vector<double>> transformations;
+    
+    while (!processed)
+    {  
+        if (materialName == "speckle_default_material")
+        {
+            auto it = materialTable.find(node->appId);
+            if (it != materialTable.end())
+            {
+                materialName = it->second;
+            }
+        }
+        
+        if (node->IsMesh() && meshId == "0")
+        {
+            meshId = node->id;
+        }
+
+        if (node->IsInstanceProxy())
+        {
+            transformations.push(instanceProxies[node->id].transform);
+        }
+
+        if ((node->IsInstanceProxy() || node->IsGeometryObject()) || node->IsDataObject())
+        {
+            if (node->appId != "0")
+            {
+                lastId = node->appId;
+            }
+        }
+
+        node = node->parent;
+        if (node == nullptr)
+        {
+            processed = true;
+        }
+    }
+
+    auto transform = Matrix_44::Identity();
+
+    while (!transformations.empty())
+    {
+        transform *= Matrix_44(transformations.top());
+        transformations.pop();
+    }
+
+    Mesh mesh = meshes[meshId];
+    auto hostAppUnits = CONNECTOR.GetHostToSpeckleConverter().GetWorkingUnits();
+    double scaling = Units::GetConversionFactor(mesh.units, hostAppUnits.workingLengthUnits);
+    mesh.ApplyTransform(transform.AsVector());
+    mesh.ApplyScaling(scaling);
+    mesh.materialName = materialName;
+    
+    if (proxyDefinitionObjects.find(lastId) == proxyDefinitionObjects.end())
+    {
+        unpackedMeshes[lastId].push_back(mesh);
+    }
+}
+
+void RootObjectUnpacker::UnpackElements()
+{
+    std::map<std::string, std::string> mt;
+    int unpacked = 0;
+    for (const auto& [id, elem] : unpackedMeshes)
+    {
+        unpackedElements.push_back(UnpackedElement(elem, mt));
+        unpacked++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(unpacked);
+    }
 }
