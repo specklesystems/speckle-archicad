@@ -39,7 +39,7 @@ RootObjectUnpacker::RootObjectUnpacker(const Node* rootNode, const std::string& 
 
 void RootObjectUnpacker::Unpack()
 {
-    int processPhases = 7;
+    int processPhases = 8;
     CONNECTOR.GetProcessWindow().Init("Receive", processPhases);
 
     // 1. traversing the root object
@@ -56,28 +56,28 @@ void RootObjectUnpacker::Unpack()
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Baking Materials", toBake);
     BakeMaterials();
 
-    // 3. expanding instances
+    // 4. expanding instances
     int instanceCount = static_cast<int>(instanceProxies.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Expanding Instances", instanceCount);
     ExpandInstances();
 
-    // 4. processing nodes
+    // 5. processing nodes
     meshCountAfterTraversal = static_cast<int>(meshes.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Processing Meshes", meshCountAfterTraversal);
     ProcessNodes();
     
-    // 5. unpack elements
+    // 6. unpack elements
     int toUnpack = static_cast<int>(unpackedMeshes.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Unpacking Elements", toUnpack);
     UnpackElements();
 
-    // 6. create LibParts
+    // 7. create LibParts
     LibpartBuilder builder(baseGroupName);
     int toCreate = static_cast<int>(unpackedElements.size());
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Creating Elements", toCreate);
     builder.CreateLibParts(unpackedElements);
 
-    // 7. place LibParts
+    // 8. place LibParts
     CONNECTOR.GetProcessWindow().SetNextProcessPhase("Placing Elements", builder._elementCount);
     builder.PlaceLibparts();
 
