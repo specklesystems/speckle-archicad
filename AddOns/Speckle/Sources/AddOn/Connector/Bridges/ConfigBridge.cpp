@@ -102,11 +102,9 @@ void ConfigBridge::OpenUrl(const RunMethodEventArgs& args)
     system(command.c_str());
 }
 
-void ConfigBridge::GetUserSelectedAccountId(const RunMethodEventArgs& args)
+void ConfigBridge::GetUserSelectedAccountId(const RunMethodEventArgs& /*args*/)
 {
-    nlohmann::json acc;
-    acc["userSelectedAccountId"] = nullptr;
-    args.eventSource->SetResult(args.methodId, acc);
+    // TODO implement
 }
 
 void ConfigBridge::SetUserSelectedAccountId(const RunMethodEventArgs& /*args*/)
