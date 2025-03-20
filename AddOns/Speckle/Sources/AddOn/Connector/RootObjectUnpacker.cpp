@@ -382,11 +382,10 @@ void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
 
 void RootObjectUnpacker::UnpackElements()
 {
-    std::map<std::string, std::string> mt;
     int unpacked = 0;
     for (const auto& [id, elem] : unpackedMeshes)
     {
-        unpackedElements.push_back(UnpackedElement(elem, mt));
+        unpackedElements.push_back(ArchicadMesh(elem));
         unpacked++;
         CONNECTOR.GetProcessWindow().SetProcessValue(unpacked);
     }

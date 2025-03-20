@@ -14,7 +14,7 @@
 #include <map>
 #include <set>
 
-
+#include "ArchicadMesh.h"
 
 class RootObjectUnpacker
 {
@@ -47,7 +47,8 @@ public:
 	HostObjectBuilderResult GetHostObjectBuilderResult();
 
 	std::map<std::string, std::vector<Mesh>> unpackedMeshes;
-	std::vector<UnpackedElement> unpackedElements;
+	//std::vector<UnpackedElement> unpackedElements;
+	std::vector<ArchicadMesh> unpackedElements;
 
 private:
 	void Traverse(const std::shared_ptr<Node>& node);
