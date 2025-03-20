@@ -126,7 +126,7 @@ std::string LibpartBuilder::PlaceLibpart(GS::Int32 libIndex)
 	return elementId;
 }
 
-void LibpartBuilder::CreateLibPart(const ArchicadMesh& element)
+void LibpartBuilder::CreateLibPart(const ArchicadElement& element)
 {
 	API_LibPart libPart{};
 	BNZeroMemory(&libPart, sizeof(API_LibPart));
@@ -228,55 +228,60 @@ void LibpartBuilder::CreateLibPart(const ArchicadMesh& element)
 	line = GS::String::SPrintf("\tmap_xform[1][3], map_xform[2][3], map_xform[3][3], map_xform[4][3]%s%s", GS::EOL, GS::EOL);
 	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 
-	// add vertices
-	UInt32 vertexIndex = 1;
-	for (const auto& v : element.vertices)
+	// create bodies
+	for (const auto& mesh : element.archicadMeshes)
 	{
-		float x = (float)v.x;
-		float y = (float)v.y;
-		float z = (float)v.z;
-		line = GS::String::SPrintf("VERT %f, %f, %f\t!#%u%s", x, y, z, vertexIndex++, GS::EOL);
-		ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
-	}
-
-	line = GS::String::SPrintf("%s", GS::EOL);
-	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
-
-	// add edges
-	UInt32 edgeIndex = 1;
-	for (const auto& e : element.edges)
-	{
-		UInt32 start = static_cast<UInt32>(e.start);
-		UInt32 end = static_cast<UInt32>(e.end);
-		line = GS::String::SPrintf("EDGE %d, %d, -1, -1, %s\t!#%u%s", start, end, "hiddenBodyEdge", edgeIndex++, GS::EOL);
-		ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
-	}
-
-	// add polys
-	UInt32 polyIndex = 1;
-	for (const auto& p : element.polys)
-	{
-		GS::UniString matName = p.materialName.c_str();
-		line = GS::String::SPrintf("%s! Polygon #%u%sMATERIAL \"%s\"%s", GS::EOL, polyIndex++, GS::EOL, matName.ToCStr().Get(), GS::EOL);
-		ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
-
-		UInt32 polySize = static_cast<UInt32>(p.size);
-		line = GS::String::SPrintf("PGON %u, 0, -1", polySize);
-		ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
-		
-		for (const auto& e : p.edges)
+		// add vertices
+		UInt32 vertexIndex = 1;
+		for (const auto& v : mesh.vertices)
 		{
-			Int32 ei = static_cast<Int32>(e);
-			line = GS::String::SPrintf(",%s%d", " ", ei);
+			float x = (float)v.x;
+			float y = (float)v.y;
+			float z = (float)v.z;
+			line = GS::String::SPrintf("VERT %f, %f, %f\t!#%u%s", x, y, z, vertexIndex++, GS::EOL);
 			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 		}
 
 		line = GS::String::SPrintf("%s", GS::EOL);
 		ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+
+		// add edges
+		UInt32 edgeIndex = 1;
+		for (const auto& e : mesh.edges)
+		{
+			UInt32 start = static_cast<UInt32>(e.start);
+			UInt32 end = static_cast<UInt32>(e.end);
+			line = GS::String::SPrintf("EDGE %d, %d, -1, -1, %s\t!#%u%s", start, end, "hiddenBodyEdge", edgeIndex++, GS::EOL);
+			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+		}
+
+		// add polys
+		UInt32 polyIndex = 1;
+		for (const auto& p : mesh.polys)
+		{
+			GS::UniString matName = p.materialName.c_str();
+			line = GS::String::SPrintf("%s! Polygon #%u%sMATERIAL \"%s\"%s", GS::EOL, polyIndex++, GS::EOL, matName.ToCStr().Get(), GS::EOL);
+			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+
+			UInt32 polySize = static_cast<UInt32>(p.size);
+			line = GS::String::SPrintf("PGON %u, 0, -1", polySize);
+			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+
+			for (const auto& e : p.edges)
+			{
+				Int32 ei = static_cast<Int32>(e);
+				line = GS::String::SPrintf(",%s%d", " ", ei);
+				ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+			}
+
+			line = GS::String::SPrintf("%s", GS::EOL);
+			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+		}
+
+		line = GS::String::SPrintf("BODY 4%s%s%s", GS::EOL, "BASE", GS::EOL);
+		ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 	}
 
-	line = GS::String::SPrintf("BODY 4%s%s", GS::EOL, GS::EOL);
-	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 	line = "DEL TOP";
 	ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 
@@ -369,7 +374,7 @@ void LibpartBuilder::CreateLibPart(const ArchicadMesh& element)
 	CONNECTOR.GetProcessWindow().SetProcessValue(_elementCount);
 }
 
-void LibpartBuilder::CreateLibParts(const std::vector<ArchicadMesh>& elements)
+void LibpartBuilder::CreateLibParts(const std::vector<ArchicadElement>& elements)
 {
 	ACAPI_CallUndoableCommand("Creating received objects",
 		[&]() -> GSErrCode {
@@ -377,13 +382,6 @@ void LibpartBuilder::CreateLibParts(const std::vector<ArchicadMesh>& elements)
 			
 			for (const auto& elem : elements)
 			{
-				// Hack for very large objects (SketchUp)
-				if (elem.polys.size() > 100000)
-				{
-					// this is not good
-					continue;
-				}
-
 				ReceiveConversionResult conversionResult{};
 
 				try

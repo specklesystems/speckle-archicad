@@ -8,13 +8,13 @@
 #include "UnpackedElement.h"
 #include <ReceiveConversionResult.h>
 
-#include "ArchicadMesh.h"
+#include "ArchicadElement.h"
 
 class LibpartBuilder
 {
 public:
 	LibpartBuilder(const std::string& baseGroupName);
-	void CreateLibParts(const std::vector<ArchicadMesh>& elements);
+	void CreateLibParts(const std::vector<ArchicadElement>& elements);
 	void PlaceLibparts();
 
 	std::vector<ReceiveConversionResult> conversionResults;
@@ -26,7 +26,7 @@ private:
 	std::string _baseGroupName;
 
 	void GetLocation();
-	void CreateLibPart(const ArchicadMesh& element);
+	void CreateLibPart(const ArchicadElement& element);
 	std::string PlaceLibpart(GS::Int32 libIndex);
 
 	std::vector<Int32> libpartIndices;

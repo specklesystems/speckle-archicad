@@ -385,8 +385,14 @@ void RootObjectUnpacker::UnpackElements()
     int unpacked = 0;
     for (const auto& [id, elem] : unpackedMeshes)
     {
-        unpackedElements.push_back(ArchicadMesh(elem));
+        unpackedElements.push_back(ArchicadElement(elem));
         unpacked++;
         CONNECTOR.GetProcessWindow().SetProcessValue(unpacked);
+
+        // debug hack
+        /*for (const auto& m : elem)
+        {
+            unpackedElements.push_back(ArchicadMesh(std::vector<Mesh> {m}));
+        }*/
     }
 }

@@ -18,12 +18,12 @@ struct ArchicadEdge
     double polyAngle = 0.0;
     bool isVisible = true;
 
-    bool Equals(const ArchicadEdge& other)
+    bool Equals(const ArchicadEdge& other) const
     {
         return (start == other.start) && (end == other.end);
     }
 
-    bool Opposite(const ArchicadEdge& other)
+    bool Opposite(const ArchicadEdge& other) const
     {
         return (end == other.start) && (start == other.end);
     }
@@ -39,7 +39,7 @@ struct ArchicadPoly
 class ArchicadMesh 
 {
 public:
-    explicit ArchicadMesh(const std::vector<Mesh>& meshes);
+    explicit ArchicadMesh(const Mesh& mesh);
 
     std::vector<ArchicadVertex> vertices;
     std::vector<ArchicadEdge> edges;
@@ -47,5 +47,5 @@ public:
     std::unordered_map<size_t, int> vertexMap;
 
     size_t ArchicadVertexHash(const ArchicadVertex& vertex) const;
-    void CreateMesh(const std::vector<Mesh>& meshes);
+    void CreateMesh(const Mesh& mesh);
 };
