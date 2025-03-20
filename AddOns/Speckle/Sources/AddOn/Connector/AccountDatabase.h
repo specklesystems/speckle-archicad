@@ -11,6 +11,8 @@ public:
     nlohmann::json GetAccounts() const override;
     nlohmann::json GetAccount(const std::string& id) const override;
     std::string GetTokenByAccountId(const std::string& id) const override;
+    void RefreshFromDB() override;
+    void RemoveAccountById(const std::string& id) override;
 
 private:
     std::map<std::string, nlohmann::json> _accountsData;

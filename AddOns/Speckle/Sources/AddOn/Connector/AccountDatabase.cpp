@@ -76,6 +76,11 @@ std::string AccountDatabase::GetTokenByAccountId(const std::string& id) const
     return token;
 }
 
+void AccountDatabase::RefreshFromDB()
+{
+    LoadAccountsFromDB();
+}
+
 void AccountDatabase::LoadAccountsFromDB()
 {
     sqlite3* db;
@@ -119,3 +124,49 @@ void AccountDatabase::LoadAccountsFromDB()
     sqlite3_finalize(stmt);
     sqlite3_close(db);
 }
+
+void AccountDatabase::RemoveAccountById(const std::string& id)
+{
+    sqlite3* db;
+    int rc;
+
+    // Open the database
+    rc = sqlite3_open(GetAccountsDatabasePath(), &db);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Error opening database: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
+
+    // SQL query to delete the account
+    const char* sql = "DELETE FROM objects WHERE hash = ?;";
+    sqlite3_stmt* stmt;
+
+    // Prepare the SQL statement
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_close(db);
+        return;
+    }
+
+    // Bind the ID parameter
+    sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_STATIC);
+
+    // Execute the statement
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        std::cerr << "Error executing statement: " << sqlite3_errmsg(db) << std::endl;
+    }
+    else
+    {
+        _accountsData.erase(id);
+    }
+
+    // Finalize and close
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+}
+

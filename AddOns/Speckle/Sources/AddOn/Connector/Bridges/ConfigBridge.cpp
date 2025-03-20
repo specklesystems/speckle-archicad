@@ -7,7 +7,7 @@ ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
 {
     configBinding = std::make_unique<Binding>(
         "configBinding",
-        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl" },
+        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl", "GetUserSelectedAccountId", "SetUserSelectedAccountId" },
         browser,
         this
     );
@@ -57,6 +57,14 @@ void ConfigBridge::RunMethod(const RunMethodEventArgs& args)
     {
         OpenUrl(args);
     }
+    else if (args.methodName == "GetUserSelectedAccountId")
+    {
+        GetUserSelectedAccountId(args);
+    }
+    else if (args.methodName == "SetUserSelectedAccountId")
+    {
+        SetUserSelectedAccountId(args);
+    }
     else
     {
         throw InvalidMethodNameException(args.methodName);
@@ -92,4 +100,16 @@ void ConfigBridge::OpenUrl(const RunMethodEventArgs& args)
     std::string url = args.data[0].get<std::string>();
     std::string command = "start " + url;
     system(command.c_str());
+}
+
+void ConfigBridge::GetUserSelectedAccountId(const RunMethodEventArgs& args)
+{
+    nlohmann::json acc;
+    acc["userSelectedAccountId"] = nullptr;
+    args.eventSource->SetResult(args.methodId, acc);
+}
+
+void ConfigBridge::SetUserSelectedAccountId(const RunMethodEventArgs& /*args*/)
+{
+    // TODO implement
 }

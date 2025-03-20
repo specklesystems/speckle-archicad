@@ -20,4 +20,6 @@ private:
     void GetIsDevMode(const RunMethodEventArgs& args);
     void UpdateConfig(const RunMethodEventArgs& args);
     void OpenUrl(const RunMethodEventArgs& args);
+    void GetUserSelectedAccountId(const RunMethodEventArgs& args);
+    void SetUserSelectedAccountId(const RunMethodEventArgs& args);
 };
