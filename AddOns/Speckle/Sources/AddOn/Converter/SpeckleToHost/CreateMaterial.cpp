@@ -37,3 +37,10 @@ int SpeckleToHostConverter::CreateMaterial(const Material& material, const std::
     CHECK_ERROR(ACAPI_Attribute_Create(&materialAttr, nullptr));
     return materialAttr.header.index.ToInt32_Deprecated();
 }
+
+int SpeckleToHostConverter::CreateMaterial(const ColorProxy& color, const std::string& materialName)
+{
+    Material colorMaterial;
+    colorMaterial.diffuse = color.value;
+    return CreateMaterial(colorMaterial, materialName);
+}

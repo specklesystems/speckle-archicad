@@ -57,9 +57,12 @@ void RootObjectUnpacker::Unpack()
     Deserialize();
 
     // 3. bake materials
-    int toBake = static_cast<int>(renderMaterialProxies.size());
-    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Baking Materials", toBake);
+    int materialProxyCount = static_cast<int>(renderMaterialProxies.size());
+    int colorProxyCount = static_cast<int>(colorProxies.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Baking Materials", materialProxyCount + colorProxyCount);
+    BakeDefaultMaterial();
     BakeMaterials();
+    BakeColors();
 
     // 4. expanding instances
     int instanceCount = static_cast<int>(instanceProxies.size());
@@ -132,8 +135,7 @@ void RootObjectUnpacker::Deserialize()
         }
         else if (node->IsColorProxy())
         {
-            // TODO add
-            //colors.push_back(*node->data);
+            colorProxies.push_back(node->data);
         }
         else if (node->IsMaterialProxy())
         {
@@ -172,8 +174,6 @@ void RootObjectUnpacker::BakeMaterials()
             {
                 materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(proxy.value, materialName);
                 createdMaterials[materialName] = materialIndex;
-                baked++;
-                CONNECTOR.GetProcessWindow().SetProcessValue(baked);
             }
             catch (const std::exception& ex)
             {
@@ -185,17 +185,59 @@ void RootObjectUnpacker::BakeMaterials()
         {
             materialTable[elementId] = materialName;
         }
-    }
 
-    // create default mateiral
+        baked++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(baked);
+    } 
+}
+
+void RootObjectUnpacker::BakeColors()
+{
+    std::map<std::string, int> createdMaterials;
+    int baked = 0;
+
+    for (const auto& proxy : colorProxies)
+    {
+        std::ostringstream oss;
+        oss << baseGroupName << "_" << std::to_string(proxy.value);
+        std::string materialName = oss.str();
+
+        int materialIndex = 0;
+        if (createdMaterials.find(materialName) != createdMaterials.end())
+        {
+            materialIndex = createdMaterials[materialName];
+        }
+        else
+        {
+            try
+            {
+                materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(proxy, materialName);
+                createdMaterials[materialName] = materialIndex;
+            }
+            catch (const std::exception& ex)
+            {
+                std::cout << "Failed to create Archicad material: " << ex.what();
+            }
+        }
+
+        for (const auto& elementId : proxy.objects)
+        {
+            materialTable[elementId] = materialName;
+        }
+
+        baked++;
+        CONNECTOR.GetProcessWindow().SetProcessValue(baked);
+    }
+}
+
+void RootObjectUnpacker::BakeDefaultMaterial()
+{
     std::string materialName = "speckle_default_material";
-    int materialIndex = 0;
     Material defaultMaterial;
     defaultMaterial.diffuse = ARGBColorConverter::PackARGB(1, 0.6, 0.6, 0.6);
     try
     {
-        materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(defaultMaterial, materialName);
-        createdMaterials[materialName] = materialIndex;
+        CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(defaultMaterial, materialName);
     }
     catch (const std::exception& ex)
     {

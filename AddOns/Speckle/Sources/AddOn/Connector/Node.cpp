@@ -41,7 +41,7 @@ bool Node::IsMesh() const
 
 bool Node::IsColorProxy() const
 {
-	return speckle_type == "Objects.Other.ColorProxy";
+	return speckle_type == "Speckle.Core.Models.Proxies.ColorProxy";
 }
 
 bool Node::IsMaterialProxy() const

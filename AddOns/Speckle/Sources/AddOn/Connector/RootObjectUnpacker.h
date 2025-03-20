@@ -1,6 +1,9 @@
 #pragma once
 
+#include "HostObjectBuilderResult.h"
+#include "LibpartBuilder.h"
 #include "RenderMaterialProxy.h"
+#include "ColorProxy.h"
 #include "Mesh.h"
 #include "UnpackedElement.h"
 #include "InstanceProxy.h"
@@ -11,8 +14,7 @@
 #include <map>
 #include <set>
 
-#include "HostObjectBuilderResult.h"
-#include "LibpartBuilder.h"
+
 
 class RootObjectUnpacker
 {
@@ -29,6 +31,7 @@ private:
 	std::map<std::string, InstanceProxy> instanceProxies;
 	std::map<std::string, InstanceDefinitionProxy> instanceDefinitionProxies;
 	std::vector<RenderMaterialProxy> renderMaterialProxies;
+	std::vector<ColorProxy> colorProxies;
 	std::vector<std::shared_ptr<Node>> meshNodes;
 	std::set<std::string> proxyDefinitionObjects;
 	
@@ -50,6 +53,8 @@ private:
 	void Traverse(const std::shared_ptr<Node>& node);
 	void Deserialize();
 	void BakeMaterials();
+	void BakeColors();
+	void BakeDefaultMaterial();
 	void ExpandInstances();
 	void ExpandInstance(const std::shared_ptr<Node>& node, bool addNew = true);
 	void ProcessNodes();
