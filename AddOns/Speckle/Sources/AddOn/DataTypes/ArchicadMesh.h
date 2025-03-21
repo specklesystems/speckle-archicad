@@ -17,8 +17,7 @@ struct ArchicadEdge
     int poly1 = -1, poly2 = -1;
     double polyAngle = 0.0;
     bool isVisible = true;
-    // smoothBodyEdge/hiddenBodyEdge/visibleBodyEdge
-    std::string visibilityType;
+    std::string visibilityType; // smoothBodyEdge/hiddenBodyEdge/visibleBodyEdge, should be enum
 
     bool Equals(const ArchicadEdge& other) const
     {

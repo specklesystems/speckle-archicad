@@ -263,11 +263,11 @@ void LibpartBuilder::CreateLibPart(const ArchicadElement& element)
 			line = GS::String::SPrintf("%s! Polygon #%u%sMATERIAL \"%s\"%s", GS::EOL, polyIndex, GS::EOL, matName.ToCStr().Get(), GS::EOL);
 			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 
+			// TODO normals (VECT) look OK in GDL script, but using them breaks polygons, needs investigation
 			//line = GS::String::SPrintf("VECT %f, %f, %f%s", (float)p.normal.x, (float)p.normal.y, (float)p.normal.z, GS::EOL);
 			//ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 
 			UInt32 polySize = static_cast<UInt32>(p.size);
-			//line = GS::String::SPrintf("PGON %u, 0, %u", polySize, polyIndex);
 			line = GS::String::SPrintf("PGON %u, 0, -1", polySize);
 			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 

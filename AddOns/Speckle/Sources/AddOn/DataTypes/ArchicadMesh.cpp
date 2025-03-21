@@ -175,14 +175,15 @@ static double ComputeAngleBetweenNormals(const ArchicadVertex& n1, const Archica
 void ArchicadMesh::ComputeEdgeVisibility() 
 {
 	const double visibleThresholdAngle = M_PI / 3;
-	const double smoothThresholdAngle = M_PI / 6;
+	const double hiddenThresholdAngle = 0.0001;
 
 	// smoothBodyEdge/hiddenBodyEdge/visibleBodyEdge
 	for (auto& edge : edges) 
 	{
+		// Boundary edges are always visible
 		if (edge.poly1 == -1 || edge.poly2 == -1) 
 		{
-			edge.isVisible = true; // Boundary edges are always visible
+			edge.isVisible = true; 
 			edge.visibilityType = "visibleBodyEdge";
 			continue;
 		}
@@ -192,15 +193,16 @@ void ArchicadMesh::ComputeEdgeVisibility()
 
 		double angle = ComputeAngleBetweenNormals(normal1, normal2);
 		edge.isVisible = (angle > visibleThresholdAngle);
-		edge.visibilityType = "hiddenBodyEdge";
 
+		// TODO move strings and bool to enum
+		edge.visibilityType = "smoothBodyEdge";
 		if (angle > visibleThresholdAngle)
 		{
 			edge.visibilityType = "visibleBodyEdge";
 		}
-		else if (angle < smoothThresholdAngle)
+		else if (angle < hiddenThresholdAngle)
 		{
-			edge.visibilityType = "smoothBodyEdge";
+			edge.visibilityType = "hiddenBodyEdge";
 		}
 	}
 }
