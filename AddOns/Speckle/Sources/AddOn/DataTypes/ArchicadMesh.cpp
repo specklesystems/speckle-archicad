@@ -2,6 +2,10 @@
 #include <unordered_set>
 #include <cmath>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 static void RemoveDuplicates(std::vector<int>& vec) 
 {
 	std::unordered_set<int> seen;
@@ -27,11 +31,14 @@ size_t ArchicadMesh::ArchicadVertexHash(const ArchicadVertex& vertex) const
 ArchicadMesh::ArchicadMesh(const Mesh& mesh)
 {
     CreateMesh(mesh);
+	CalculatePolyNormals();
+	ComputeEdgeVisibility();
 }
 
 void ArchicadMesh::CreateMesh(const Mesh& mesh)
 {
     int vertexIndex = 1;
+	int polyIndex = 0;
 
 	for (size_t i = 0; i < mesh.faces.size(); )
 	{
@@ -56,50 +63,144 @@ void ArchicadMesh::CreateMesh(const Mesh& mesh)
 			}
 		}
 
-		// there are duplicate vertices in some polygons
-		// which is weird but the below function call is needed
+		// there are duplicate vertices in some polygons which is weird
+		// the below function call is needed to remove duplications
 		RemoveDuplicates(faceVertices);
 		polySize = static_cast<int>(faceVertices.size());
 
 		if (polySize > 2)
 		{
+			++polyIndex;
 			std::vector<int> polyEdges;
 			for (int j = 0; j < polySize; ++j)
 			{
-				ArchicadEdge acEdge;
-				acEdge.start = faceVertices[j];
-				acEdge.end = faceVertices[(j + 1) % faceVertices.size()];
-
-				bool newEdge = true;
+				ArchicadEdge acEdge{ faceVertices[j], faceVertices[(j + 1) % polySize] };
 				int foundEdgeIndex = 1;
-				for (const auto& e : edges)
+				bool newEdge = true;
+
+				// checking if edge already exists
+				for (auto& e : edges) 
 				{
-					if (acEdge.Equals(e))
+					if (acEdge.Equals(e) || acEdge.Opposite(e)) 
 					{
-						polyEdges.push_back(foundEdgeIndex);
+						e.poly2 = polyIndex;
+						polyEdges.push_back(acEdge.Equals(e) ? foundEdgeIndex : -foundEdgeIndex);
 						newEdge = false;
 						break;
 					}
-
-					if (acEdge.Opposite(e))
-					{
-						polyEdges.push_back(-foundEdgeIndex);
-						newEdge = false;
-						break;
-					}
-
-					foundEdgeIndex++;
+					++foundEdgeIndex;
 				}
-				if (newEdge)
+
+				if (newEdge) 
 				{
+					acEdge.poly1 = polyIndex;
 					edges.push_back(acEdge);
-					foundEdgeIndex = static_cast<int>(edges.size());
-					polyEdges.push_back(foundEdgeIndex);
+					polyEdges.push_back(static_cast<int>(edges.size()));
 				}
 			}
 			polys.push_back({ polySize, polyEdges, mesh.materialName });
-			// TODO add poly index to edges
-			// if poly1 == -1 else if poly2 == -1...
+		}
+	}
+}
+
+static ArchicadVertex ComputeNormal(const ArchicadVertex& v1, const ArchicadVertex& v2, const ArchicadVertex& v3) 
+{
+	ArchicadVertex normal;
+
+	double ux = v2.x - v1.x;
+	double uy = v2.y - v1.y;
+	double uz = v2.z - v1.z;
+
+	double vx = v3.x - v1.x;
+	double vy = v3.y - v1.y;
+	double vz = v3.z - v1.z;
+
+	normal.x = uy * vz - uz * vy;
+	normal.y = uz * vx - ux * vz;
+	normal.z = ux * vy - uy * vx;
+
+	// Normalize the normal vector
+	double length = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+	if (length > 0.0) 
+	{
+		normal.x /= length;
+		normal.y /= length;
+		normal.z /= length;
+	}
+
+	return normal;
+}
+
+void ArchicadMesh::CalculatePolyNormals() 
+{
+	for (auto& poly : polys) 
+	{
+		if (poly.edges.size() < 3) 
+		{
+			poly.normal = { 0.0, 0.0, 0.0 };
+			continue;
+		}
+
+		int ei1 = poly.edges[0];
+		int ei2 = poly.edges[1];
+		int ei3 = poly.edges[2];
+
+		int vi1 = (ei1 >= 0) ? edges[ei1-1].start - 1 : edges[-ei1-1].end - 1;
+		int vi2 = (ei2 >= 0) ? edges[ei2-1].start - 1 : edges[-ei2-1].end - 1;
+		int vi3 = (ei3 >= 0) ? edges[ei3-1].start - 1 : edges[-ei3-1].end - 1;
+
+		const ArchicadVertex& v1 = vertices[vi1];
+		const ArchicadVertex& v2 = vertices[vi2];
+		const ArchicadVertex& v3 = vertices[vi3];
+
+		poly.normal = ComputeNormal(v1, v2, v3);
+	}
+}
+
+static double ComputeAngleBetweenNormals(const ArchicadVertex& n1, const ArchicadVertex& n2) 
+{
+	double dotProduct = n1.x * n2.x + n1.y * n2.y + n1.z * n2.z;
+	double length1 = std::sqrt(n1.x * n1.x + n1.y * n1.y + n1.z * n1.z);
+	double length2 = std::sqrt(n2.x * n2.x + n2.y * n2.y + n2.z * n2.z);
+
+	if (length1 == 0.0 || length2 == 0.0) 
+	{
+		return 0.0;
+	}
+
+	double cosine = dotProduct / (length1 * length2);
+	return std::acos(std::max(-1.0, std::min(1.0, cosine))); // Clamp to avoid precision issues
+}
+
+void ArchicadMesh::ComputeEdgeVisibility() 
+{
+	const double visibleThresholdAngle = M_PI / 3;
+	const double smoothThresholdAngle = M_PI / 6;
+
+	// smoothBodyEdge/hiddenBodyEdge/visibleBodyEdge
+	for (auto& edge : edges) 
+	{
+		if (edge.poly1 == -1 || edge.poly2 == -1) 
+		{
+			edge.isVisible = true; // Boundary edges are always visible
+			edge.visibilityType = "visibleBodyEdge";
+			continue;
+		}
+
+		const ArchicadVertex& normal1 = polys[edge.poly1 - 1].normal;
+		const ArchicadVertex& normal2 = polys[edge.poly2 - 1].normal;
+
+		double angle = ComputeAngleBetweenNormals(normal1, normal2);
+		edge.isVisible = (angle > visibleThresholdAngle);
+		edge.visibilityType = "hiddenBodyEdge";
+
+		if (angle > visibleThresholdAngle)
+		{
+			edge.visibilityType = "visibleBodyEdge";
+		}
+		else if (angle < smoothThresholdAngle)
+		{
+			edge.visibilityType = "smoothBodyEdge";
 		}
 	}
 }

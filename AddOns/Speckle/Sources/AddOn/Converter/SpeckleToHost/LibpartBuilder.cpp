@@ -235,10 +235,7 @@ void LibpartBuilder::CreateLibPart(const ArchicadElement& element)
 		UInt32 vertexIndex = 1;
 		for (const auto& v : mesh.vertices)
 		{
-			float x = (float)v.x;
-			float y = (float)v.y;
-			float z = (float)v.z;
-			line = GS::String::SPrintf("VERT %f, %f, %f\t!#%u%s", x, y, z, vertexIndex++, GS::EOL);
+			line = GS::String::SPrintf("VERT %f, %f, %f\t!#%u%s", (float)v.x, (float)v.y, (float)v.z, vertexIndex++, GS::EOL);
 			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 		}
 
@@ -251,7 +248,10 @@ void LibpartBuilder::CreateLibPart(const ArchicadElement& element)
 		{
 			UInt32 start = static_cast<UInt32>(e.start);
 			UInt32 end = static_cast<UInt32>(e.end);
-			line = GS::String::SPrintf("EDGE %d, %d, -1, -1, %s\t!#%u%s", start, end, "hiddenBodyEdge", edgeIndex++, GS::EOL);
+			UInt32 pgon1 = static_cast<UInt32>(e.poly1);
+			UInt32 pgon2 = static_cast<UInt32>(e.poly2);
+			GS::UniString edgeVisibility = e.visibilityType.c_str();
+			line = GS::String::SPrintf("EDGE %d, %d, %d, %d, %s\t!#%u%s", start, end, pgon1, pgon2, edgeVisibility.ToCStr().Get(), edgeIndex++, GS::EOL);
 			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 		}
 
@@ -260,12 +260,18 @@ void LibpartBuilder::CreateLibPart(const ArchicadElement& element)
 		for (const auto& p : mesh.polys)
 		{
 			GS::UniString matName = p.materialName.c_str();
-			line = GS::String::SPrintf("%s! Polygon #%u%sMATERIAL \"%s\"%s", GS::EOL, polyIndex++, GS::EOL, matName.ToCStr().Get(), GS::EOL);
+			line = GS::String::SPrintf("%s! Polygon #%u%sMATERIAL \"%s\"%s", GS::EOL, polyIndex, GS::EOL, matName.ToCStr().Get(), GS::EOL);
 			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
 
+			//line = GS::String::SPrintf("VECT %f, %f, %f%s", (float)p.normal.x, (float)p.normal.y, (float)p.normal.z, GS::EOL);
+			//ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+
 			UInt32 polySize = static_cast<UInt32>(p.size);
+			//line = GS::String::SPrintf("PGON %u, 0, %u", polySize, polyIndex);
 			line = GS::String::SPrintf("PGON %u, 0, -1", polySize);
 			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
+
+			++polyIndex;
 
 			for (const auto& e : p.edges)
 			{

@@ -17,6 +17,8 @@ struct ArchicadEdge
     int poly1 = -1, poly2 = -1;
     double polyAngle = 0.0;
     bool isVisible = true;
+    // smoothBodyEdge/hiddenBodyEdge/visibleBodyEdge
+    std::string visibilityType;
 
     bool Equals(const ArchicadEdge& other) const
     {
@@ -29,11 +31,12 @@ struct ArchicadEdge
     }
 };
 
-struct ArchicadPoly 
+struct ArchicadPoly
 {
     int size;
     std::vector<int> edges;
     std::string materialName;
+    ArchicadVertex normal;
 };
 
 class ArchicadMesh 
@@ -48,4 +51,6 @@ public:
 
     size_t ArchicadVertexHash(const ArchicadVertex& vertex) const;
     void CreateMesh(const Mesh& mesh);
+    void CalculatePolyNormals();
+    void ComputeEdgeVisibility();
 };

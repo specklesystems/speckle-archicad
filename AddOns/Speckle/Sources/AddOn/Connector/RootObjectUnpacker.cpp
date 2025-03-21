@@ -388,11 +388,5 @@ void RootObjectUnpacker::UnpackElements()
         unpackedElements.push_back(ArchicadElement(elem));
         unpacked++;
         CONNECTOR.GetProcessWindow().SetProcessValue(unpacked);
-
-        // debug hack
-        /*for (const auto& m : elem)
-        {
-            unpackedElements.push_back(ArchicadMesh(std::vector<Mesh> {m}));
-        }*/
     }
 }
