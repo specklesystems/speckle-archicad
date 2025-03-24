@@ -326,7 +326,7 @@ void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
     std::string lastId = defaultId;
     std::string meshId = defaultId;
     std::string materialName = defaultMaterialName;
-    std::string colorName = defaultMaterialName;
+    //std::string colorName = defaultMaterialName;
     std::stack<std::vector<double>> transformations;
     std::shared_ptr<Node> node = child;
     
@@ -341,14 +341,14 @@ void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
             }
         }
 
-        if (colorName == defaultMaterialName)
+        /*if (colorName == defaultMaterialName)
         {
             auto it = colorTable.find(node->appId);
             if (it != colorTable.end())
             {
                 colorName = it->second;
             }
-        }
+        }*/
         
         if (node->IsMesh() && meshId == defaultId)
         {
