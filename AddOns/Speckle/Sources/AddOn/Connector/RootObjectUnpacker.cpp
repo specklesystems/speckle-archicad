@@ -58,11 +58,13 @@ void RootObjectUnpacker::Unpack()
 
     // 3. bake materials
     int materialProxyCount = static_cast<int>(renderMaterialProxies.size());
-    int colorProxyCount = static_cast<int>(colorProxies.size());
-    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Baking Materials", materialProxyCount + colorProxyCount);
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Baking Materials", materialProxyCount);
     BakeDefaultMaterial();
     BakeMaterials();
-    BakeColors();
+    // we don't support colorproxies in archicad for now
+    // meshes will always have the material assigned or the default material
+    //int colorProxyCount = static_cast<int>(colorProxies.size());
+    //BakeColors();
 
     // 4. expanding instances
     int instanceCount = static_cast<int>(instanceProxies.size());
@@ -133,10 +135,12 @@ void RootObjectUnpacker::Deserialize()
         {
             meshes[node->id] = node->data;
         }
-        else if (node->IsColorProxy())
+        // we don't support colorproxies in archicad for now
+        // meshes will always have the material assigned or the default material
+        /*else if (node->IsColorProxy())
         {
             colorProxies.push_back(node->data);
-        }
+        }*/
         else if (node->IsMaterialProxy())
         {
             renderMaterialProxies.push_back(node->data);
@@ -384,7 +388,10 @@ void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
     double scaling = Units::GetConversionFactor(mesh.units, hostAppUnits.workingLengthUnits);
     mesh.ApplyTransform(transform.AsVector());
     mesh.ApplyScaling(scaling);
-    mesh.materialName = (materialName != defaultMaterialName) ? materialName : colorName;
+    // we don't support colorproxies in archicad for now
+    // meshes will always have the material assigned or the default material
+    //mesh.materialName = (materialName != defaultMaterialName) ? materialName : colorName;
+    mesh.materialName = materialName;
     
     if (proxyDefinitionObjects.find(lastId) == proxyDefinitionObjects.end())
     {
