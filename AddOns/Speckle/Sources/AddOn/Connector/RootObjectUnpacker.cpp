@@ -193,7 +193,7 @@ void RootObjectUnpacker::BakeMaterials()
 
 void RootObjectUnpacker::BakeColors()
 {
-    std::map<std::string, int> createdMaterials;
+    std::map<std::string, int> createdColors;
     int baked = 0;
 
     for (const auto& proxy : colorProxies)
@@ -203,16 +203,16 @@ void RootObjectUnpacker::BakeColors()
         std::string materialName = oss.str();
 
         int materialIndex = 0;
-        if (createdMaterials.find(materialName) != createdMaterials.end())
+        if (createdColors.find(materialName) != createdColors.end())
         {
-            materialIndex = createdMaterials[materialName];
+            materialIndex = createdColors[materialName];
         }
         else
         {
             try
             {
                 materialIndex = CONNECTOR.GetSpeckleToHostConverter().CreateMaterial(proxy, materialName);
-                createdMaterials[materialName] = materialIndex;
+                createdColors[materialName] = materialIndex;
             }
             catch (const std::exception& ex)
             {
@@ -222,7 +222,7 @@ void RootObjectUnpacker::BakeColors()
 
         for (const auto& elementId : proxy.objects)
         {
-            materialTable[elementId] = materialName;
+            colorTable[elementId] = materialName;
         }
 
         baked++;
@@ -316,16 +316,19 @@ void RootObjectUnpacker::ProcessNodes()
 
 void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
 {
+    const std::string defaultMaterialName = "speckle_default_material";
+    const std::string defaultId = "0";
     bool processed = false;
-    std::string lastId = "0";
-    std::string meshId = "0";
-    std::string materialName = "speckle_default_material";
+    std::string lastId = defaultId;
+    std::string meshId = defaultId;
+    std::string materialName = defaultMaterialName;
+    std::string colorName = defaultMaterialName;
     std::stack<std::vector<double>> transformations;
     std::shared_ptr<Node> node = child;
     
     while (!processed)
     {  
-        if (materialName == "speckle_default_material")
+        if (materialName == defaultMaterialName)
         {
             auto it = materialTable.find(node->appId);
             if (it != materialTable.end())
@@ -333,8 +336,17 @@ void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
                 materialName = it->second;
             }
         }
+
+        if (colorName == defaultMaterialName)
+        {
+            auto it = colorTable.find(node->appId);
+            if (it != colorTable.end())
+            {
+                colorName = it->second;
+            }
+        }
         
-        if (node->IsMesh() && meshId == "0")
+        if (node->IsMesh() && meshId == defaultId)
         {
             meshId = node->id;
         }
@@ -346,7 +358,7 @@ void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
 
         if ((node->IsInstanceProxy() || node->IsGeometryObject()) || node->IsDataObject())
         {
-            if (node->appId != "0")
+            if (node->appId != defaultId)
             {
                 lastId = node->appId;
             }
@@ -372,7 +384,7 @@ void RootObjectUnpacker::ProcessNode(const std::shared_ptr<Node>& child)
     double scaling = Units::GetConversionFactor(mesh.units, hostAppUnits.workingLengthUnits);
     mesh.ApplyTransform(transform.AsVector());
     mesh.ApplyScaling(scaling);
-    mesh.materialName = materialName;
+    mesh.materialName = (materialName != defaultMaterialName) ? materialName : colorName;
     
     if (proxyDefinitionObjects.find(lastId) == proxyDefinitionObjects.end())
     {

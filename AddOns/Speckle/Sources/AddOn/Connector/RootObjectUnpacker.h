@@ -24,6 +24,7 @@ private:
 	LibpartBuilder libPartBuilder;
 
 	std::map<std::string, std::string> materialTable;
+	std::map<std::string, std::string> colorTable;
 	std::map<std::string, std::shared_ptr<Node>> nodes;
 	std::map<std::string, std::shared_ptr<Node>> nodesByAppId;
 
