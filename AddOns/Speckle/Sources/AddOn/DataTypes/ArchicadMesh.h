@@ -6,6 +6,8 @@
 #include <functional>
 #include "Mesh.h"
 
+// TODO move the belov helper classes to their own files
+// use API classes if possible
 struct ArchicadVertex 
 {
     double x, y, z;
@@ -16,8 +18,7 @@ struct ArchicadEdge
     int start, end;
     int poly1 = -1, poly2 = -1;
     double polyAngle = 0.0;
-    bool isVisible = true;
-    std::string visibilityType; // smoothBodyEdge/hiddenBodyEdge/visibleBodyEdge, should be enum
+    std::string visibilityType; // smoothBodyEdge/hiddenBodyEdge/visibleBodyEdge, TODO should be enum
 
     bool Equals(const ArchicadEdge& other) const
     {
@@ -36,6 +37,7 @@ struct ArchicadPoly
     std::vector<int> edges;
     std::string materialName;
     ArchicadVertex normal;
+    bool isCoplanar = false;
 };
 
 class ArchicadMesh 

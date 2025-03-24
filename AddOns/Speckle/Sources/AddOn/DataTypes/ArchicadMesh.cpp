@@ -22,7 +22,7 @@ static void RemoveDuplicates(std::vector<int>& vec)
 	vec = std::move(uniqueVec);
 }
 
-size_t ArchicadMesh::ArchicadVertexHash(const ArchicadVertex& vertex) const 
+size_t ArchicadMesh::ArchicadVertexHash(const ArchicadVertex& vertex) const
 {
     std::hash<double> hasher;
     return hasher(vertex.x) ^ (hasher(vertex.y) << 1) ^ (hasher(vertex.z) << 2);
@@ -35,6 +35,46 @@ ArchicadMesh::ArchicadMesh(const Mesh& mesh)
 	ComputeEdgeVisibility();
 }
 
+// TODO move these functions into Vertex/Vector3 class or use built in classes
+static double DotProduct(const ArchicadVertex& a, const ArchicadVertex& b)
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+static ArchicadVertex CrossProduct(const ArchicadVertex& a, const ArchicadVertex& b)
+{
+	return { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x };
+}
+
+static ArchicadVertex Subtract(const ArchicadVertex& a, const ArchicadVertex& b)
+{
+	return { a.x - b.x, a.y - b.y, a.z - b.z };
+}
+
+static bool IsCoplanar(const std::vector<ArchicadVertex>& polyVertices)
+{
+	if (polyVertices.size() < 4) return true; // Any three points are always coplanar
+
+	const ArchicadVertex& v0 = polyVertices[0];
+	const ArchicadVertex& v1 = polyVertices[1];
+	const ArchicadVertex& v2 = polyVertices[2];
+
+	ArchicadVertex normal = CrossProduct(Subtract(v1, v0), Subtract(v2, v0));
+	double normLength = std::sqrt(DotProduct(normal, normal));
+	if (normLength == 0) return true;
+
+	normal = { normal.x / normLength, normal.y / normLength, normal.z / normLength };
+
+	for (size_t i = 3; i < polyVertices.size(); ++i)
+	{
+		ArchicadVertex viVec = Subtract(polyVertices[i], v0);
+		double dot = DotProduct(viVec, normal);
+		// TODO review threshold
+		if (std::abs(dot) > 1e-6) return false; // Not coplanar
+	}
+	return true;
+}
+
 void ArchicadMesh::CreateMesh(const Mesh& mesh)
 {
     int vertexIndex = 1;
@@ -44,6 +84,11 @@ void ArchicadMesh::CreateMesh(const Mesh& mesh)
 	{
 		int polySize = mesh.faces[i++];
 		std::vector<int> faceVertices;
+
+		if (polySize < 3)
+		{
+			polySize += 3;
+		}
 
 		for (int j = 0; j < polySize; ++j)
 		{
@@ -70,35 +115,88 @@ void ArchicadMesh::CreateMesh(const Mesh& mesh)
 
 		if (polySize > 2)
 		{
-			++polyIndex;
-			std::vector<int> polyEdges;
-			for (int j = 0; j < polySize; ++j)
+			std::vector<ArchicadVertex> actualPoly;
+			for (const auto& vi : faceVertices)
 			{
-				ArchicadEdge acEdge{ faceVertices[j], faceVertices[(j + 1) % polySize] };
-				int foundEdgeIndex = 1;
-				bool newEdge = true;
-
-				// checking if edge already exists
-				for (auto& e : edges) 
-				{
-					if (acEdge.Equals(e) || acEdge.Opposite(e)) 
-					{
-						e.poly2 = polyIndex;
-						polyEdges.push_back(acEdge.Equals(e) ? foundEdgeIndex : -foundEdgeIndex);
-						newEdge = false;
-						break;
-					}
-					++foundEdgeIndex;
-				}
-
-				if (newEdge) 
-				{
-					acEdge.poly1 = polyIndex;
-					edges.push_back(acEdge);
-					polyEdges.push_back(static_cast<int>(edges.size()));
-				}
+				actualPoly.push_back(vertices[vi - 1]);
 			}
-			polys.push_back({ polySize, polyEdges, mesh.materialName });
+
+			// TODO remove code duplications from if-else
+			if (IsCoplanar(actualPoly))
+			{
+				++polyIndex;
+				std::vector<int> polyEdges;
+				for (int j = 0; j < polySize; ++j)
+				{
+					ArchicadEdge acEdge{ faceVertices[j], faceVertices[(j + 1) % polySize] };
+					int foundEdgeIndex = 1;
+					bool newEdge = true;
+
+					// checking if edge already exists
+					for (auto& existingEdge : edges)
+					{
+						if (acEdge.Equals(existingEdge) || acEdge.Opposite(existingEdge))
+						{
+							if (existingEdge.poly2 == -1)
+							{
+								existingEdge.poly2 = polyIndex;
+								polyEdges.push_back(acEdge.Equals(existingEdge) ? foundEdgeIndex : -foundEdgeIndex);
+								newEdge = false;
+							}
+							break;
+						}
+						++foundEdgeIndex;
+					}
+
+					if (newEdge)
+					{
+						acEdge.poly1 = polyIndex;
+						edges.push_back(acEdge);
+						polyEdges.push_back(static_cast<int>(edges.size()));
+					}
+				}
+				polys.push_back({ polySize, polyEdges, mesh.materialName });
+			}
+			else
+			{
+				for (size_t j = 1; j < faceVertices.size() - 1; ++j)
+				{
+					++polyIndex;
+					std::vector<int> triEdges;
+					ArchicadEdge e1 = { faceVertices[0], faceVertices[j] };
+					ArchicadEdge e2 = { faceVertices[j], faceVertices[j + 1] };
+					ArchicadEdge e3 = { faceVertices[j + 1], faceVertices[0] };
+
+					std::vector<ArchicadEdge> triEdgesList = { e1, e2, e3 };
+					for (auto& triEdge : triEdgesList)
+					{
+						bool newEdge = true;
+						int foundEdgeIndex = 1;
+
+						for (auto& existingEdge : edges)
+						{
+							if (triEdge.Equals(existingEdge) || triEdge.Opposite(existingEdge))
+							{
+								if (existingEdge.poly2 == -1)
+								{
+									existingEdge.poly2 = polyIndex;
+									triEdges.push_back(triEdge.Equals(existingEdge) ? foundEdgeIndex : -foundEdgeIndex);
+									newEdge = false;
+								}							
+								break;
+							}
+							++foundEdgeIndex;
+						}
+						if (newEdge)
+						{
+							triEdge.poly1 = polyIndex;
+							edges.push_back(triEdge);
+							triEdges.push_back(static_cast<int>(edges.size()));
+						}
+					}
+					polys.push_back({ 3, triEdges, mesh.materialName });
+				}
+			}	
 		}
 	}
 }
@@ -183,18 +281,15 @@ void ArchicadMesh::ComputeEdgeVisibility()
 		// Boundary edges are always visible
 		if (edge.poly1 == -1 || edge.poly2 == -1) 
 		{
-			edge.isVisible = true; 
 			edge.visibilityType = "visibleBodyEdge";
 			continue;
 		}
 
 		const ArchicadVertex& normal1 = polys[edge.poly1 - 1].normal;
 		const ArchicadVertex& normal2 = polys[edge.poly2 - 1].normal;
-
 		double angle = ComputeAngleBetweenNormals(normal1, normal2);
-		edge.isVisible = (angle > visibleThresholdAngle);
 
-		// TODO move strings and bool to enum
+		// TODO move strings to enum
 		edge.visibilityType = "smoothBodyEdge";
 		if (angle > visibleThresholdAngle)
 		{

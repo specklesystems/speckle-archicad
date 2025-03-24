@@ -255,8 +255,12 @@ void LibpartBuilder::CreateLibPart(const ArchicadElement& element)
 		{
 			UInt32 start = static_cast<UInt32>(e.start);
 			UInt32 end = static_cast<UInt32>(e.end);
-			UInt32 pgon1 = static_cast<UInt32>(e.poly1);
-			UInt32 pgon2 = static_cast<UInt32>(e.poly2);
+			//UInt32 pgon1 = static_cast<UInt32>(e.poly1);
+			//UInt32 pgon2 = static_cast<UInt32>(e.poly2);
+
+			Int32 pgon1 = -1;
+			Int32 pgon2 = -1;
+
 			GS::UniString edgeVisibility = e.visibilityType.c_str();
 			line = GS::String::SPrintf("EDGE %d, %d, %d, %d, %s\t!#%u%s", start, end, pgon1, pgon2, edgeVisibility.ToCStr().Get(), edgeIndex++, GS::EOL);
 			ACAPI_LibraryPart_WriteSection(line.GetLength(), line.ToCStr());
