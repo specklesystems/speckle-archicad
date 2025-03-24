@@ -160,7 +160,7 @@ void RootObjectUnpacker::BakeMaterials()
     for (const auto& proxy : renderMaterialProxies)
     {
         std::ostringstream oss;
-        oss << baseGroupName << "_" << std::to_string(proxy.value.diffuse);
+        oss << baseGroupName << "_" << proxy.value.name;
         std::string materialName = oss.str();
 
         int materialIndex = 0;
