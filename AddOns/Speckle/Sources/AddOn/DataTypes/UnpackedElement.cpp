@@ -32,13 +32,6 @@ UnpackedElement::UnpackedElement(const std::vector<Mesh>& meshes, const std::map
                 newIndices.push_back(oldIndex + vertexOffset);
             }
 
-            /*std::string materialName = "speckle_default_material";
-            auto it = materialTable.find(mesh.applicationId);
-            if (it != materialTable.end())
-            {
-                materialName = it->second;
-            }*/
-
             if (polySize == 3)
             {
                 // Directly add triangles
