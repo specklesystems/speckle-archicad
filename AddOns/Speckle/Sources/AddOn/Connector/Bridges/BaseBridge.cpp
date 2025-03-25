@@ -163,7 +163,7 @@ void BaseBridge::HighlightModel(const RunMethodEventArgs& args)
 
     if (modelCard.IsSenderModelCard())
     {
-        auto selection = modelCard.AsSenderModelCard().sendFilter.selectedObjectIds;
+        auto selection = modelCard.AsSenderModelCard().sendFilter.GetSelectedObjectIds();
         CONNECTOR.GetSpeckleToHostConverter().SetSelection(selection);
     }
     else if(modelCard.IsReceiverModelCard())
