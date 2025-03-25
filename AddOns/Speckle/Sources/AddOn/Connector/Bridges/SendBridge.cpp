@@ -78,9 +78,9 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
     selectionFilter.summary = std::to_string(selectionFilter.selectedObjectIds.size()) + " objects selected";
 
     ArchicadElementTypeFilter elementTypeFilter;
-    for (const auto& t : CONNECTOR.GetHostToSpeckleConverter().GetElementTypeList())
+    for (const auto& typeName : CONNECTOR.GetHostToSpeckleConverter().GetElementTypeList())
     {
-        elementTypeFilter.availableCategories.push_back({ t, t });
+        elementTypeFilter.availableCategories.push_back({ typeName, typeName });
     }
 
     auto filters = nlohmann::json::array({ selectionFilter, elementTypeFilter });

@@ -8,9 +8,9 @@ struct ArchicadElementTypeFilter
     std::string typeDiscriminator = "ArchicadElementTypeFilter";
     std::vector<std::string> selectedObjectIds;
     std::string name = "Element Types";
-    // TODO change id
+    // revitCategories was first implemented on UI
+    // it will be used in Archicad as well for element type filters
     std::string id = "revitCategories";
-    //std::string id = "archicadElementTypes";
     std::string summary;
     bool isDefault = false;
     std::vector<std::string> selectedCategories;
