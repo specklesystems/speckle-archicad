@@ -1,9 +1,10 @@
 #pragma once
 
+#include "IBridge.h"
 #include "IBrowserAdapter.h"
 #include "Binding.h"
 
-class BaseBridge {
+class BaseBridge : public IBridge {
 public:
     BaseBridge(IBrowserAdapter* browser);
 

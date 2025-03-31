@@ -16,7 +16,9 @@ SendBridge::SendBridge(IBrowserAdapter* browser)
     sendBinding = std::make_unique<Binding>(
         "sendBinding",
         std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send", "AfterSendObjects" },
-        browser);
+        browser,
+        this
+    );
 
     sendBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
 }
@@ -71,16 +73,18 @@ void SendBridge::RunMethod(const RunMethodEventArgs& args)
 
 void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
 {
-    SendFilter filter;
-    filter.typeDiscriminator = "ArchicadSelectionFilter";
-    filter.name = "Selection";
-    filter.selectedObjectIds = CONNECTOR.GetHostToSpeckleConverter().GetSelection();
-    filter.summary = std::to_string(filter.selectedObjectIds.size()) + " objects selected";
-    filter.isDefault = true;
+    ArchicadSelectionFilter selectionFilter;
+    selectionFilter.selectedObjectIds = CONNECTOR.GetHostToSpeckleConverter().GetSelection();
+    selectionFilter.summary = std::to_string(selectionFilter.selectedObjectIds.size()) + " objects selected";
 
-    nlohmann::json sendFilters;
-    sendFilters.push_back(filter);
-    args.eventSource->SetResult(args.methodId, sendFilters);
+    ArchicadElementTypeFilter elementTypeFilter;
+    for (const auto& typeName : CONNECTOR.GetHostToSpeckleConverter().GetElementTypeList())
+    {
+        elementTypeFilter.availableCategories.push_back({ typeName, typeName });
+    }
+
+    auto filters = nlohmann::json::array({ selectionFilter, elementTypeFilter });
+    args.eventSource->SetResult(args.methodId, filters);
 }
 
 void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
@@ -92,10 +96,10 @@ void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 void SendBridge::Send(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)
-        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+        throw std::invalid_argument("Too few arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();
-    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId);
+    SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
 
     CONNECTOR.GetProcessWindow().Init("Sending...", 1);
 
@@ -113,8 +117,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     {
         nlohmann::json sendObj;
         RootObjectBuilder rootObjectBuilder{};
-        auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.selectedObjectIds, conversionResultCache);
-
+        auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.GetSelectedObjectIds(), conversionResultCache);
         BaseObjectSerializer serializer{};
         auto rootObjectId = serializer.Serialize(root);
         auto batches = serializer.BatchObjects(10);
@@ -143,10 +146,10 @@ void SendBridge::Send(const RunMethodEventArgs& args)
 void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)
-        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+        throw std::invalid_argument("Too few arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();
-    SendModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId);
+    SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
 
     AfterSendObjectsArgs afterSendObjectsArgs{};
     afterSendObjectsArgs.modelCardId = modelCard.modelCardId;

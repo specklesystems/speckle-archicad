@@ -13,7 +13,7 @@ void ModelCardDatabase::LoadModelsFromJson(const nlohmann::json j)
     if (j.empty() || !j.contains("models"))
         return;
 
-    for (const SendModelCard& modelCard : j["models"])
+    for (const ModelCard& modelCard : j["models"])
         modelCards[modelCard.modelCardId] = modelCard;
 }
 
@@ -41,16 +41,16 @@ void ModelCardDatabase::LoadModelsFromStorage()
     LoadModelsFromJson(data);
 }
 
-std::vector<SendModelCard> ModelCardDatabase::GetModels() const
+std::vector<ModelCard> ModelCardDatabase::GetModels() const
 {
-    std::vector<SendModelCard> cards;
+    std::vector<ModelCard> cards;
     for (const auto& [id, card] : modelCards)
         cards.push_back(card);
 
     return cards;
 }
 
-SendModelCard ModelCardDatabase::GetModelCard(const std::string& modelCardId) const
+ModelCard ModelCardDatabase::GetModelCard(const std::string& modelCardId) const
 {
     try
     {
@@ -63,13 +63,13 @@ SendModelCard ModelCardDatabase::GetModelCard(const std::string& modelCardId) co
     }
 }
 
-void ModelCardDatabase::AddModel(const SendModelCard& modelCard)
+void ModelCardDatabase::AddModel(const ModelCard& modelCard)
 {
     modelCards[modelCard.modelCardId] = modelCard;
     StoreModels();
 }
 
-void ModelCardDatabase::UpdateModel(const SendModelCard& modelCard)
+void ModelCardDatabase::UpdateModel(const ModelCard& modelCard)
 {
     modelCards[modelCard.modelCardId] = modelCard;
     StoreModels();

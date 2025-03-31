@@ -3,6 +3,7 @@
 #include "Event.h"
 #include "RunMethodEventArgs.h"
 #include "json.hpp"
+#include "IBridge.h"
 #include "IBrowserAdapter.h"
 #include "ToastNotification.h"
 
@@ -19,12 +20,13 @@ private:
     // this adapter will provide an interface for Bindings to register their JSObjects, and function names
     // without needing to include GS dependencies to DG::Browser in the Binding class
     IBrowserAdapter* _browserAdapter;
+    IBridge* _bridge;
 
     std::map<std::string, nlohmann::json> results;
 
 public:
     Binding() = default;
-    Binding(const std::string& name, const std::vector<std::string>& methodNames, IBrowserAdapter* browserAdapter);
+    Binding(const std::string& name, const std::vector<std::string>& methodNames, IBrowserAdapter* browserAdapter, IBridge* bridge);
     ~Binding() = default;
 
     std::string GetName() const;
@@ -44,4 +46,6 @@ public:
     void ClearResult(const std::string& methodId);
 
     void SetToastNotification(const ToastNotification& toast);
+
+    void RunMethod(const RunMethodEventArgs& args);
 };

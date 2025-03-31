@@ -13,6 +13,10 @@ struct Mesh
     std::vector<int> colors;
     std::map<int, int> archcicadVertexIndexMap;
     int materialIndex = 0;
+    std::string materialName = "";
+
+    void ApplyTransform(const std::vector<double>& transform);
+    void ApplyScaling(const double scaling);
 };
 
 void to_json(nlohmann::json& j, const Mesh& mesh);

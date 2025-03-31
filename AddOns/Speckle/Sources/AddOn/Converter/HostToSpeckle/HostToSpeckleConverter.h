@@ -8,6 +8,8 @@ public:
 	HostToSpeckleConverter() = default;
 
 	std::vector<std::string> GetSelection() override;
+	std::vector<std::string> GetElementList(const std::vector<std::string>& elementTypes) override;
+	std::vector<std::string> GetElementTypeList() override;
 	ElementBody GetElementBody(const std::string& elemId) override;
 	Material GetModelMaterial(int materialIndex) override;
 	std::string GetElementName(const std::string& elemId) override;

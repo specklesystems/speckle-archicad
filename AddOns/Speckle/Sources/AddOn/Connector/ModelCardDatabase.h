@@ -14,14 +14,14 @@ public:
     void StoreModels() override;
     void LoadModelsFromStorage() override;
 
-    std::vector<SendModelCard> GetModels() const override;
-    SendModelCard GetModelCard(const std::string& modelCardId) const override;
-    void AddModel(const SendModelCard& modelCard) override;
-    void UpdateModel(const SendModelCard& modelCard) override;
+    std::vector<ModelCard> GetModels() const override;
+    ModelCard GetModelCard(const std::string& modelCardId) const override;
+    void AddModel(const ModelCard& modelCard) override;
+    void UpdateModel(const ModelCard& modelCard) override;
     void RemoveModel(const std::string& modelCardId) override;
     void ClearModels() override;
 
 private:
     std::unique_ptr<IDataStorage> dataStorage;
-    std::map<std::string, SendModelCard> modelCards;
+    std::map<std::string, ModelCard> modelCards;
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#define STOPWATCH StopWatch::GetInstance()
+#define SW StopWatch::GetInstance()
 
 #include <string>
 #include <chrono>

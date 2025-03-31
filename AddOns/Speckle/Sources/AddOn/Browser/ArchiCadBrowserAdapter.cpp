@@ -102,8 +102,8 @@ void ArchiCadBrowserAdapter::RegisterBinding(Binding* binding)
 			// failed to parse json
 			// data will be an empty json object
 		}
+		binding->RunMethod(RunMethodEventArgs(binding, args[0], args[1], data));
 
-		binding->RunMethodRequested(RunMethodEventArgs(binding, args[0], args[1], data));
 		return ConvertToJavaScriptVariable(true);
 	}));
 
