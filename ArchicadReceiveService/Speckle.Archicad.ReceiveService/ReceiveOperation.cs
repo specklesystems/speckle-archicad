@@ -23,7 +23,7 @@ public sealed class ReceiveOperation(IClientFactory clientFactory, IAccountManag
     var rootObject = await operations.Receive2(new(account.serverInfo.url), projectId, version.referencedObject, account.token, null, cancellationToken);
 
   
-    hostObjectBuilder.Build(rootObject, cancellationToken);
+    await hostObjectBuilder.Build(rootObject, cancellationToken);
   }
   
 }

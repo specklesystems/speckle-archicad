@@ -8,9 +8,11 @@ using Speckle.Sdk.Models.Instances;
 namespace Speckle.Archicad.ReceiveService;
 
 [GenerateAutoInterface]
-public class HostObjectBuilder : IHostObjectBuilder
+public sealed class HostObjectBuilder : IHostObjectBuilder, IDisposable
 {
-  public void Build(
+
+
+  public async Task Build(
     Base rootObject,
     CancellationToken cancellationToken
   )
@@ -34,23 +36,35 @@ public class HostObjectBuilder : IHostObjectBuilder
       switch (current)
       {
        case Mesh m:
-         MeshesToHost([m]);
+         await MeshesToHost([m]);
          break;
        case InstanceProxy p:
          Console.WriteLine(p.id);
          break;
        case DataObject d:
-         MeshesToHost(d.displayValue.OfType<Mesh>());
+         await MeshesToHost(d.displayValue.OfType<Mesh>());
          break;
       }
     }
   }
 
-  private void MeshesToHost(IEnumerable<Mesh> meshes)
+  private readonly HttpClient _client = new HttpClient();
+  private static readonly Uri s_archicadService = new Uri("localhost:8080");
+  
+  private async Task MeshesToHost(IEnumerable<Mesh> meshes)
   {
     foreach (var mesh in meshes)
     {
       Console.WriteLine(mesh.id);
+      //Example of making a HTTP request
+      var res = await _client.GetAsync(s_archicadService);
+      res.EnsureSuccessStatusCode();
+      
     }
+  }
+
+  public void Dispose()
+  {
+    _client.Dispose();
   }
 }
