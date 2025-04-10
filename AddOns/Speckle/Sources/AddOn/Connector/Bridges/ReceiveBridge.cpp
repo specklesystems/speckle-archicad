@@ -4,6 +4,7 @@
 #include "Connector.h"
 #include "HostObjectBuilder.h"
 #include "UserCancelledException.h"
+#include "LibpartPlacer.h"
 
 ReceiveBridge::ReceiveBridge(IBrowserAdapter* browser)
 {
@@ -57,6 +58,79 @@ void ReceiveBridge::RunMethod(const RunMethodEventArgs& args)
     }
 }
 
+#include <windows.h>
+#include <string>
+#include <iostream>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+static bool ClearDirectory(const std::string& path) {
+    try {
+        if (!fs::exists(path) || !fs::is_directory(path)) {
+            std::cerr << "Path does not exist or is not a directory: " << path << std::endl;
+            return false;
+        }
+
+        for (const auto& entry : fs::directory_iterator(path)) {
+            fs::remove_all(entry);
+        }
+
+        return true;
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+        return false;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "General error: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+static void RunReceiveService(const std::string& projectId, const std::string& selectedVersionId, const std::string& accountId) 
+{
+    std::string targetPath = R"(C:\poc)";
+    ClearDirectory(targetPath);
+
+    // Path to the .exe
+    std::string exePath = R"(C:\dev\speckle-archicad\speckle-archicad\ArchicadReceiveService\Speckle.Archicad.ReceiveService\bin\Debug\net8.0\Speckle.Archicad.ReceiveService.exe)";
+
+    // Build the full command line
+    std::string commandLine = "\"" + exePath + "\" " + projectId + " " + selectedVersionId + " " + accountId;
+
+    // Convert to LPSTR (Windows API requires mutable char array)
+    char* cmdLine = _strdup(commandLine.c_str());
+
+    STARTUPINFOA si = { sizeof(STARTUPINFOA) };
+    PROCESS_INFORMATION pi;
+
+    // Create the process
+    if (!CreateProcessA(
+        NULL,
+        cmdLine,
+        NULL,
+        NULL,
+        FALSE,
+        0,
+        NULL,
+        NULL,
+        &si,
+        &pi)) {
+        std::cerr << "Failed to start process. Error: " << GetLastError() << std::endl;
+        free(cmdLine);
+        return;
+    }
+
+    // Wait until the process exits (optional)
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    // Cleanup
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    free(cmdLine);
+}
+
 void ReceiveBridge::Receive(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)
@@ -73,7 +147,16 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     receiveArgs["modelCardId"] = card.modelCardId;
     receiveArgs["selectedVersionId"] = card.selectedVersionId;
 
-    args.eventSource->Send("receiveByBrowser", receiveArgs);
+    if (false)
+    {
+        args.eventSource->Send("receiveByBrowser", receiveArgs);
+    }
+    else
+    {
+        RunReceiveService(card.projectId, card.selectedVersionId, card.accountId);
+        LibpartPlacer lp;
+        lp.AddLibparts();
+    }
 }
 
 void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
