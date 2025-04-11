@@ -2,7 +2,7 @@
   "profiles": {
     "Speckle.Archicad.ReceiveService": {
       "commandName": "Project",
-      "commandLineArgs": "5cae317bdb 673b098b47 56CEDA5BBD148EA03214D2E8A59B3EB8",
+      "commandLineArgs": "8be1007be1 af2b95b3ab 56CEDA5BBD148EA03214D2E8A59B3EB8",
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

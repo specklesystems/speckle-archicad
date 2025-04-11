@@ -3,16 +3,21 @@ using Speckle.InterfaceGenerator;
 using Speckle.Objects.Geometry;
 using Speckle.Sdk.Models;
 using Speckle.Sdk.Models.GraphTraversal;
-using Speckle.Sdk.Models.Collections;
+//using Speckle.Sdk.Models.Collections;
 using Speckle.Sdk.Models.Extensions;
 //using System.Collections.Concurrent;
 using System.Diagnostics;
 using Speckle.Objects.Other;
+using Speckle.Archicad.ReceiveService.Instances;
+using Speckle.Archicad.ReceiveService.Operations.Receive;
+using Speckle.Objects;
+using Speckle.Sdk;
+using Speckle.DoubleNumerics;
+
 
 namespace Speckle.Archicad.ReceiveService;
-
 [GenerateAutoInterface]
-public sealed class HostObjectBuilder : IHostObjectBuilder
+public sealed class HostObjectBuilder() : IHostObjectBuilder
 {
   private Dictionary<string, string> _elementMaterials;
   private Dictionary<string, ArchicadMaterial> _materialTable;
@@ -49,12 +54,89 @@ public sealed class HostObjectBuilder : IHostObjectBuilder
       }
     }
 
-    List<TraversalContext> objectsToConvertTc = DefaultTraversal.CreateTraversalFunc()
+    var rootObjectUnpacker = new RootObjectUnpacker(DefaultTraversal.CreateTraversalFunc());
+    var localToGlobalUnpacker = new LocalToGlobalUnpacker();
+
+    // 1 - Unpack objects and proxies from root commit object
+    var unpackedRoot = rootObjectUnpacker.Unpack(rootObject);
+    var localToGlobalMaps = localToGlobalUnpacker.Unpack(
+      unpackedRoot.DefinitionProxies,
+      unpackedRoot.ObjectsToConvert.ToList()
+    );
+
+    //**********************************************************************************
+
+    var results = new List<ArchicadElement>();
+
+    foreach (LocalToGlobalMap localToGlobalMap in localToGlobalMaps)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      try
+      {
+        // POC hack of the ages: try to pre transform curves, points and meshes before baking
+        // we need to bypass the local to global converter as there we don't have access to what we want. that service will/should stop existing.
+        if (
+          localToGlobalMap.AtomicObject is ITransformable transformable // and ICurve
+          && localToGlobalMap.Matrix.Count > 0
+          && localToGlobalMap.AtomicObject["units"] is string units
+        )
+        {
+          //TODO TransformTo will be deprecated as it's dangerous and requires ID transposing which is wrong!
+          //ID needs to be copied to the new instance
+          var id = localToGlobalMap.AtomicObject.id;
+          ITransformable? newTransformable = null;
+          foreach (var mat in localToGlobalMap.Matrix)
+          {
+            transformable.TransformTo(new Transform() { matrix = mat, units = units }, out newTransformable);
+            transformable = newTransformable; // we need to keep the reference to the new object, as we're going to use it in the cache
+          }
+
+          localToGlobalMap.AtomicObject = (newTransformable as Base)!;
+          localToGlobalMap.AtomicObject.id = id; // restore the id, as it's used in the cache
+          localToGlobalMap.Matrix = new HashSet<Matrix4x4>(); // flush out the list, as we've applied the transforms already
+        }
+
+        // actual conversion happens here!
+
+        var elem = ConvertToArchicadElement(localToGlobalMap.AtomicObject, localToGlobalMap.Matrix);
+        if (!elem.Empty)
+        {
+          results.Add(elem);
+        }
+
+        /*var result = converter.Convert(localToGlobalMap.AtomicObject);
+        if (result is DirectShapeDefinitionWrapper)
+        {
+          // direct shape creation happens here
+          DirectShape directShapes = localToGlobalDirectShapeConverter.Convert(
+            (localToGlobalMap.AtomicObject, localToGlobalMap.Matrix)
+          );
+
+          if (localToGlobalMap.AtomicObject is IRawEncodedObject and Base myBase)
+          {
+            postBakePaintTargets.Add((directShapes, myBase.applicationId ?? myBase.id.NotNull()));
+          }
+        }
+        else
+        {
+          throw new ConversionException($"Failed to cast {result.GetType()} to direct shape definition wrapper.");
+        }*/
+      }
+      catch (Exception ex) when (!ex.IsFatal())
+      {
+        // TODO
+      }
+    }
+
+    //**********************************************************************************
+
+
+    /*List<TraversalContext> objectsToConvertTc = DefaultTraversal.CreateTraversalFunc()
         .Traverse(rootObject)
         .Where(ctx => ctx.Current is not Collection)
         .ToList();
 
-    /*var batchSize = 1; // Adjust based on performance testing
+    var batchSize = 1; // Adjust based on performance testing
     var batches = objectsToConvertTc.Chunk(batchSize);
 
     var results = new ConcurrentBag<ArchicadElement>();
@@ -74,7 +156,7 @@ public sealed class HostObjectBuilder : IHostObjectBuilder
     }, cancellationToken)).ToArray();
     await Task.WhenAll(tasks);*/
 
-    var results = new List<ArchicadElement>();
+    /*var results = new List<ArchicadElement>();
     foreach (var context in objectsToConvertTc)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -83,7 +165,7 @@ public sealed class HostObjectBuilder : IHostObjectBuilder
       {
         results.Add(elem);
       }
-    }
+    }*/
 
     await PrintElementsAsync(results.ToList());
 
@@ -98,16 +180,43 @@ public sealed class HostObjectBuilder : IHostObjectBuilder
   private IReadOnlyCollection<T>? TryGetProxies<T>(Base root, string key) =>
     (root[key] as List<object>)?.Cast<T>().ToList();
 
-  private ArchicadElement ConvertToArchicadElement(Base target)
+  private ArchicadMaterial? GetMaterialById(string appId)
+  {
+    //string matName = "speckle_default_material";
+    if (_elementMaterials.TryGetValue(appId, out var materialId))
+    {
+      if (_materialTable.TryGetValue(materialId, out var material))
+      {
+        return material;
+      }
+    }
+    return null;
+  }
+
+  private ArchicadElement ConvertToArchicadElement(Base target, IReadOnlyCollection<Matrix4x4> matrix)
   {
     var elem = new ArchicadElement();
+    string elemId = target.applicationId ?? "0";
     string matName = "speckle_default_material";
     var addedMaterials = new HashSet<string>();
+
+    var combinedTransform = Matrix4x4.Identity;
+
+    // existence of units is must, to be able to scale the transform correctly
+    /*if (target["units"] is string units)
+    {
+      
+    }*/
+
+    foreach (Matrix4x4 m in matrix)
+    {
+      combinedTransform *= m;
+    }
 
     foreach (var mesh in GetMeshes(target))
     {
       string meshId = mesh.applicationId ?? "0";
-      if (_elementMaterials.TryGetValue(meshId, out var materialId))
+      /*if (_elementMaterials.TryGetValue(meshId, out var materialId))
       {
         if (_materialTable.TryGetValue(materialId, out var material)) 
         {
@@ -117,8 +226,33 @@ public sealed class HostObjectBuilder : IHostObjectBuilder
             elem.AddMaterial(material);
           }
         }
+      }*/
+
+      var meshmat = GetMaterialById(meshId);
+      if (meshmat != null) 
+      {
+        matName = meshmat.Name;
+        if (addedMaterials.Add(meshmat.Name))
+        {
+          elem.AddMaterial(meshmat);
+        }
       }
+      else
+      {
+        var elemmat = GetMaterialById(elemId);
+        if (elemmat != null)
+        {
+          matName = elemmat.Name;
+          if (addedMaterials.Add(elemmat.Name))
+          {
+            elem.AddMaterial(elemmat);
+          }
+        }
+      }
+
+
       var acMesh = new ArchicadMesh(mesh, matName);
+      acMesh.ApplyTransform(combinedTransform);
       acMesh.Scale(0.001);
       elem.AddMesh(acMesh);
     }

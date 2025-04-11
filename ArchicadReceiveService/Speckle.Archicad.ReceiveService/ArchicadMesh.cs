@@ -1,5 +1,6 @@
 using System.Text;
 using Speckle.Objects.Geometry;
+using Speckle.DoubleNumerics;
 
 namespace Speckle.Archicad.ReceiveService;
 
@@ -73,6 +74,34 @@ public class ArchicadMesh
       v.Z *= scaling;
     }
   }
+
+  public void ApplyTransform(Matrix4x4 transform)
+  {
+    foreach (var v in Vertices)
+    {
+      double x = v.X;
+      double y = v.Y;
+      double z = v.Z;
+
+      double tx = transform.M11 * x + transform.M12 * y + transform.M13 * z + transform.M14;
+      double ty = transform.M21 * x + transform.M22 * y + transform.M23 * z + transform.M24;
+      double tz = transform.M31 * x + transform.M32 * y + transform.M33 * z + transform.M34;
+      double tw = transform.M41 * x + transform.M42 * y + transform.M43 * z + transform.M44;
+
+      // Handle homogeneous coordinate (if tw is not 1)
+      if (tw != 0.0 && tw != 1.0)
+      {
+        tx /= tw;
+        ty /= tw;
+        tz /= tw;
+      }
+
+      v.X = tx;
+      v.Y = ty;
+      v.Z = tz;
+    }
+  }
+
 
   public override string ToString()
   {
