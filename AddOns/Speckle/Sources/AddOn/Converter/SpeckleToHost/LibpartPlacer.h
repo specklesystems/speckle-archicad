@@ -15,8 +15,10 @@ class LibpartPlacer
 public:
 	std::vector<std::pair<std::string, std::string>> CollectFiles(const std::string& folderPath);
 	API_LibPart Create(const std::string& path, const std::string& fn);
-	void AddLibparts();
+	void AddLibparts(const std::string& path);
 	void SetLibs();
+	void LoadLibpartsFromSubDirs(const std::string& rootDir);
+	void WaitForResultsJson(const std::string& filePath);
 
 private:
 	API_DatabaseInfo GetCurrentDB();

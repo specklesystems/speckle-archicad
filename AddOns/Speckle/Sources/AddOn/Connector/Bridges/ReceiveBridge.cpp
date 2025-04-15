@@ -123,7 +123,7 @@ static void RunReceiveService(const std::string& projectId, const std::string& s
     }
 
     // Wait until the process exits (optional)
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    //WaitForSingleObject(pi.hProcess, INFINITE);
 
     // Cleanup
     CloseHandle(pi.hProcess);
@@ -155,7 +155,9 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     {
         RunReceiveService(card.projectId, card.selectedVersionId, card.accountId);
         LibpartPlacer lp;
-        lp.AddLibparts();
+        //lp.AddLibparts("C:\\poc\\out");
+        lp.WaitForResultsJson("C:\\poc\\_output\\Batch_001\\results.json");
+        lp.LoadLibpartsFromSubDirs("C:\\poc\\_output");
     }
 }
 

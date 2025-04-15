@@ -7,8 +7,11 @@
 #include <Connector.h>
 #include <ACAPI_Environment.h>
 
+#include <thread>
+#include <chrono>
 #include <filesystem>
 #include "StopWatch.h"
+#include <set>
 
 namespace fs = std::filesystem;
 
@@ -152,7 +155,7 @@ void LibpartPlacer::PlaceLibparts(const std::vector<Int32>& libIndices)
 		});
 }
 
-void LibpartPlacer::AddLibparts()
+void LibpartPlacer::AddLibparts(const std::string& path)
 {
 	std::string t;
 	std::vector<Int32> libIndices;
@@ -160,7 +163,7 @@ void LibpartPlacer::AddLibparts()
 
 	SW.Start();
 
-	auto files = CollectFiles("C:\\poc\\out");
+	auto files = CollectFiles(path);
 	GS::Array<API_LibPart> libparts;
 
 	for (const auto& f : files)
@@ -181,10 +184,10 @@ void LibpartPlacer::AddLibparts()
 		libIndices.push_back(p.index);
 	}
 
-	PlaceLibparts(libIndices);
-
 	t = SW.Stop();
 	std::cout << t;
+	PlaceLibparts(libIndices);
+
 }
 
 void LibpartPlacer::SetLibs()
@@ -200,4 +203,71 @@ void LibpartPlacer::SetLibs()
 		ACAPI_LibraryManagement_SetLibraries(&libInfo);
 	}
 }
+
+void LibpartPlacer::LoadLibpartsFromSubDirs(const std::string& rootDir)
+{
+	std::set<std::string> processedDirs;
+
+	while (true)
+	{
+		bool anyNewProcessed = false;
+
+		for (const auto& entry : fs::directory_iterator(rootDir))
+		{
+			if (fs::is_directory(entry))
+			{
+				std::string subDirName = entry.path().string();
+
+				// Skip already processed subdirectories
+				if (processedDirs.find(subDirName) != processedDirs.end())
+					continue;
+
+				fs::path resultsFilePath = entry.path() / "results.json";
+
+				// If results.json exists, process this directory
+				if (fs::exists(resultsFilePath))
+				{
+					std::cout << "Processing: " << subDirName << std::endl;
+					AddLibparts(subDirName);
+					processedDirs.insert(subDirName);
+					anyNewProcessed = true;
+				}
+			}
+		}
+
+		// Exit the loop if no new subdirs were processed in this iteration
+		if (!anyNewProcessed)
+			break;
+	}
+}
+
+void LibpartPlacer::WaitForResultsJson(const std::string& filePath)
+{
+	while (true)
+	{
+		try
+		{
+			// Check if the file exists
+			if (fs::exists(filePath))
+			{
+				std::cout << "File detected: " << filePath << std::endl;
+				break;
+			}
+		}
+		catch (const fs::filesystem_error& e)
+		{
+			// Handle errors such as path not existing
+			std::cerr << "Filesystem error: " << e.what() << std::endl;
+		}
+		catch (const std::exception& e)
+		{
+			// Catch any other standard exceptions
+			std::cerr << "Error: " << e.what() << std::endl;
+		}
+
+		// Wait a bit before checking again
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+}
+
 

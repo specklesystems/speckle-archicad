@@ -1,4 +1,4 @@
-﻿using Speckle.Sdk.Api;
+using Speckle.Sdk.Api;
 using Speckle.Sdk.Credentials;
 using Version = Speckle.Sdk.Api.GraphQL.Models.Version;
 
@@ -25,5 +25,4 @@ public sealed class ReceiveOperation(IClientFactory clientFactory, IAccountManag
   
     await hostObjectBuilder.Build(rootObject, cancellationToken);
   }
-  
 }

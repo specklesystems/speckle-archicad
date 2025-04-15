@@ -3,9 +3,7 @@ using Speckle.InterfaceGenerator;
 using Speckle.Objects.Geometry;
 using Speckle.Sdk.Models;
 using Speckle.Sdk.Models.GraphTraversal;
-//using Speckle.Sdk.Models.Collections;
 using Speckle.Sdk.Models.Extensions;
-//using System.Collections.Concurrent;
 using System.Diagnostics;
 using Speckle.Objects.Other;
 using Speckle.Archicad.ReceiveService.Instances;
@@ -13,7 +11,7 @@ using Speckle.Archicad.ReceiveService.Operations.Receive;
 using Speckle.Objects;
 using Speckle.Sdk;
 using Speckle.DoubleNumerics;
-
+using System.Collections.Concurrent;
 
 namespace Speckle.Archicad.ReceiveService;
 [GenerateAutoInterface]
@@ -37,7 +35,7 @@ public sealed class HostObjectBuilder() : IHostObjectBuilder
         var proxyId = proxy.GetId();
         foreach (var elem in proxy.objects)
         {
-          _elementMaterials.Add(elem, proxyId);
+          _elementMaterials.TryAdd(elem, proxyId);
         }
       }
     }
@@ -61,117 +59,164 @@ public sealed class HostObjectBuilder() : IHostObjectBuilder
     var unpackedRoot = rootObjectUnpacker.Unpack(rootObject);
     var localToGlobalMaps = localToGlobalUnpacker.Unpack(
       unpackedRoot.DefinitionProxies,
-      unpackedRoot.ObjectsToConvert.ToList()
+    unpackedRoot.ObjectsToConvert.ToList()
     );
 
-    //**********************************************************************************
+#pragma warning disable CA2000
 
-    var results = new List<ArchicadElement>();
+    // 2 - Processing Elements in a Loop
+    //var resultsQueue = new BlockingCollection<ArchicadElement>();
 
-    foreach (LocalToGlobalMap localToGlobalMap in localToGlobalMaps)
+    /*var rootFolder = @"C:\poc";
+    var outFolder = @"out";
+    int filesPerFolder = 100;
+    var fileWriter = new FileWriter(rootFolder, outFolder, filesPerFolder);
+
+    var consumerTask = Task.Run(() =>
+    {
+      foreach (var elem in resultsQueue.GetConsumingEnumerable())
+      {
+        fileWriter.Write(elem); // Your FileWriter class's write logic
+      }
+    }, cancellationToken);*/
+
+    //var numConsumers = Environment.ProcessorCount;
+    /*var numConsumers = 4;
+    var tasks = new List<Task>();
+    var rootFolder = @"C:\poc";
+    var outFolder = @"out";
+    int filesPerFolder = 100;
+
+    for (int i = 0; i < numConsumers; i++)
+    {
+      int index = i;
+      var writer = new FileWriter(rootFolder, $"{outFolder}_{index}", filesPerFolder);
+
+      tasks.Add(Task.Run(() =>
+      {
+        foreach (var elem in resultsQueue.GetConsumingEnumerable())
+        {
+          writer.Write(elem);
+        }
+      }, cancellationToken));
+    }*/
+
+    /*foreach (LocalToGlobalMap localToGlobalMap in localToGlobalMaps)
     {
       cancellationToken.ThrowIfCancellationRequested();
       try
       {
-        // POC hack of the ages: try to pre transform curves, points and meshes before baking
-        // we need to bypass the local to global converter as there we don't have access to what we want. that service will/should stop existing.
         if (
-          localToGlobalMap.AtomicObject is ITransformable transformable // and ICurve
+          localToGlobalMap.AtomicObject is ITransformable transformable
           && localToGlobalMap.Matrix.Count > 0
           && localToGlobalMap.AtomicObject["units"] is string units
         )
         {
-          //TODO TransformTo will be deprecated as it's dangerous and requires ID transposing which is wrong!
-          //ID needs to be copied to the new instance
           var id = localToGlobalMap.AtomicObject.id;
           ITransformable? newTransformable = null;
           foreach (var mat in localToGlobalMap.Matrix)
           {
             transformable.TransformTo(new Transform() { matrix = mat, units = units }, out newTransformable);
-            transformable = newTransformable; // we need to keep the reference to the new object, as we're going to use it in the cache
+            transformable = newTransformable;
           }
 
           localToGlobalMap.AtomicObject = (newTransformable as Base)!;
-          localToGlobalMap.AtomicObject.id = id; // restore the id, as it's used in the cache
-          localToGlobalMap.Matrix = new HashSet<Matrix4x4>(); // flush out the list, as we've applied the transforms already
+          localToGlobalMap.AtomicObject.id = id;
+          localToGlobalMap.Matrix = new HashSet<Matrix4x4>();
         }
-
-        // actual conversion happens here!
 
         var elem = ConvertToArchicadElement(localToGlobalMap.AtomicObject, localToGlobalMap.Matrix);
         if (!elem.Empty)
         {
-          results.Add(elem);
+          resultsQueue.Add(elem, cancellationToken); // Add to queue instead of results list
         }
-
-        /*var result = converter.Convert(localToGlobalMap.AtomicObject);
-        if (result is DirectShapeDefinitionWrapper)
-        {
-          // direct shape creation happens here
-          DirectShape directShapes = localToGlobalDirectShapeConverter.Convert(
-            (localToGlobalMap.AtomicObject, localToGlobalMap.Matrix)
-          );
-
-          if (localToGlobalMap.AtomicObject is IRawEncodedObject and Base myBase)
-          {
-            postBakePaintTargets.Add((directShapes, myBase.applicationId ?? myBase.id.NotNull()));
-          }
-        }
-        else
-        {
-          throw new ConversionException($"Failed to cast {result.GetType()} to direct shape definition wrapper.");
-        }*/
       }
       catch (Exception ex) when (!ex.IsFatal())
       {
-        // TODO
-      }
-    }
-
-    //**********************************************************************************
-
-
-    /*List<TraversalContext> objectsToConvertTc = DefaultTraversal.CreateTraversalFunc()
-        .Traverse(rootObject)
-        .Where(ctx => ctx.Current is not Collection)
-        .ToList();
-
-    var batchSize = 1; // Adjust based on performance testing
-    var batches = objectsToConvertTc.Chunk(batchSize);
-
-    var results = new ConcurrentBag<ArchicadElement>();
-
-    var tasks = batches.Select(batch => Task.Run(() =>
-    {
-      foreach (var context in batch)
-      {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var elem = ConvertToArchicadElement(context.Current);
-        if (!elem.Empty)
-        {
-          results.Add(elem);
-        }
-      }
-    }, cancellationToken)).ToArray();
-    await Task.WhenAll(tasks);*/
-
-    /*var results = new List<ArchicadElement>();
-    foreach (var context in objectsToConvertTc)
-    {
-      cancellationToken.ThrowIfCancellationRequested();
-      var elem = ConvertToArchicadElement(context.Current);
-      if (!elem.Empty)
-      {
-        results.Add(elem);
+        // swallow or log
       }
     }*/
 
-    await PrintElementsAsync(results.ToList());
+    /*resultsQueue.CompleteAdding();
+    //await consumerTask;
+    await Task.WhenAll(tasks);
 
-    var rootDir = @"C:\poc";
-    var outDir = @"C:\poc\out";
-    await RunXmlConvertersAsync(rootDir, outDir);
+    stopwatch.Stop();
+    Console.WriteLine($"Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
+    return;*/
+
+    var resultsQueue = new BlockingCollection<ArchicadElement>();
+
+    Parallel.ForEach(localToGlobalMaps, new ParallelOptions { CancellationToken = cancellationToken }, localToGlobalMap =>
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      try
+      {
+        if (
+            localToGlobalMap.AtomicObject is ITransformable transformable
+            && localToGlobalMap.Matrix.Count > 0
+            && localToGlobalMap.AtomicObject["units"] is string units
+        )
+        {
+          var id = localToGlobalMap.AtomicObject.id;
+          ITransformable? newTransformable = null;
+          foreach (var mat in localToGlobalMap.Matrix)
+          {
+            transformable.TransformTo(new Transform() { matrix = mat, units = units }, out newTransformable);
+            transformable = newTransformable;
+          }
+
+          localToGlobalMap.AtomicObject = (newTransformable as Base)!;
+          localToGlobalMap.AtomicObject.id = id;
+          localToGlobalMap.Matrix = new HashSet<Matrix4x4>();
+        }
+
+        var elem = ConvertToArchicadElement(localToGlobalMap.AtomicObject, localToGlobalMap.Matrix);
+        if (!elem.Empty)
+        {
+          resultsQueue.Add(elem, cancellationToken);
+        }
+      }
+      catch (Exception ex) when (!ex.IsFatal())
+      {
+        // log or swallow
+      }
+    });
+
+    // Mark the collection as complete once all work is done
+    resultsQueue.CompleteAdding();
+
+    Stopwatch stopwatch = new Stopwatch();
+    stopwatch.Start();
+    var rootFolder = @"C:\poc";
+    var fc = new FileConverter(rootFolder);
+    await fc.Convert(resultsQueue, cancellationToken);
+
+    /*var numConsumers = 16;
+    var tasks = new List<Task>();
+    var rootFolder = @"C:\poc";
+    var outFolder = @"out";
+    int filesPerFolder = 100;
+
+    for (int i = 0; i < numConsumers; i++)
+    {
+      int index = i;
+      var writer = new FileWriter(rootFolder, $"{outFolder}_{index}", filesPerFolder);
+
+      tasks.Add(Task.Run(() =>
+      {
+        foreach (var elem in resultsQueue.GetConsumingEnumerable())
+        {
+          writer.Write(elem);
+        }
+      }, cancellationToken));
+    }*/
+
+    //await Task.WhenAll(tasks);
+    //await Task.WhenAny(tasks);
+    stopwatch.Stop();
+    Console.WriteLine($"Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
+    //await DummyAsyncFunction();
   }
 
   public IReadOnlyCollection<RenderMaterialProxy>? TryGetRenderMaterialProxies(Base root) =>
@@ -182,7 +227,6 @@ public sealed class HostObjectBuilder() : IHostObjectBuilder
 
   private ArchicadMaterial? GetMaterialById(string appId)
   {
-    //string matName = "speckle_default_material";
     if (_elementMaterials.TryGetValue(appId, out var materialId))
     {
       if (_materialTable.TryGetValue(materialId, out var material))
@@ -216,18 +260,7 @@ public sealed class HostObjectBuilder() : IHostObjectBuilder
     foreach (var mesh in GetMeshes(target))
     {
       string meshId = mesh.applicationId ?? "0";
-      /*if (_elementMaterials.TryGetValue(meshId, out var materialId))
-      {
-        if (_materialTable.TryGetValue(materialId, out var material)) 
-        {
-          matName = material.Name;
-          if (addedMaterials.Add(matName))
-          {
-            elem.AddMaterial(material);
-          }
-        }
-      }*/
-
+      // TODO refactor
       var meshmat = GetMaterialById(meshId);
       if (meshmat != null) 
       {
@@ -250,10 +283,9 @@ public sealed class HostObjectBuilder() : IHostObjectBuilder
         }
       }
 
-
       var acMesh = new ArchicadMesh(mesh, matName);
       acMesh.ApplyTransform(combinedTransform);
-      acMesh.Scale(0.001);
+      //acMesh.Scale(0.001);
       elem.AddMesh(acMesh);
     }
 
@@ -287,12 +319,34 @@ public sealed class HostObjectBuilder() : IHostObjectBuilder
     return meshes;
   }
 
-  public async Task PrintElementsAsync(IEnumerable<ArchicadElement> elements)
+  public async Task PrintElementsAsync2(IEnumerable<ArchicadElement> elements, int subDirNum)
+  {
+    var rootDir = @"C:\poc";
+    Directory.CreateDirectory(rootDir);
+    var subdir = Path.Combine(rootDir, $"f{subDirNum}");
+
+    var writeTasks = new List<Task>();
+    int count = 1;
+
+    foreach (var elem in elements)
+    {
+      string fileName = $"speckle_object_{count}.xml";
+      string filePath = Path.Combine(subdir, fileName);
+
+      var content = elem.ToString(); // Cache value to avoid closures
+
+      writeTasks.Add(File.WriteAllTextAsync(filePath, content));
+      count++;
+    }
+
+    await Task.WhenAll(writeTasks);
+  }
+
+  public async Task PrintElementsAsync(IEnumerable<ArchicadElement> elements, int numSubdir)
   {
     var rootDir = @"C:\poc";
     Directory.CreateDirectory(rootDir);
 
-    var numSubdir = 8;
     var subDirs = Enumerable.Range(1, numSubdir)
                             .Select(i => Path.Combine(rootDir, $"f{i}"))
                             .ToArray();
@@ -320,35 +374,5 @@ public sealed class HostObjectBuilder() : IHostObjectBuilder
     }
 
     await Task.WhenAll(writeTasks);
-  }
-
-  private async Task RunXmlConvertersAsync(string rootDir, string outputDir)
-  {
-    var lpXmlConverterPath = @"C:\Program Files\Graphisoft\Archicad 27\LP_XMLConverter.exe";
-
-    var sourceDirs = Directory.GetDirectories(rootDir)
-                              .Where(dir => Path.GetFileName(dir).StartsWith('f'))
-                              .ToArray();
-
-    Directory.CreateDirectory(outputDir);
-
-    var conversionTasks = sourceDirs.Select(sourceDir =>
-    {
-      return Task.Run(() =>
-      {
-        var startInfo = new ProcessStartInfo
-        {
-          FileName = lpXmlConverterPath,
-          Arguments = $"x2l \"{sourceDir}\" \"{outputDir}\"",
-          UseShellExecute = false,
-          CreateNoWindow = true,
-        };
-
-        using var process = Process.Start(startInfo);
-        process?.WaitForExit();
-      });
-    });
-
-    await Task.WhenAll(conversionTasks);
   }
 }

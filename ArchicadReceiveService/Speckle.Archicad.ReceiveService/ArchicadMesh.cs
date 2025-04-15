@@ -11,56 +11,62 @@ public class ArchicadMesh
   public List<ArchicadPolygon> Polygons { get; }
   public string MaterialName { get; }
 
+  private readonly Dictionary<(int, int), int> _edgeLookup;
+
   public ArchicadMesh(Mesh mesh, string materialName = "speckle_default_material")
   {
     Vertices = new List<ArchicadVertex>();
     Edges = new List<ArchicadEdge>();
     Polygons = new List<ArchicadPolygon>();
     MaterialName = materialName;
+    _edgeLookup = new Dictionary<(int, int), int>();
 
     // Parse vertices
-    for (int i = 0; i < mesh.vertices.Count; i += 3)
+    var vertices = mesh.vertices;
+    for (int i = 0; i < vertices.Count; i += 3)
     {
-      double x = mesh.vertices[i];
-      double y = mesh.vertices[i + 1];
-      double z = mesh.vertices[i + 2];
+      double x = vertices[i];
+      double y = vertices[i + 1];
+      double z = vertices[i + 2];
       Vertices.Add(new ArchicadVertex(x, y, z));
     }
 
     // Parse faces and generate edges
-    for (int i = 0; i < mesh.faces.Count;)
+    var faces = mesh.faces;
+    for (int i = 0; i < faces.Count;)
     {
-      var edgeIndeices = new List<int>();
       int faceSize = mesh.faces[i++];
+      var edgeIndices = new List<int>(faceSize);
       for (int j = 0; j < faceSize; j++)
       {
-        int start = mesh.faces[i + j];
-        int end = mesh.faces[i + ((j + 1) % faceSize)];
+        int start = faces[i + j];
+        int end = faces[i + ((j + 1) % faceSize)];
         var edgeIndex = AddEdge(start, end);
-        edgeIndeices.Add(edgeIndex);
+        edgeIndices.Add(edgeIndex);
       }
       i += faceSize;
-      Polygons.Add(new ArchicadPolygon(edgeIndeices, MaterialName));
+      Polygons.Add(new ArchicadPolygon(edgeIndices, MaterialName));
     }
   }
+
   public int AddEdge(int start, int end)
   {
-    for (int i = 0; i < Edges.Count; i++)
+    var key = (Math.Min(start, end), Math.Max(start, end));
+    if (_edgeLookup.TryGetValue(key, out int index))
     {
-      var edge = Edges[i];
-      if (edge.Start == start && edge.End == end)
+      Edges[index].Count++;
+      if (Edges[index].Start == start)
       {
-        edge.Count++;
-        return i + 1;
+        return index + 1;
       }
-
-      if (edge.Start == end && edge.End == start)
+      else
       {
-        edge.Count++;
-        return -(i + 1);
+        return -(index + 1);
       }
     }
 
+    // Not found: create new edge
+    _edgeLookup[key] = Edges.Count;
     Edges.Add(new ArchicadEdge(start, end));
     return Edges.Count;
   }
