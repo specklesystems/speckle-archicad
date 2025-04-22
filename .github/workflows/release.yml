@@ -62,7 +62,7 @@ jobs:
             "semver": "${{ needs.build-windows.outputs.semver }}",
             "file_version": "${{needs.build-windows.outputs.file_version}}",
             "repo": "${{ github.repository }}",
-            "is_public_release": ${{ env.IS_TAG_BUILD }},
+            "is_public_release": ${{ env.IS_TAG_BUILD }}
             }'
           ref: jrm/experiment-similar-ci
           wait-for-completion: true
