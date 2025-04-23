@@ -9,66 +9,11 @@
 
 #include <thread>
 #include <chrono>
-#include <filesystem>
+
 #include "StopWatch.h"
 #include <set>
 
 namespace fs = std::filesystem;
-
-std::vector<std::pair<std::string, std::string>> LibpartPlacer::CollectFiles(const std::string& folderPath)
-{
-	std::vector<std::pair<std::string, std::string>> files;
-
-	try {
-		for (const auto& entry : fs::directory_iterator(folderPath)) {
-			if (fs::is_regular_file(entry.path())) {
-				files.emplace_back(entry.path().filename().string(), entry.path().string());
-			}
-		}
-	}
-	catch (const std::exception& e) {
-		std::cerr << "Error accessing folder: " << e.what() << std::endl;
-	}
-
-	return files;
-}
-
-API_LibPart LibpartPlacer::Create(const std::string& path, const std::string& fn)
-{
-	GSErrCode err = NoError;
-
-	IO::Location rab(path.c_str());
-	GS::Array<API_LibraryInfo> libInfo;
-	IO::Location* loc = nullptr;
-
-	API_LibPart libPart{};
-	Int32 embeddedLibraryIndex = -1;
-
-	if (ACAPI_LibraryManagement_GetLibraries(&libInfo, &embeddedLibraryIndex) == NoError && embeddedLibraryIndex >= 0)
-	{
-		try
-		{
-			loc = new IO::Location(libInfo[embeddedLibraryIndex].location);
-			err = loc->AppendToLocal(IO::Name(fn.c_str()));
-			err = IO::fileSystem.Copy(rab, *loc);
-
-			BNZeroMemory(&libPart, sizeof(API_LibPart));
-			libPart.typeID = APILib_ObjectID;
-			libPart.location = loc;
-		}
-		catch (std::bad_alloc&)
-		{
-			std::cout << "Could not get location" << std::endl;
-		}
-	}
-
-	if (err != NoError)
-	{
-		std::cout << "Error in Create()" << std::endl;
-	}
-
-	return libPart;
-}
 
 API_DatabaseInfo LibpartPlacer::GetCurrentDB()
 {
@@ -155,22 +100,18 @@ void LibpartPlacer::PlaceLibparts(const std::vector<Int32>& libIndices)
 		});
 }
 
-void LibpartPlacer::AddLibparts(const std::string& path)
+std::vector<Int32> LibpartPlacer::RegisterLibparts(const std::string& libraryFolderPath)
 {
-	std::string t;
-	std::vector<Int32> libIndices;
-	std::vector<Int32> libIndices0;
-
 	SW.Start();
-
-	auto files = CollectFiles(path);
+	
 	GS::Array<API_LibPart> libparts;
+	std::vector<Int32> libIndices;
+	auto filePaths = CollectFilePaths(libraryFolderPath);
 
-	for (const auto& f : files)
+	for (const auto& path : filePaths)
 	{
-		auto part = Create(f.second, f.first);
-		libparts.Push(part);
-		libIndices0.push_back(part.index);
+		auto libPart = CreateLibPartFromFile(path);
+		libparts.Push(libPart);
 	}
 
 	GSErrCode err = ACAPI_LibraryPart_RegisterAll(&libparts);
@@ -179,95 +120,114 @@ void LibpartPlacer::AddLibparts(const std::string& path)
 		std::cout << "Error registering LibParts." << std::endl;
 	}
 
-	for (const auto& p : libparts)
+	for (const auto& libPart : libparts)
 	{
-		libIndices.push_back(p.index);
+		libIndices.push_back(libPart.index);
 	}
 
-	t = SW.Stop();
-	std::cout << t;
-	PlaceLibparts(libIndices);
+	std::string elapsed = SW.Stop();
+	std::cout << elapsed;
 
+	return libIndices;
 }
 
-void LibpartPlacer::SetLibs()
+std::vector<std::filesystem::path> LibpartPlacer::CollectFilePaths(const std::string& folderPath)
 {
-	GS::Array<API_LibraryInfo> libInfo;
+	std::vector<std::filesystem::path> files;
 
-	if (ACAPI_LibraryManagement_GetLibraries(&libInfo) == NoError)
+	try 
 	{
-		API_LibraryInfo li;
-		li.location = IO::Location("C:\\gsm\\in");
-		libInfo.Push(li);
-
-		ACAPI_LibraryManagement_SetLibraries(&libInfo);
-	}
-}
-
-void LibpartPlacer::LoadLibpartsFromSubDirs(const std::string& rootDir)
-{
-	std::set<std::string> processedDirs;
-
-	while (true)
-	{
-		bool anyNewProcessed = false;
-
-		for (const auto& entry : fs::directory_iterator(rootDir))
+		for (const auto& entry : fs::directory_iterator(folderPath)) 
 		{
-			if (fs::is_directory(entry))
+			if (fs::is_regular_file(entry.path())) 
 			{
-				std::string subDirName = entry.path().string();
-
-				// Skip already processed subdirectories
-				if (processedDirs.find(subDirName) != processedDirs.end())
-					continue;
-
-				fs::path resultsFilePath = entry.path() / "results.json";
-
-				// If results.json exists, process this directory
-				if (fs::exists(resultsFilePath))
-				{
-					std::cout << "Processing: " << subDirName << std::endl;
-					AddLibparts(subDirName);
-					processedDirs.insert(subDirName);
-					anyNewProcessed = true;
-				}
+				//files.emplace_back(entry.path().filename().string(), entry.path().string());
+				files.emplace_back(entry.path());
 			}
 		}
-
-		// Exit the loop if no new subdirs were processed in this iteration
-		if (!anyNewProcessed)
-			break;
 	}
+	catch (const std::exception& e) 
+	{
+		std::cerr << "Error accessing folder: " << e.what() << std::endl;
+	}
+
+	return files;
 }
 
-void LibpartPlacer::WaitForResultsJson(const std::string& filePath)
+#include <filesystem>
+
+API_LibPart LibpartPlacer::CreateLibPartFromFile(const std::filesystem::path& filePath)
 {
-	while (true)
+	GSErrCode err = NoError;
+
+	IO::Location gsmFileLocation(filePath.string().c_str());
+	GS::Array<API_LibraryInfo> libInfo;
+	IO::Location* embeddedLibraryLocation = nullptr;
+
+	API_LibPart libPart{};
+	Int32 embeddedLibraryIndex = -1;
+
+	std::string fileName = filePath.filename().string();
+
+	if (ACAPI_LibraryManagement_GetLibraries(&libInfo, &embeddedLibraryIndex) == NoError && embeddedLibraryIndex >= 0)
 	{
 		try
 		{
-			// Check if the file exists
-			if (fs::exists(filePath))
-			{
-				std::cout << "File detected: " << filePath << std::endl;
-				break;
-			}
-		}
-		catch (const fs::filesystem_error& e)
-		{
-			// Handle errors such as path not existing
-			std::cerr << "Filesystem error: " << e.what() << std::endl;
-		}
-		catch (const std::exception& e)
-		{
-			// Catch any other standard exceptions
-			std::cerr << "Error: " << e.what() << std::endl;
-		}
+			embeddedLibraryLocation = new IO::Location(libInfo[embeddedLibraryIndex].location);
+			err = embeddedLibraryLocation->AppendToLocal(IO::Name(fileName.c_str()));
+			err = IO::fileSystem.Copy(gsmFileLocation, *embeddedLibraryLocation);
 
-		// Wait a bit before checking again
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+			BNZeroMemory(&libPart, sizeof(API_LibPart));
+			libPart.typeID = APILib_ObjectID;
+			libPart.location = embeddedLibraryLocation;
+		}
+		catch (std::bad_alloc&)
+		{
+			std::cout << "Could not get location" << std::endl;
+		}
 	}
+
+	if (err != NoError)
+	{
+		std::cout << "Error in Create()" << std::endl;
+	}
+
+	return libPart;
 }
 
+/*API_LibPart LibpartPlacer::CreateLibPartFromFile(const std::string& filePath, const std::string& fileName)
+{
+	GSErrCode err = NoError;
 
+	IO::Location gsmFileLocation(filePath.c_str());
+	GS::Array<API_LibraryInfo> libInfo;
+	IO::Location* embeddedLibraryLocation = nullptr;
+
+	API_LibPart libPart{};
+	Int32 embeddedLibraryIndex = -1;
+
+	if (ACAPI_LibraryManagement_GetLibraries(&libInfo, &embeddedLibraryIndex) == NoError && embeddedLibraryIndex >= 0)
+	{
+		try
+		{
+			embeddedLibraryLocation = new IO::Location(libInfo[embeddedLibraryIndex].location);
+			err = embeddedLibraryLocation->AppendToLocal(IO::Name(fileName.c_str()));
+			err = IO::fileSystem.Copy(gsmFileLocation, *embeddedLibraryLocation);
+
+			BNZeroMemory(&libPart, sizeof(API_LibPart));
+			libPart.typeID = APILib_ObjectID;
+			libPart.location = embeddedLibraryLocation;
+		}
+		catch (std::bad_alloc&)
+		{
+			std::cout << "Could not get location" << std::endl;
+		}
+	}
+
+	if (err != NoError)
+	{
+		std::cout << "Error in Create()" << std::endl;
+	}
+
+	return libPart;
+}*/

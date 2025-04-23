@@ -123,7 +123,7 @@ static void RunReceiveService(const std::string& projectId, const std::string& s
     }
 
     // Wait until the process exits (optional)
-    //WaitForSingleObject(pi.hProcess, INFINITE);
+    WaitForSingleObject(pi.hProcess, INFINITE);
 
     // Cleanup
     CloseHandle(pi.hProcess);
@@ -139,6 +139,7 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     std::string modelCardId = args.data[0].get<std::string>();
     ReceiverModelCard card = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
 
+    std::string xmlConverterPath = CONNECTOR.GetHostToSpeckleConverter().GetApplicationFolder() + "\\LP_XMLConverter.exe";
     nlohmann::json receiveArgs;
 
     receiveArgs["modelId"] = card.modelId;
@@ -146,21 +147,28 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     receiveArgs["accountId"] = card.accountId;
     receiveArgs["modelCardId"] = card.modelCardId;
     receiveArgs["selectedVersionId"] = card.selectedVersionId;
+    receiveArgs["xmlConverterPath"] = xmlConverterPath;
+    receiveArgs["endpointVersion"] = "v1";
 
-    if (false)
+    if (true)
     {
-        args.eventSource->Send("receiveByBrowser", receiveArgs);
+        //args.eventSource->Send("receiveByBrowser", receiveArgs);
+        args.eventSource->Send("receiveByDesktopService", receiveArgs);
     }
     else
     {
-        RunReceiveService(card.projectId, card.selectedVersionId, card.accountId);
-        LibpartPlacer lp;
-        //lp.AddLibparts("C:\\poc\\out");
-        lp.WaitForResultsJson("C:\\poc\\_output\\Batch_001\\results.json");
-        lp.LoadLibpartsFromSubDirs("C:\\poc\\_output");
+        if (false)
+        {
+            RunReceiveService(card.projectId, card.selectedVersionId, card.accountId);
+        }
+
+        LibpartPlacer libpartPlacer;
+        auto libpartIndices = libpartPlacer.RegisterLibparts("C:\\poc\\_output");
+        libpartPlacer.PlaceLibparts(libpartIndices);
     }
 }
 
+// this is the fallback case when we cannot receive via desktop service
 void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)

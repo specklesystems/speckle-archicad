@@ -37,6 +37,7 @@ public:
 	virtual std::string GetElementType(const std::string& elemId) = 0;
 	virtual std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) = 0;
 	virtual ProjectInfo GetProjectInfo() = 0;
+	virtual std::string GetApplicationFolder() = 0;
 	virtual std::string GetHostAppReleaseInfo() = 0;
 	virtual nlohmann::json GetElementMaterialQuantities(const std::string& elemId) = 0;
 	virtual nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyType propertyType) = 0;

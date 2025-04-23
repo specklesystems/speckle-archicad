@@ -9,7 +9,7 @@ public class FileConverter
 {
   private readonly string _converterPath = @"C:\Program Files\Graphisoft\Archicad 27\LP_XMLConverter.exe";
   private readonly string _outputBaseDir;
-  private readonly int _maxFilesPerFolder = 200;
+  private readonly int _maxFilesPerFolder = 2000;
   private readonly int _maxParallelConversions = 4;
 
   public FileConverter(string outputBaseDir)
@@ -27,8 +27,8 @@ public class FileConverter
     {
       await foreach (var folder in inputChannel.Reader.ReadAllAsync(cancellationToken))
       {
-        string outputDir = Path.Combine(_outputBaseDir, "_output", Path.GetFileName(folder));
-        //string outputDir = Path.Combine(_outputBaseDir, "out");
+        //string outputDir = Path.Combine(_outputBaseDir, "_output", Path.GetFileName(folder));
+        string outputDir = Path.Combine(_outputBaseDir, "out");
         RunXmlConverter(folder, outputDir);
       }
     }, cancellationToken)).ToList();
@@ -63,7 +63,6 @@ public class FileConverter
       // Handle last folder if it has leftover files
       if (fileCount > 0)
       {
-        //MarkFolderAsComplete(currentFolder, fileCount);
         await inputChannel.Writer.WriteAsync(currentFolder, cancellationToken);
       }
 

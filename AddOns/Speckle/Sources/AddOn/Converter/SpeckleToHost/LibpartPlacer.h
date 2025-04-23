@@ -7,23 +7,19 @@
 #include "Folder.hpp"
 #include "UnpackedElement.h"
 #include <ReceiveConversionResult.h>
-
-#include "ArchicadElement.h"
+#include <filesystem>
 
 class LibpartPlacer
 {
 public:
-	std::vector<std::pair<std::string, std::string>> CollectFiles(const std::string& folderPath);
-	API_LibPart Create(const std::string& path, const std::string& fn);
-	void AddLibparts(const std::string& path);
-	void SetLibs();
-	void LoadLibpartsFromSubDirs(const std::string& rootDir);
-	void WaitForResultsJson(const std::string& filePath);
+	std::vector<Int32> RegisterLibparts(const std::string& libraryFolderPath);
+	void PlaceLibparts(const std::vector<Int32>& libIndices);
 
 private:
+	API_LibPart CreateLibPartFromFile(const std::filesystem::path& filePath);
+	std::vector<std::filesystem::path> CollectFilePaths(const std::string& folderPath);
 	API_DatabaseInfo GetCurrentDB();
 	void SetCurrentDB(API_DatabaseInfo& databaseInfo);
 	void SwitchToFloorPlanDB();
 	std::string PlaceLibpart(GS::Int32 libIndex);
-	void PlaceLibparts(const std::vector<Int32>& libIndices);
 };

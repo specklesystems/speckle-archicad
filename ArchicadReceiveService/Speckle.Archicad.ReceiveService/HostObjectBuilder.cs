@@ -285,7 +285,7 @@ public sealed class HostObjectBuilder() : IHostObjectBuilder
 
       var acMesh = new ArchicadMesh(mesh, matName);
       acMesh.ApplyTransform(combinedTransform);
-      //acMesh.Scale(0.001);
+      acMesh.Scale(0.001);
       elem.AddMesh(acMesh);
     }
 
