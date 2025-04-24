@@ -12,10 +12,18 @@
 class LibpartPlacer
 {
 public:
+	std::vector<std::string> bakedObjectIds;
+	std::vector<ReceiveConversionResult> conversionResults;
+
+	LibpartPlacer(const std::string& baseGroupName);
 	std::vector<Int32> RegisterLibparts(const std::string& libraryFolderPath);
 	void PlaceLibparts(const std::vector<Int32>& libIndices);
 
 private:
+	IO::Location* _location;
+	std::string _baseGroupName;
+	void GetLocation();
+
 	API_LibPart CreateLibPartFromFile(const std::filesystem::path& filePath);
 	std::vector<std::filesystem::path> CollectFilePaths(const std::string& folderPath);
 	API_DatabaseInfo GetCurrentDB();
