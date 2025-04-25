@@ -151,7 +151,7 @@ void LibpartPlacer::PlaceLibparts(const std::vector<Int32>& libIndices)
 				{
 					std::string elemId = PlaceLibpart(idx);
 					placed++;
-					//CONNECTOR.GetProcessWindow().SetProcessValue(placed);
+					CONNECTOR.GetProcessWindow().SetProcessValue(placed);
 					bakedObjectIds.push_back(elemId);
 				}
 				catch (const std::exception& ex)
@@ -173,21 +173,88 @@ std::vector<Int32> LibpartPlacer::RegisterLibparts(const std::string& libraryFol
 	std::vector<Int32> libIndices;
 	auto filePaths = CollectFilePaths(libraryFolderPath);
 
+	CONNECTOR.GetProcessWindow().SetProcessValue(1);
 	for (const auto& path : filePaths)
 	{
 		auto libPart = CreateLibPartFromFile(path);
 		libparts.Push(libPart);
 	}
 
+	CONNECTOR.GetProcessWindow().SetProcessValue(2);
 	GSErrCode err = ACAPI_LibraryPart_RegisterAll(&libparts);
 	if (err != NoError)
 	{
 		std::cout << "Error registering LibParts." << std::endl;
 	}
 
+	CONNECTOR.GetProcessWindow().SetProcessValue(3);
 	for (const auto& libPart : libparts)
 	{
 		libIndices.push_back(libPart.index);
+	}
+	CONNECTOR.GetProcessWindow().SetProcessValue(4);
+
+	std::string elapsed = SW.Stop();
+	std::cout << elapsed;
+
+	return libIndices;
+}
+
+std::vector<Int32> LibpartPlacer::RegisterLibpartsBatched(const std::string& libraryFolderPath)
+{
+	SW.Start();
+	
+	std::vector<Int32> libIndices;
+	auto filePaths = CollectFilePaths(libraryFolderPath);
+
+	USize batchCount = 1;
+
+	if (filePaths.size() > 2000)
+	{
+		batchCount = 4;
+	}
+	else if (filePaths.size() > 10000)
+	{
+		batchCount = 10;
+	}
+
+	CONNECTOR.GetProcessWindow().SetNextProcessPhase("Registering GDL objects", batchCount);
+
+	GS::Array<API_LibPart> allLibParts;
+	for (const auto& path : filePaths)
+	{
+		auto libPart = CreateLibPartFromFile(path);
+		allLibParts.Push(libPart);
+	}
+
+	const USize totalCount = allLibParts.GetSize();
+	
+	const USize batchSize = (totalCount + batchCount - 1) / batchCount; // Ceiling division
+
+	for (USize i = 0; i < batchCount; ++i)
+	{
+		CONNECTOR.GetProcessWindow().SetProcessValue(i + 1);
+		USize startIndex = i * batchSize;
+		USize endIndex = std::min(startIndex + batchSize, totalCount);
+
+		GS::Array<API_LibPart> batch;
+		for (USize j = startIndex; j < endIndex; ++j)
+		{
+			batch.Push(allLibParts[j]);
+		}
+
+		CONNECTOR.GetProcessWindow().SetProcessValue(i + 1);
+		GSErrCode err = ACAPI_LibraryPart_RegisterAll(&batch);
+		if (err != NoError)
+		{
+			std::cout << "Error registering LibParts in batch " << i + 1 << "." << std::endl;
+		}
+
+		// Collect the indices after registration
+		for (const auto& libPart : batch)
+		{
+			libIndices.push_back(libPart.index);
+		}
 	}
 
 	std::string elapsed = SW.Stop();
@@ -206,7 +273,6 @@ std::vector<std::filesystem::path> LibpartPlacer::CollectFilePaths(const std::st
 		{
 			if (fs::is_regular_file(entry.path())) 
 			{
-				//files.emplace_back(entry.path().filename().string(), entry.path().string());
 				files.emplace_back(entry.path());
 			}
 		}
@@ -225,34 +291,11 @@ API_LibPart LibpartPlacer::CreateLibPartFromFile(const std::filesystem::path& fi
 
 	IO::Location gsmFileLocation(filePath.string().c_str());
 	GS::Array<API_LibraryInfo> libInfo;
-	//IO::Location* embeddedLibraryLocation = nullptr;
-
 	API_LibPart libPart{};
-	//Int32 embeddedLibraryIndex = -1;
-
 	std::string fileName = filePath.filename().string();
-
-	/*if (ACAPI_LibraryManagement_GetLibraries(&libInfo, &embeddedLibraryIndex) == NoError && embeddedLibraryIndex >= 0)
-	{
-		try
-		{
-			embeddedLibraryLocation = new IO::Location(libInfo[embeddedLibraryIndex].location);
-			err = embeddedLibraryLocation->AppendToLocal(IO::Name(fileName.c_str()));
-			err = IO::fileSystem.Copy(gsmFileLocation, *embeddedLibraryLocation);
-
-			BNZeroMemory(&libPart, sizeof(API_LibPart));
-			libPart.typeID = APILib_ObjectID;
-			libPart.location = embeddedLibraryLocation;
-		}
-		catch (std::bad_alloc&)
-		{
-			std::cout << "Could not get location" << std::endl;
-		}
-	}*/
 
 	try
 	{
-		//IO::Location embeddedFileLocation(*_location);
 		IO::Location* embeddedFileLocation = new IO::Location(*_location);
 		err = embeddedFileLocation->AppendToLocal(IO::Name(fileName.c_str()));
 		err = IO::fileSystem.Copy(gsmFileLocation, *embeddedFileLocation);

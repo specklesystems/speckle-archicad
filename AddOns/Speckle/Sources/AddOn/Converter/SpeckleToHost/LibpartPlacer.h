@@ -17,6 +17,7 @@ public:
 
 	LibpartPlacer(const std::string& baseGroupName);
 	std::vector<Int32> RegisterLibparts(const std::string& libraryFolderPath);
+	std::vector<Int32> RegisterLibpartsBatched(const std::string& libraryFolderPath);
 	void PlaceLibparts(const std::vector<Int32>& libIndices);
 
 private:

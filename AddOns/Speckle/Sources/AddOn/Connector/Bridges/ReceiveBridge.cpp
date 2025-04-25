@@ -160,9 +160,15 @@ void ReceiveBridge::AfterGsmConverter(const RunMethodEventArgs& args)
     std::string baseGroupName = oss.str();
     baseGroupName = RemoveInvalidChars(baseGroupName);
 
+    int processPhases = 2;
+    CONNECTOR.GetProcessWindow().Init("Receive", processPhases);
+
     LibpartPlacer libpartPlacer(baseGroupName);
-    auto libpartIndices = libpartPlacer.RegisterLibparts(gsmFolderPath);
+    auto libpartIndices = libpartPlacer.RegisterLibpartsBatched(gsmFolderPath);
+    int toPlace = static_cast<int>(libpartIndices.size());
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Placing Elements", toPlace);
     libpartPlacer.PlaceLibparts(libpartIndices);
+    CONNECTOR.GetProcessWindow().Close();
     ClearDirectory(xmlFolderPath);
 
     modelCard.bakedObjectIds = libpartPlacer.bakedObjectIds;
