@@ -21,10 +21,7 @@ static std::string RemoveInvalidChars(const std::string& input)
 
 	for (char c : input)
 	{
-		if (invalidChars.find(c) == std::string::npos)
-		{
-			output += c;
-		}
+		output += (invalidChars.find(c) == std::string::npos) ? c : '-';
 	}
 
 	return output;

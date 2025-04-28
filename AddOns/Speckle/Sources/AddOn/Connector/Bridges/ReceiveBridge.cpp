@@ -118,17 +118,26 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     ReceiverModelCard card = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
 
     std::string xmlConverterPath = CONNECTOR.GetHostToSpeckleConverter().GetApplicationFolder() + "\\LP_XMLConverter.exe";
-    nlohmann::json receiveArgs;
 
+    nlohmann::json receiveArgs;
     receiveArgs["modelId"] = card.modelId;
     receiveArgs["projectId"] = card.projectId;
     receiveArgs["accountId"] = card.accountId;
     receiveArgs["modelCardId"] = card.modelCardId;
     receiveArgs["selectedVersionId"] = card.selectedVersionId;
-    receiveArgs["xmlConverterPath"] = xmlConverterPath;
-    receiveArgs["endpointVersion"] = "v1";
 
-    args.eventSource->Send("receiveByDesktopService", receiveArgs);
+    // Check if the LP_XMLConverter.exe file exists
+    if (fs::exists(xmlConverterPath))
+    {
+        receiveArgs["xmlConverterPath"] = xmlConverterPath;
+        receiveArgs["endpointVersion"] = "v1";
+        args.eventSource->Send("receiveByDesktopService", receiveArgs);
+    }
+    else
+    {
+        // falling back to receive by browser
+        args.eventSource->Send("receiveByBrowser", receiveArgs);
+    }
 }
 
 static std::string RemoveInvalidChars(const std::string& input)
@@ -151,6 +160,26 @@ void ReceiveBridge::AfterGsmConverter(const RunMethodEventArgs& args)
 
     std::string modelCardId = args.data[0].get<std::string>();
     ReceiverModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
+
+    // cleaning up previously placed elements
+    if (modelCard.bakedObjectIds.size() > 0)
+    {
+        GS::Array<API_Guid> elementsToDelete;
+        for (const auto& elemId : modelCard.bakedObjectIds)
+        {
+            elementsToDelete.Push(APIGuidFromString(elemId.c_str()));
+        }
+
+        GSErrCode err = ACAPI_CallUndoableCommand("Delete elements",
+            [&]() -> GSErrCode {
+                return ACAPI_Element_Delete(elementsToDelete);
+            });
+
+        if (err != NoError)
+        {
+            std::cout << "Failed to clean up elements";
+        }
+    }
 
     std::string xmlFolderPath = args.data[2].get<std::string>();
     std::string gsmFolderPath = xmlFolderPath + "\\_output";
