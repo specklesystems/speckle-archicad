@@ -213,7 +213,7 @@ void ReceiveBridge::AfterGsmConverter(const RunMethodEventArgs& args)
 // this is the fallback case when we cannot receive via desktop service
 void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
 {
-    if (args.data.size() < 1)
+    if (args.data.size() < 3)
         throw std::invalid_argument("Too few arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();

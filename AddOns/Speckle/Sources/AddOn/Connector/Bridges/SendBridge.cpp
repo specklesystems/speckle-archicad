@@ -35,6 +35,11 @@ void SendBridge::OnRunMethod(const RunMethodEventArgs& args)
         sendBinding->SetToastNotification(
             ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
     }
+    catch (const InvalidMethodNameException& imex)
+    {
+        sendBinding->SetToastNotification(
+            ToastNotification{ ToastNotificationType::TOAST_DANGER, "Invalid method name exception", imex.what(), false });
+    }
     catch (const std::exception& stdex)
     {
         sendBinding->SetToastNotification(
@@ -145,7 +150,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
 
 void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
 {
-    if (args.data.size() < 1)
+    if (args.data.size() < 2)
         throw std::invalid_argument("Too few arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();
