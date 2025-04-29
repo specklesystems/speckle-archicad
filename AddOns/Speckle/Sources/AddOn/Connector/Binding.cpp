@@ -1,6 +1,7 @@
 #include "Binding.h"
 #include "Base64GuidGenerator.h"
 #include "Debug.h"
+#include "ArchiCadApiException.h"
 
 Binding::Binding(const std::string& name, const std::vector<std::string>& methodNames, IBrowserAdapter* browserAdapter, IBridge* bridge)
     : _name(name), _methodNames(methodNames), _browserAdapter(browserAdapter), _bridge(bridge)
@@ -105,5 +106,23 @@ void Binding::SetToastNotification(const ToastNotification& toast)
 
 void Binding::RunMethod(const RunMethodEventArgs& args)
 {
-	_bridge->RunMethod(args);
+	try
+	{
+		_bridge->RunMethod(args);
+	}
+	catch (const ArchiCadApiException& acex)
+	{
+		SetToastNotification(
+			ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
+	}
+	catch (const std::exception& stdex)
+	{
+		SetToastNotification(
+			ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
+	}
+	catch (...)
+	{
+		SetToastNotification(
+			ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
+	}
 }

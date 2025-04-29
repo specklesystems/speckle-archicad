@@ -19,32 +19,6 @@ SendBridge::SendBridge(IBrowserAdapter* browser)
         browser,
         this
     );
-
-    sendBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
-}
-
-// POC duplicated code, move try catch logic to Binding
-void SendBridge::OnRunMethod(const RunMethodEventArgs& args)
-{
-    try
-    {
-        RunMethod(args);
-    }
-    catch (const ArchiCadApiException& acex)
-    {
-        sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
-    }
-    catch (const std::exception& stdex)
-    {
-        sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
-    }
-    catch (...)
-    {
-        sendBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
-    }
 }
 
 void SendBridge::RunMethod(const RunMethodEventArgs& args)
@@ -145,7 +119,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
 
 void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
 {
-    if (args.data.size() < 1)
+    if (args.data.size() < 2)
         throw std::invalid_argument("Too few arguments when calling " + args.methodName);
 
     std::string modelCardId = args.data[0].get<std::string>();

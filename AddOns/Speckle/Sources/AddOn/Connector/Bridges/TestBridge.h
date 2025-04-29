@@ -12,8 +12,6 @@ public:
 
 private:
     std::unique_ptr<Binding> testBinding;
-
-    void OnRunMethod(const RunMethodEventArgs& args);
     void RunMethod(const RunMethodEventArgs& args);
 
     void GetComplexType(const RunMethodEventArgs& args);

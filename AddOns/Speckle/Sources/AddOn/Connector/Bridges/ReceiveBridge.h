@@ -12,10 +12,9 @@ public:
 
 private:
     std::unique_ptr<Binding> receiveBinding;
-
-    void OnRunMethod(const RunMethodEventArgs& args);
     void RunMethod(const RunMethodEventArgs& args);
 
     void Receive(const RunMethodEventArgs& args);
+    void AfterGsmConverter(const RunMethodEventArgs& args);
     void AfterGetObjects(const RunMethodEventArgs& args);
 };

@@ -17,6 +17,7 @@ public:
 	std::string GetElementType(const std::string& elemId) override;
 	std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) override;
 	ProjectInfo GetProjectInfo() override;
+	std::string GetApplicationFolder() override;
 	std::string GetHostAppReleaseInfo() override;
 	nlohmann::json GetElementMaterialQuantities(const std::string& elemId) override;
 	nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyType propertyType) override;
