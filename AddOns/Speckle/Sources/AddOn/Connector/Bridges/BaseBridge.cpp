@@ -16,32 +16,6 @@ BaseBridge::BaseBridge(IBrowserAdapter* browser)
         browser,
         this
     );
-
-    baseBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
-}
-
-// POC duplicated code, move try catch logic to Binding
-void BaseBridge::OnRunMethod(const RunMethodEventArgs& args)
-{
-    try
-    {
-        RunMethod(args);
-    }
-    catch (const ArchiCadApiException& acex)
-    {
-        baseBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
-    }
-    catch (const std::exception& stdex)
-    {
-        baseBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
-    }
-    catch (...)
-    {
-        baseBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
-    }
 }
 
 void BaseBridge::RunMethod(const RunMethodEventArgs& args) 

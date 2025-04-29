@@ -11,32 +11,6 @@ ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
         browser,
         this
     );
-
-    configBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
-}
-
-// POC duplicated code, move try catch logic to Binding
-void ConfigBridge::OnRunMethod(const RunMethodEventArgs& args)
-{
-    try
-    {
-        RunMethod(args);
-    }
-    catch (const ArchiCadApiException& acex)
-    {
-        configBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
-    }
-    catch (const std::exception& stdex)
-    {
-        configBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
-    }
-    catch (...)
-    {
-        configBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
-    }
 }
 
 void ConfigBridge::RunMethod(const RunMethodEventArgs& args)

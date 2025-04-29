@@ -12,8 +12,6 @@ public:
 
 private:
     std::unique_ptr<Binding> receiveBinding;
-
-    void OnRunMethod(const RunMethodEventArgs& args);
     void RunMethod(const RunMethodEventArgs& args);
 
     void Receive(const RunMethodEventArgs& args);

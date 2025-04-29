@@ -12,32 +12,6 @@ AccountBridge::AccountBridge(IBrowserAdapter* browser)
 		browser,
         this
     );
-
-	accountsBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
-}
-
-// POC duplicated code, move try catch logic to Binding
-void AccountBridge::OnRunMethod(const RunMethodEventArgs& args)
-{
-    try
-    {
-        RunMethod(args);
-    }
-    catch (const ArchiCadApiException& acex)
-    {
-        accountsBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
-    }
-    catch (const std::exception& stdex)
-    {
-        accountsBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
-    }
-    catch (...)
-    {
-        accountsBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
-    }
 }
 
 void AccountBridge::RunMethod(const RunMethodEventArgs& args)

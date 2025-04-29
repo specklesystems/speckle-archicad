@@ -21,32 +21,6 @@ ReceiveBridge::ReceiveBridge(IBrowserAdapter* browser)
         browser,
         this
     );
-
-    receiveBinding->RunMethodRequested += [this](const RunMethodEventArgs& args) { OnRunMethod(args); };
-}
-
-// POC duplicated code, move try catch logic to Binding
-void ReceiveBridge::OnRunMethod(const RunMethodEventArgs& args)
-{
-    try
-    {
-        RunMethod(args);
-    }
-    catch (const ArchiCadApiException& acex)
-    {
-        receiveBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured in the ArchiCAD API" , acex.what(), false });
-    }
-    catch (const std::exception& stdex)
-    {
-        receiveBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Exception occured" , stdex.what(), false });
-    }
-    catch (...)
-    {
-        receiveBinding->SetToastNotification(
-            ToastNotification{ ToastNotificationType::TOAST_DANGER , "Unknown exception occured" , "", false });
-    }
 }
 
 void ReceiveBridge::RunMethod(const RunMethodEventArgs& args)

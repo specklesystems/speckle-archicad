@@ -14,8 +14,6 @@ public:
 private:
     std::unique_ptr<Binding> sendBinding;
     std::vector<SendConversionResult> conversionResultCache;
-
-    void OnRunMethod(const RunMethodEventArgs& args);
     void RunMethod(const RunMethodEventArgs& args);
 
     void GetSendFilters(const RunMethodEventArgs& args);

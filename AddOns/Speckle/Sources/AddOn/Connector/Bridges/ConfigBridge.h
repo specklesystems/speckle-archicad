@@ -12,8 +12,6 @@ public:
 
 private:
     std::unique_ptr<Binding> configBinding;
-
-    void OnRunMethod(const RunMethodEventArgs& args);
     void RunMethod(const RunMethodEventArgs& args);
 
     void GetConfig(const RunMethodEventArgs& args);

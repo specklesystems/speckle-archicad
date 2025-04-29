@@ -10,9 +10,6 @@
 
 class Binding 
 {
-public:
-    Event<const RunMethodEventArgs&> RunMethodRequested;
-
 private:
     std::string _name;
     std::vector<std::string> _methodNames;

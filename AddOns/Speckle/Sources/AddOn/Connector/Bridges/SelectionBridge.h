@@ -12,8 +12,6 @@ public:
 
 private:
     std::unique_ptr<Binding> selectionBinding;
-
-    void OnRunMethod(const RunMethodEventArgs& args);
     void RunMethod(const RunMethodEventArgs& args);
 
     void GetSelection(const RunMethodEventArgs& args);
