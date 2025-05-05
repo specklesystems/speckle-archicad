@@ -9,6 +9,8 @@ struct RootObject
 {
     std::string speckle_type = "Speckle.Core.Models.Collections.Collection";
     std::string name = "";
+    std::string units = "m";
+    int version = 3;
     std::map<std::string, Level> elements;
     std::vector<RenderMaterialProxy> renderMaterialProxies;
 };
