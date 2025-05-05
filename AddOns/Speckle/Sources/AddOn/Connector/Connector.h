@@ -3,6 +3,7 @@
 #define CONNECTOR Connector::GetInstance()
 
 #include "IAccountDatabase.h"
+#include "IJsonObjectDatabase.h"
 #include "IModelCardDatabase.h"
 #include "IHostToSpeckleConverter.h"
 #include "ISpeckleToHostConverter.h"
@@ -19,6 +20,7 @@ private:
 	static std::unique_ptr<Connector> instance;
 
 	std::unique_ptr<IAccountDatabase> accountDatabase;
+	std::unique_ptr<IJsonObjectDatabase> jsonObjectDatabase;
 	std::unique_ptr<IModelCardDatabase> modelCardDatabase;
 	std::unique_ptr<IHostToSpeckleConverter> hostToSpeckleConverter;
 	std::unique_ptr<ISpeckleToHostConverter> speckleToHostConverter;
@@ -32,6 +34,7 @@ public:
 	void InitConnector();
 
 	IAccountDatabase& GetAccountDatabase();
+	IJsonObjectDatabase& GetJsonObjectDatabase();
 	IModelCardDatabase& GetModelCardDatabase();
 	IHostToSpeckleConverter& GetHostToSpeckleConverter();
 	ISpeckleToHostConverter& GetSpeckleToHostConverter();

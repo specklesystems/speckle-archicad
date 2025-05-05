@@ -1,5 +1,6 @@
 #include "Connector.h"
 #include "AccountDatabase.h"
+#include "SqliteJsonObjectDatabase.h"
 #include "ModelCardDatabase.h"
 #include "HostToSpeckleConverter.h"
 #include "SpeckleToHostConverter.h"
@@ -19,6 +20,7 @@ Connector& Connector::GetInstance()
 void Connector::InitConnector()
 {
 	accountDatabase = std::make_unique<AccountDatabase>();
+    jsonObjectDatabase = std::make_unique<SqliteJsonObjectDatabase>();
 	auto dataStorage = std::make_unique<ArchiCadDataStorage>();
 	modelCardDatabase = std::make_unique<ModelCardDatabase>(std::move(dataStorage));
 	hostToSpeckleConverter = std::make_unique<HostToSpeckleConverter>();
@@ -33,6 +35,14 @@ IAccountDatabase& Connector::GetAccountDatabase()
         throw std::runtime_error("AccountDatabase not initialized");
     
     return *accountDatabase;
+}
+
+IJsonObjectDatabase& Connector::GetJsonObjectDatabase()
+{
+    if (!jsonObjectDatabase)
+        throw std::runtime_error("JsonObjectDatabase not initialized");
+
+    return *jsonObjectDatabase;
 }
 
 IModelCardDatabase& Connector::GetModelCardDatabase() 
