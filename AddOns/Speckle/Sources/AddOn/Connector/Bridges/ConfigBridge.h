@@ -14,10 +14,12 @@ private:
     std::unique_ptr<Binding> configBinding;
     void RunMethod(const RunMethodEventArgs& args);
 
-    void GetConfig(const RunMethodEventArgs& args);
     void GetIsDevMode(const RunMethodEventArgs& args);
+    void GetConfig(const RunMethodEventArgs& args);
     void UpdateConfig(const RunMethodEventArgs& args);
     void OpenUrl(const RunMethodEventArgs& args);
     void GetUserSelectedAccountId(const RunMethodEventArgs& args);
     void SetUserSelectedAccountId(const RunMethodEventArgs& args);
+    void GetWorkspacesConfig(const RunMethodEventArgs& args);
+    void SetUserSelectedWorkspaceId(const RunMethodEventArgs& args);
 };

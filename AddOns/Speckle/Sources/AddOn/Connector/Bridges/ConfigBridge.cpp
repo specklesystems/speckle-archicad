@@ -1,13 +1,17 @@
 #include "ConfigBridge.h"
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
+#include "Connector.h"
+#include "ConnectorConfig.h"
+#include "AccountsConfig.h"
+#include "WorkspacesConfig.h"
 
 
 ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
 {
     configBinding = std::make_unique<Binding>(
         "configBinding",
-        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl", "GetUserSelectedAccountId", "SetUserSelectedAccountId" },
+        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl", "GetUserSelectedAccountId", "SetUserSelectedAccountId", "GetWorkspacesConfig", "SetUserSelectedWorkspaceId" },
         browser,
         this
     );
@@ -39,17 +43,18 @@ void ConfigBridge::RunMethod(const RunMethodEventArgs& args)
     {
         SetUserSelectedAccountId(args);
     }
+    else if (args.methodName == "GetWorkspacesConfig")
+    {
+        GetWorkspacesConfig(args);
+    }
+    else if (args.methodName == "SetUserSelectedWorkspaceId")
+    {
+        SetUserSelectedWorkspaceId(args);
+    }
     else
     {
         throw InvalidMethodNameException(args.methodName);
     }
-}
-
-void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
-{    
-    nlohmann::json res;
-    res["darkTheme"] = true;
-    args.eventSource->SetResult(args.methodId, res);
 }
 
 void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
@@ -61,9 +66,47 @@ void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
 #endif
 }
 
-void ConfigBridge::UpdateConfig(const RunMethodEventArgs& /*args*/)
+static void SeedConfig()
 {
-    // TODO implement
+    try
+    {
+        ConnectorConfig config;
+        config.darkTheme = true;
+        CONNECTOR.GetJsonObjectDatabase().CreateOrUpdate("Archicad", config);
+    }
+    catch (const std::exception&)
+    {
+        std::cout << "Failed to update connector config";
+    }
+}
+
+void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
+{
+    try
+    {
+        ConnectorConfig config = CONNECTOR.GetJsonObjectDatabase().Get("Archicad");
+        args.eventSource->SetResult(args.methodId, config);
+    }
+    catch (...)
+    {
+        SeedConfig();
+    }
+}
+
+void ConfigBridge::UpdateConfig(const RunMethodEventArgs& args)
+{
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    try
+    {
+        ConnectorConfig config = args.data[0].get<ConnectorConfig>();
+        CONNECTOR.GetJsonObjectDatabase().CreateOrUpdate("Archicad", config);
+    }
+    catch (...)
+    {
+        std::cout << "Failed to update connector config";
+    }
 }
 
 void ConfigBridge::OpenUrl(const RunMethodEventArgs& args)
@@ -76,12 +119,62 @@ void ConfigBridge::OpenUrl(const RunMethodEventArgs& args)
     system(command.c_str());
 }
 
-void ConfigBridge::GetUserSelectedAccountId(const RunMethodEventArgs& /*args*/)
+void ConfigBridge::GetUserSelectedAccountId(const RunMethodEventArgs& args)
 {
-    // TODO implement
+    try
+    {
+        AccountsConfig config = CONNECTOR.GetJsonObjectDatabase().Get("accounts");
+        args.eventSource->SetResult(args.methodId, config);
+    }
+    catch (...)
+    {
+        args.eventSource->SetResult(args.methodId, nullptr);
+    }
 }
 
-void ConfigBridge::SetUserSelectedAccountId(const RunMethodEventArgs& /*args*/)
+void ConfigBridge::SetUserSelectedAccountId(const RunMethodEventArgs& args)
 {
-    // TODO implement
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    try
+    {
+        AccountsConfig config;
+        config.userSelectedAccountId = args.data[0].get<std::string>();
+        CONNECTOR.GetJsonObjectDatabase().CreateOrUpdate("accounts", config);
+    }
+    catch (...)
+    {
+        std::cout << "Failed to update accounts config";
+    }
+}
+
+void ConfigBridge::GetWorkspacesConfig(const RunMethodEventArgs & args)
+{
+    try
+    {
+        WorkspacesConfig config = CONNECTOR.GetJsonObjectDatabase().Get("workspaces");
+        args.eventSource->SetResult(args.methodId, config);
+    }
+    catch (...)
+    {
+        args.eventSource->SetResult(args.methodId, nullptr);
+    }
+}
+
+void ConfigBridge::SetUserSelectedWorkspaceId(const RunMethodEventArgs& args)
+{
+    if (args.data.size() < 1)
+        throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
+
+    try
+    {
+        WorkspacesConfig config;
+        config.userSelectedWorkspaceId = args.data[0].get<std::string>();
+        CONNECTOR.GetJsonObjectDatabase().CreateOrUpdate("workspaces", config);
+    }
+    catch (...)
+    {
+        std::cout << "Failed to update workspaces config";
+    }
 }
