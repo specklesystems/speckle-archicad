@@ -134,7 +134,13 @@ nlohmann::json HostToSpeckleConverter::GetElementIfcProperties(const std::string
 	nlohmann::json properties;
 	auto apiGuid = APIGuidFromString(elemId.c_str());
 	GS::Array<API_IFCProperty> ifcProperties;
-	CHECK_ERROR(ACAPI_Element_GetIFCProperties(apiGuid, false, &ifcProperties));
+	GSErrCode err = NoError;
+	err = ACAPI_Element_GetIFCProperties(apiGuid, false, &ifcProperties);
+
+	if (err != NoError)
+	{
+		return {};
+	}
 
 	for (const auto& property : ifcProperties)
 	{

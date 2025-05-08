@@ -1,9 +1,6 @@
 #include "HostToSpeckleConverter.h"
-#include "ConverterUtils.h"
-
 #include "APIEnvir.h"
 #include "ACAPinc.h"
-#include "CheckError.h"
 
 
 ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult)
@@ -21,8 +18,8 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
     if (archicadObject.elements.empty())
     {
         archicadObject.displayValue = GetElementBody(elemId);
-        archicadObject.properties = GetElementProperties(elemId);
     }
+    archicadObject.properties = GetElementProperties(elemId);
 
     conversionResult.resultId = "";
     conversionResult.resultType = "ArchicadObject";
