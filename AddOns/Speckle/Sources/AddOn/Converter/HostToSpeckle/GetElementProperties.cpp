@@ -17,11 +17,11 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 		nlohmann::json materialQuantities = GetElementMaterialQuantities(elemId);
 		if (!materialQuantities.empty())
 			properties["Material Quantities"] = materialQuantities;
-
-		nlohmann::json dimensionalProperties = GetElementPropertiesByPropertyFilter(elemId, PropertyCollectionFilter::Dimensional);
-		if (!dimensionalProperties.empty())
-			properties["Element Properties"]["Dimensional Properties"] = dimensionalProperties;
 	}
+
+	nlohmann::json dimensionalProperties = GetElementPropertiesByPropertyFilter(elemId, PropertyCollectionFilter::Dimensional);
+	if (!dimensionalProperties.empty())
+		properties["Element Properties"]["Dimensional Properties"] = dimensionalProperties;
 	
 	nlohmann::json classifications = GetElementClassifications(elemId);
 	if (!classifications.empty())

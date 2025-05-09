@@ -211,7 +211,6 @@ namespace
 				std::cout << ex.what();
 			}
 		}
-
 		return propertyJson;
 	}
 }
