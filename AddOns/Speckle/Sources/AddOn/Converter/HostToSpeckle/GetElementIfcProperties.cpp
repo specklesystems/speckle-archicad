@@ -1,3 +1,5 @@
+#pragma warning(disable : 4996) // Disable warning C4996
+
 #include "HostToSpeckleConverter.h"
 #include "APIEnvir.h"
 #include "ACAPinc.h"
