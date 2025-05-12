@@ -148,7 +148,7 @@ nlohmann::json HostToSpeckleConverter::GetElementIfcProperties(const std::string
 	{
 		std::string propertyName = property.head.propertyName.ToCStr().Get();
 		std::string propertySetName = property.head.propertySetName.ToCStr().Get();
-		std::string propertyValue = GetElementIfcPropertyValueAsJson(property);
+		nlohmann::json propertyValue = GetElementIfcPropertyValueAsJson(property);
 
 		properties[propertySetName][propertyName] = propertyValue;
 	}
