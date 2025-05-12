@@ -9,7 +9,7 @@ struct ArchicadObject
     std::string name = "";
     std::string type = "";
     std::string level = "";
-    std::string speckle_type = "Objects.Data.ArchicadObject";
+    std::string speckle_type = "Objects.Data.DataObject:Objects.Data.ArchicadObject";
     std::string applicationId = "";
     ElementBody displayValue;
     nlohmann::json properties;
