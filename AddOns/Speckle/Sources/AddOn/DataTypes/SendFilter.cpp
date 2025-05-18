@@ -10,6 +10,11 @@ bool SendFilter::IsArchicadElementTypeFilter()
     return typeDiscriminator == "ArchicadElementTypeFilter";
 }
 
+bool SendFilter::IsArchicadViewsFilter()
+{
+    return typeDiscriminator == "ArchicadViewsFilter";
+}
+
 ArchicadSelectionFilter SendFilter::AsArchicadSelectionFilter()
 {
     if (IsArchicadSelectionFilter())
@@ -34,6 +39,18 @@ ArchicadElementTypeFilter SendFilter::AsArchicadElementTypeFilter()
     }
 }
 
+ArchicadViewsFilter SendFilter::AsArchicadViewsFilter()
+{
+    if (IsArchicadViewsFilter())
+    {
+        return data.get<ArchicadViewsFilter>();
+    }
+    else
+    {
+        throw std::runtime_error("SendFilter is not an ArchicadViewsFilter");
+    }
+}
+
 std::vector<std::string> SendFilter::GetSelectedObjectIds()
 {
     if (IsArchicadSelectionFilter())
@@ -43,6 +60,12 @@ std::vector<std::string> SendFilter::GetSelectedObjectIds()
     else if (IsArchicadElementTypeFilter())
     {
         auto filter = AsArchicadElementTypeFilter();
+        filter.UpdateSelectedObjectIds();
+        return filter.selectedObjectIds;
+    }
+    else if (IsArchicadViewsFilter())
+    {
+        auto filter = AsArchicadViewsFilter();
         filter.UpdateSelectedObjectIds();
         return filter.selectedObjectIds;
     }

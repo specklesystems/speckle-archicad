@@ -57,7 +57,13 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
         elementTypeFilter.availableCategories.push_back({ typeName, typeName });
     }
 
-    auto filters = nlohmann::json::array({ selectionFilter, elementTypeFilter });
+    ArchicadViewsFilter viewsFilter;
+    for (const auto& navigatorView : CONNECTOR.GetHostToSpeckleConverter().GetNavigatorViews())
+    {
+        viewsFilter.availableViews.push_back(navigatorView.name);
+    }
+
+    auto filters = nlohmann::json::array({ selectionFilter, elementTypeFilter, viewsFilter });
     args.eventSource->SetResult(args.methodId, filters);
 }
 
