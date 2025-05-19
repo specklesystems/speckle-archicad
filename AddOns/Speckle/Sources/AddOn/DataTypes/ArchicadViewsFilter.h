@@ -8,8 +8,8 @@ struct ArchicadViewsFilter
     std::string typeDiscriminator = "ArchicadViewsFilter";
     std::vector<std::string> selectedObjectIds;
     std::string name = "Views";
-    // revitCategories was first implemented on UI
-    // it will be used in Archicad as well for element type filters
+    // revitViews was first implemented on UI
+    // it will be used in Archicad as well for views filter
     std::string id = "revitViews";
     std::string type = "Custom";
     std::string summary;

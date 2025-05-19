@@ -31,6 +31,5 @@ void ArchicadViewsFilter::UpdateSelectedObjectIds()
 {
     // TODO CONNECTOR singleton should not be used in a DataType
     CONNECTOR.GetSpeckleToHostConverter().SetView(selectedView);
-    selectedObjectIds = CONNECTOR.GetHostToSpeckleConverter().GetElementListAll();
-    //selectedObjectIds = {};
+    selectedObjectIds = CONNECTOR.GetHostToSpeckleConverter().GetElementListAllVisibleIn3D();
 }

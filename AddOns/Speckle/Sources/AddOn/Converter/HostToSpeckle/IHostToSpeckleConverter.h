@@ -16,7 +16,7 @@ public:
 
 	virtual std::vector<std::string> GetSelection() = 0;
 	virtual std::vector<std::string> GetElementList(const std::vector<std::string>& elementTypes) = 0;
-	virtual std::vector<std::string> GetElementListAll() = 0;
+	virtual std::vector<std::string> GetElementListAllVisibleIn3D() = 0;
 	virtual std::vector<std::string> GetElementTypeList() = 0;
 	virtual ElementBody GetElementBody(const std::string& elemId) = 0;
 	virtual Material GetModelMaterial(int materialIndex) = 0;
