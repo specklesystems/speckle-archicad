@@ -91,7 +91,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.accountId = modelCard.accountId;
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
 
-    CONNECTOR.GetSpeckleToHostConverter().ShowAllIn3D();
+    CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();
 
     try
     {
