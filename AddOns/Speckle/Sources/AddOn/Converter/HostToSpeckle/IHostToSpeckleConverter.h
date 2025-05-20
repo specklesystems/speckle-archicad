@@ -7,6 +7,7 @@
 #include "ArchicadObject.h"
 #include "SendConversionResult.h"
 #include "PropertyFilters.h"
+#include "NavigatorView.h"
 
 class IHostToSpeckleConverter 
 {
@@ -15,6 +16,7 @@ public:
 
 	virtual std::vector<std::string> GetSelection() = 0;
 	virtual std::vector<std::string> GetElementList(const std::vector<std::string>& elementTypes) = 0;
+	virtual std::vector<std::string> GetElementListAllVisibleIn3D() = 0;
 	virtual std::vector<std::string> GetElementTypeList() = 0;
 	virtual ElementBody GetElementBody(const std::string& elemId) = 0;
 	virtual Material GetModelMaterial(int materialIndex) = 0;
@@ -34,4 +36,5 @@ public:
 	virtual ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult) = 0;
 	virtual std::vector<ArchicadObject> GetElementChildren(const std::string& elemId) = 0;
 	virtual std::string GetResourceString(short resourceId) = 0;
+	virtual std::vector<NavigatorView> GetNavigatorViews() = 0;
 };

@@ -3,6 +3,7 @@
 #include "json.hpp"
 #include "ArchicadSelectionFilter.h"
 #include "ArchicadElementTypeFilter.h"
+#include "ArchicadViewsFilter.h"
 
 struct SendFilter
 {
@@ -11,8 +12,10 @@ struct SendFilter
 
     bool IsArchicadSelectionFilter();
     bool IsArchicadElementTypeFilter();
+    bool IsArchicadViewsFilter();
     ArchicadSelectionFilter AsArchicadSelectionFilter();
     ArchicadElementTypeFilter AsArchicadElementTypeFilter();
+    ArchicadViewsFilter AsArchicadViewsFilter();
 
     std::vector<std::string> GetSelectedObjectIds();
 };
