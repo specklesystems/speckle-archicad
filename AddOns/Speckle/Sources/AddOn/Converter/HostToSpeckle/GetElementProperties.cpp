@@ -13,8 +13,8 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	std::vector<API_ElemTypeID> systemTypes = { API_WallID, API_SlabID, API_BeamID, API_BeamSegmentID, API_ColumnID, API_ColumnSegmentID, API_RoofID, API_ShellID, API_MorphID };
 	bool isSystemType = std::find(systemTypes.begin(), systemTypes.end(), elemType) != systemTypes.end();
 
-	std::vector<API_ElemTypeID> doorWindowZone = { API_DoorID, API_WindowID, API_ZoneID };
-	bool isDoorWindowZone = std::find(doorWindowZone.begin(), doorWindowZone.end(), elemType) != doorWindowZone.end();
+	std::vector<API_ElemTypeID> doorWindowStairZone = { API_DoorID, API_WindowID, API_StairID, API_ZoneID };
+	bool isDoorWindowStairZone = std::find(doorWindowStairZone.begin(), doorWindowStairZone.end(), elemType) != doorWindowStairZone.end();
 
 	if (isSystemType) 
 	{
@@ -23,7 +23,7 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 			properties["Material Quantities"] = materialQuantities;
 	}
 
-	if (isSystemType || isDoorWindowZone)
+	if (isSystemType || isDoorWindowStairZone)
 	{
 		nlohmann::json dimensionalProperties = GetElementBuiltInProperties(elemId);
 		if (!dimensionalProperties.empty())

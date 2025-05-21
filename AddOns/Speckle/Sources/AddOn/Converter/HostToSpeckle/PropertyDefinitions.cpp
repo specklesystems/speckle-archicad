@@ -82,7 +82,8 @@ PropertyDefinitions& PropertyDefinitions::Instance()
 std::vector<std::string> PropertyDefinitions::GetDefinitionIds(API_ElemTypeID elemType) const
 {
     auto it = propertyDefinitionIds.find(elemType);
-    if (it != propertyDefinitionIds.end()) {
+    if (it != propertyDefinitionIds.end()) 
+    {
         return it->second;
     }
     return {};
@@ -90,25 +91,26 @@ std::vector<std::string> PropertyDefinitions::GetDefinitionIds(API_ElemTypeID el
 
 std::vector<API_PropertyDefinition> PropertyDefinitions::GetDefinitions(API_ElemTypeID elemType)
 {
-    // Check cache
     auto cached = cache.find(elemType);
-    if (cached != cache.end()) {
+    if (cached != cache.end()) 
+    {
         return cached->second;
     }
 
     std::vector<API_PropertyDefinition> definitions;
 
-    for (const auto& propertyId : GetDefinitionIds(elemType)) {
+    for (const auto& propertyId : GetDefinitionIds(elemType)) 
+    {
         API_Guid propertyGuid = APIGuidFromString(propertyId.c_str());
         API_PropertyDefinition propertyDefinition{};
         propertyDefinition.guid = propertyGuid;
 
-        if (ACAPI_Property_GetPropertyDefinition(propertyDefinition) == NoError) {
+        if (ACAPI_Property_GetPropertyDefinition(propertyDefinition) == NoError) 
+        {
             definitions.push_back(propertyDefinition);
         }
     }
 
-    // Store in cache
     cache[elemType] = definitions;
 
     return definitions;
