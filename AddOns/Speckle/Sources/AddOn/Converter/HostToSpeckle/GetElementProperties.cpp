@@ -9,8 +9,12 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	nlohmann::json properties;
 
 	auto elemType = apiElem.header.type.typeID;
+
 	std::vector<API_ElemTypeID> systemTypes = { API_WallID, API_SlabID, API_BeamID, API_BeamSegmentID, API_ColumnID, API_ColumnSegmentID, API_RoofID, API_ShellID, API_MorphID };
 	bool isSystemType = std::find(systemTypes.begin(), systemTypes.end(), elemType) != systemTypes.end();
+
+	std::vector<API_ElemTypeID> doorWindowZone = { API_DoorID, API_WindowID, API_ZoneID };
+	bool isDoorWindowZone = std::find(doorWindowZone.begin(), doorWindowZone.end(), elemType) != doorWindowZone.end();
 
 	if (isSystemType) 
 	{
@@ -19,9 +23,12 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 			properties["Material Quantities"] = materialQuantities;
 	}
 
-	nlohmann::json dimensionalProperties = GetElementPropertiesByPropertyFilter(elemId, PropertyCollectionFilter::Dimensional);
-	if (!dimensionalProperties.empty())
-		properties["Element Properties"]["Dimensional Properties"] = dimensionalProperties;
+	if (isSystemType || isDoorWindowZone)
+	{
+		nlohmann::json dimensionalProperties = GetElementBuiltInProperties(elemId);
+		if (!dimensionalProperties.empty())
+			properties["Element Properties"]["Dimensional Properties"] = dimensionalProperties;
+	}
 	
 	nlohmann::json classifications = GetElementClassifications(elemId);
 	if (!classifications.empty())

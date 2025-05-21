@@ -22,7 +22,7 @@ public:
 	std::string GetHostAppReleaseInfo() override;
 	nlohmann::json GetElementMaterialQuantities(const std::string& elemId) override;
 	nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyTypeFilter propertyType) override;
-	nlohmann::json GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyCollectionFilter filter) override;
+	nlohmann::json GetElementBuiltInProperties(const std::string& elemId) override;
 	nlohmann::json GetElementIfcProperties(const std::string& elemId) override;
 	nlohmann::json GetElementProperties(const std::string& elemId) override;
 	WorkingUnits GetWorkingUnits() override;

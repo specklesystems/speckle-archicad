@@ -29,7 +29,7 @@ public:
 	virtual std::string GetHostAppReleaseInfo() = 0;
 	virtual nlohmann::json GetElementMaterialQuantities(const std::string& elemId) = 0;
 	virtual nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyTypeFilter propertyType) = 0;
-	virtual nlohmann::json GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyCollectionFilter filter) = 0;
+	virtual nlohmann::json GetElementBuiltInProperties(const std::string& elemId) = 0;
 	virtual nlohmann::json GetElementIfcProperties(const std::string& elemId) = 0;
 	virtual nlohmann::json GetElementProperties(const std::string& elemId) = 0;
 	virtual WorkingUnits GetWorkingUnits() = 0;

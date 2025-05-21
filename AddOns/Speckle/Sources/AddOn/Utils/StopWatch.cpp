@@ -9,7 +9,7 @@ StopWatch& StopWatch::GetInstance()
 }
 
 // Private constructor
-StopWatch::StopWatch() : isRunning(false) {}
+StopWatch::StopWatch() : isRunning(false), accumulatedTime(0) {}
 
 // Start the timer
 void StopWatch::Start() 
@@ -28,13 +28,21 @@ std::string StopWatch::Stop()
     isRunning = false;
 
     // Calculate elapsed time in milliseconds
-    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    auto elapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
+    accumulatedTime += elapsedTime;
 
     // Reset timer
     startTime = std::chrono::time_point<std::chrono::high_resolution_clock>();
 
     // Format and return the result
     std::ostringstream oss;
-    oss << "Elapsed: " << elapsedTime << " ms";
+    oss << "Elapsed: " << elapsedTime / 1000000 << " ms";
+    return oss.str();
+}
+
+std::string StopWatch::GetAccumulatedTime()
+{
+    std::ostringstream oss;
+    oss << "Accumulated: " << accumulatedTime / 1000000 << " ms";
     return oss.str();
 }
