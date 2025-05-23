@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SendFilter.h"
+#include "SendSetting.h"
 
 struct SenderModelCard
 {
@@ -12,6 +13,7 @@ struct SenderModelCard
     std::string serverUrl;
     bool expired;
     std::string modelCardId;
+    std::vector<SendSetting> settings;
 };
 
 void to_json(nlohmann::json& j, const SenderModelCard& c);

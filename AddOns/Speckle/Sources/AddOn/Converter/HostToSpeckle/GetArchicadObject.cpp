@@ -3,7 +3,7 @@
 #include "ACAPinc.h"
 
 
-ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult)
+ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult, bool includeProperties)
 {
 	ArchicadObject archicadObject{};
     
@@ -19,7 +19,8 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
     {
         archicadObject.displayValue = GetElementBody(elemId);
     }
-    archicadObject.properties = GetElementProperties(elemId);
+
+    archicadObject.properties = includeProperties ? GetElementProperties(elemId) : nlohmann::json::object();
 
     conversionResult.resultId = "";
     conversionResult.resultType = "ArchicadObject";

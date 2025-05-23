@@ -5,7 +5,7 @@
 #include "UserCancelledException.h"
 
 
-RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elementIds, std::vector<SendConversionResult>& conversionResults)
+RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elementIds, std::vector<SendConversionResult>& conversionResults, bool includeProperties)
 {	
     RootObject rootObject;
     std::vector<ElementBody> bodies;
@@ -20,7 +20,7 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
 
         try
         {
-            auto archicadObject = CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult);
+            auto archicadObject = CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult, includeProperties);
             
             if (archicadObject.displayValue.meshes.empty())
             {
