@@ -33,8 +33,8 @@ public:
 	virtual nlohmann::json GetElementIfcProperties(const std::string& elemId) = 0;
 	virtual nlohmann::json GetElementProperties(const std::string& elemId) = 0;
 	virtual WorkingUnits GetWorkingUnits() = 0;
-	virtual ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult, bool includeProperties = true) = 0;
-	virtual std::vector<ArchicadObject> GetElementChildren(const std::string& elemId, bool includeProperties = true) = 0;
+	virtual ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult, bool includeProperties) = 0;
+	virtual std::vector<ArchicadObject> GetElementChildren(const std::string& elemId, bool includeProperties) = 0;
 	virtual std::string GetResourceString(short resourceId) = 0;
 	virtual std::vector<NavigatorView> GetNavigatorViews() = 0;
 };

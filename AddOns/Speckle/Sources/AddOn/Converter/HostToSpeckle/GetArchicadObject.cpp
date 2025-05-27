@@ -14,7 +14,7 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
     conversionResult.sourceType = archicadObject.type;
     conversionResult.sourceId = elemId;
 
-    archicadObject.elements = GetElementChildren(elemId);
+    archicadObject.elements = GetElementChildren(elemId, includeProperties);
     if (archicadObject.elements.empty())
     {
         archicadObject.displayValue = GetElementBody(elemId);
