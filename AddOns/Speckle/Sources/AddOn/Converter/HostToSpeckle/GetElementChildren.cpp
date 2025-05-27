@@ -6,7 +6,7 @@
 #include "CheckError.h"
 
 
-std::vector<ArchicadObject> HostToSpeckleConverter::GetElementChildren(const std::string& elemId)
+std::vector<ArchicadObject> HostToSpeckleConverter::GetElementChildren(const std::string& elemId, bool includeProperties)
 {
 	auto elementType = GetElementType(elemId);
 	std::vector<ArchicadObject> children;
@@ -20,7 +20,7 @@ std::vector<ArchicadObject> HostToSpeckleConverter::GetElementChildren(const std
         {
             auto segment = (apiElemMemo.beamSegments)[i];
             auto segmentId = APIGuidToString(segment.head.guid).ToCStr().Get();
-            children.push_back(GetArchicadObject(segmentId, segmentConversionResult));
+            children.push_back(GetArchicadObject(segmentId, segmentConversionResult, includeProperties));
         }
     }
     else if (elementType == "Column")
@@ -29,7 +29,7 @@ std::vector<ArchicadObject> HostToSpeckleConverter::GetElementChildren(const std
         {
             auto segment = (apiElemMemo.columnSegments)[i];
             auto segmentId = APIGuidToString(segment.head.guid).ToCStr().Get();
-            children.push_back(GetArchicadObject(segmentId, segmentConversionResult));
+            children.push_back(GetArchicadObject(segmentId, segmentConversionResult, includeProperties));
         }
     }
 

@@ -17,6 +17,7 @@ public:
 
     // Stops the timer and resets it, returning the elapsed time in milliseconds
     std::string Stop();
+    std::string GetAccumulatedTime();
 
 private:
     // Private constructor for singleton pattern
@@ -29,4 +30,5 @@ private:
     // Variables to store start and end times
     std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
     bool isRunning; // Flag to check if timer is running
+    long long accumulatedTime;
 };

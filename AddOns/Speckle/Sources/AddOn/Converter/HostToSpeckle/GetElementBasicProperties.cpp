@@ -4,6 +4,7 @@
 #include "ConverterUtils.h"
 #include "CheckError.h"
 #include "SpeckleConversionException.h"
+#include "PropertyDefinitions.h"
 
 #include <iostream>
 
@@ -230,28 +231,10 @@ nlohmann::json HostToSpeckleConverter::GetElementPropertiesByPropertyType(const 
 	return GetElementPropertiesAsJson(apiElem.header.guid, definitions);
 }
 
-nlohmann::json HostToSpeckleConverter::GetElementPropertiesByPropertyFilter(const std::string& elemId, const PropertyCollectionFilter filter)
+nlohmann::json HostToSpeckleConverter::GetElementBuiltInProperties(const std::string& elemId)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
-	std::vector<API_PropertyDefinition> definitions;
-
-	for (const auto& propertyId : PropertyFilters::Get(filter))
-	{
-		auto propertyGuid = APIGuidFromString(propertyId.c_str());
-
-		bool isPropertyAvailable = ACAPI_Element_IsPropertyDefinitionAvailable(apiElem.header.guid, propertyGuid);
-		if (!isPropertyAvailable)
-			continue;
-
-		API_PropertyDefinition propertyDefinition{};
-		propertyDefinition.guid = propertyGuid;
-		GSErrCode error = ACAPI_Property_GetPropertyDefinition(propertyDefinition);
-
-		if (error != NoError)
-			continue;
-
-		definitions.push_back(propertyDefinition);
-	}
+	auto definitions = PropertyDefinitions::Instance().GetDefinitions(apiElem.header.type.typeID);
 
 	return GetElementPropertiesAsJson(apiElem.header.guid, definitions);
 }

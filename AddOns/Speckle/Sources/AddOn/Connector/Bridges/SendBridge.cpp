@@ -9,6 +9,7 @@
 #include "BaseObjectSerializer.h"
 #include "AfterSendObjectsArgs.h"
 #include "UserCancelledException.h"
+#include "SendSetting.h"
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
@@ -69,8 +70,29 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
 
 void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 {
-    // TODO implement
-    args.eventSource->SetResult(args.methodId, nlohmann::json::array());
+    SendSetting sendPropertiesSetting{ 
+        "sendProperties" , 
+        "Include Object Properties (disable for better performance)",
+        "boolean", 
+        true 
+    };
+    args.eventSource->SetResult(args.methodId, { sendPropertiesSetting });
+}
+
+static bool GetSendPropertiesSetting(const SenderModelCard& modelCard)
+{
+    bool sendProperties = true;
+
+    for (const auto& setting : modelCard.settings)
+    {
+        if (setting.id == "sendProperties")
+        {
+            sendProperties = setting.value.get<bool>();
+            break;
+        }
+    }
+
+    return sendProperties;
 }
 
 void SendBridge::Send(const RunMethodEventArgs& args)
@@ -80,7 +102,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
 
     std::string modelCardId = args.data[0].get<std::string>();
     SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
-
+    
     CONNECTOR.GetProcessWindow().Init("Sending...", 1);
 
     SendViaBrowserArgs sendArgs{};
@@ -97,7 +119,8 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     {
         nlohmann::json sendObj;
         RootObjectBuilder rootObjectBuilder{};
-        auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.GetSelectedObjectIds(), conversionResultCache);
+        bool includeProperties = GetSendPropertiesSetting(modelCard);
+        auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.GetSelectedObjectIds(), conversionResultCache, includeProperties);
         BaseObjectSerializer serializer{};
         auto rootObjectId = serializer.Serialize(root);
         auto batches = serializer.BatchObjects(10);
