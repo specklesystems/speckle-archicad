@@ -70,7 +70,12 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
 
 void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 {
-    SendSetting sendPropertiesSetting{ "sendProperties" , "Include Object Properties", "boolean", true };
+    SendSetting sendPropertiesSetting{ 
+        "sendProperties" , 
+        "Include Object Properties (disable for better performance)",
+        "boolean", 
+        true 
+    };
     args.eventSource->SetResult(args.methodId, { sendPropertiesSetting });
 }
 
