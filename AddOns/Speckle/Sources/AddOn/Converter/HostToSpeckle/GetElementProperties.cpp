@@ -16,6 +16,16 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	std::vector<API_ElemTypeID> doorWindowStairZone = { API_DoorID, API_WindowID, API_StairID, API_ZoneID };
 	bool isDoorWindowStairZone = std::find(doorWindowStairZone.begin(), doorWindowStairZone.end(), elemType) != doorWindowStairZone.end();
 
+	std::vector<API_ElemTypeID> compositeTypes = { API_WallID, API_SlabID, API_BeamID, API_RoofID, API_ShellID };
+	bool canBeComposite = std::find(compositeTypes.begin(), compositeTypes.end(), elemType) != compositeTypes.end();
+
+	if (canBeComposite)
+	{
+		nlohmann::json compositeStructure = GetElementCompositeStructure(elemId);
+		if (!compositeStructure.empty())
+			properties["Composite Structure"] = compositeStructure;
+	}
+
 	if (isSystemType) 
 	{
 		nlohmann::json materialQuantities = GetElementMaterialQuantities(elemId);
