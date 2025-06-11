@@ -1,6 +1,5 @@
 #include "HostToSpeckleConverter.h"
 #include "ConverterUtils.h"
-
 #include "APIEnvir.h"
 #include "ACAPinc.h"
 #include "CheckError.h"
@@ -16,24 +15,9 @@ namespace
 		double thickness = 0.0;
 	};
 
-	std::string GetMaterialName(API_AttributeIndex materialId)
-	{
-		return ConverterUtils::GetAttributeName(materialId, API_MaterialID);
-	}
-
 	std::string GetBuildingMaterialName(API_AttributeIndex materialId)
 	{
 		return ConverterUtils::GetAttributeName(materialId, API_BuildingMaterialID);
-	}
-
-	std::string GetCompositeMaterialName(API_AttributeIndex materialId)
-	{
-		return ConverterUtils::GetAttributeName(materialId, API_CompWallID);
-	}
-
-	std::string GetProfileName(API_AttributeIndex materialId)
-	{
-		return ConverterUtils::GetAttributeName(materialId, API_ProfileID);
 	}
 
 	void setMask(void* field) 
@@ -75,19 +59,17 @@ namespace
 		API_QuantitiesMask mask{};
 		API_QuantityPar params{};
 
-		//ACAPI_ELEMENT_QUANTITY_MASK_SETFULL(mask);
-
 		setMask(&mask.composites.buildMatIndices);
 		setMask(&mask.composites.volumes);
 		setMask(&mask.composites.projectedArea);
 
 		quantities.elements = &quantity;
 		quantities.composites = &compositeQuantities;
-		GSErrCode error = ACAPI_Element_GetQuantities(apiGuid, &params, &quantities, &mask);
+		GSErrCode err = ACAPI_Element_GetQuantities(apiGuid, &params, &quantities, &mask);
 
-		if (error)
+		if (err != NoError)
 		{
-			throw SpeckleConversionException("Could not get Element Composites");
+			return {};
 		}
 
 		std::vector<CompositeQuantity> composites;
@@ -100,7 +82,6 @@ namespace
 		return composites;
 	}
 
-	//nlohmann::json GetCompositeStructure(const API_Element& apiElem)
 	nlohmann::json GetCompositeStructure(const API_Guid& apiGuid, const API_AttributeIndex& compositeIndex)
 	{
 		auto composites = GetElementCompositeQuantities(apiGuid);
