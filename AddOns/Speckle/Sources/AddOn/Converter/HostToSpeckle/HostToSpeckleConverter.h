@@ -21,6 +21,7 @@ public:
 	std::string GetApplicationFolder() override;
 	std::string GetHostAppReleaseInfo() override;
 	nlohmann::json GetElementMaterialQuantities(const std::string& elemId) override;
+	nlohmann::json GetElementCompositeStructure(const std::string& elemId) override;
 	nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyTypeFilter propertyType) override;
 	nlohmann::json GetElementBuiltInProperties(const std::string& elemId) override;
 	nlohmann::json GetElementIfcProperties(const std::string& elemId) override;
