@@ -5,6 +5,7 @@
 #include "CheckError.h"
 #include "SpeckleConversionException.h"
 #include "PropertyDefinitions.h"
+#include "JsonFileWriter.h"
 
 #include <iostream>
 
@@ -206,12 +207,17 @@ namespace
 				std::string propertyName = GetPropertyName(definition);
 				std::string propertyGroupName = GetPropertyGroupName(definition);
 				propertyJson[propertyGroupName][propertyName] = propertyValue;
+
+				// only for finding property definition ids
+				//std::string propertyId = APIGuidToString(definition.guid).ToCStr().Get();
+				//propertyJson[propertyGroupName][propertyName] = propertyId;
 			}
 			catch (const std::exception& ex)
 			{
 				std::cout << ex.what();
 			}
 		}
+		//JsonFileWriter::WriteJsonToFile(propertyJson, "C:\\t\\pro.json");
 		return propertyJson;
 	}
 }

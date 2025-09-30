@@ -70,6 +70,11 @@ const std::unordered_map<API_ElemTypeID, std::vector<std::string>> PropertyDefin
         "CAF8D1EB-0BAD-48DE-AEA4-9932ECA3D913", // Zone Name
         "46ABEB73-F338-4103-AE39-0BFF099D0423", // Zone Net Perimeter
         "77367980-3D5A-452B-9900-D88C53E82176", // Zone Number
+    }},
+    { API_ObjectID, {
+        "7CAB47B5-D80B-4E2F-AB2B-71CF0BB57856", // Height
+        "DA895241-B437-4897-864C-F001FD704F64", // Length (A)
+        "19A99799-5B44-4A6F-9904-F132D7A3F0AC", // Width
     }}
 };
 
