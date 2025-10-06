@@ -23,8 +23,9 @@ namespace
 }
 
 // TODO cachce level names before sending
-std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
+ArchicadLevel HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 {
+	ArchicadLevel level;
 	std::string floorName = "";
 	auto apiElem = ConverterUtils::GetElement(elemId);
 	auto floorInd = apiElem.header.floorInd;
@@ -41,6 +42,8 @@ std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 			{
 				std::wstring fn = storyData.uName;
 				floorName = WstringToString(fn);
+				level.elevation = storyData.level;
+				level.floorId = storyData.floorId;
 				break;
 			}
 		}
@@ -48,14 +51,16 @@ std::string HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 
 	if (!floorName.empty())
 	{
-		return floorName;
+		level.name = floorName;
 	}
 	else
 	{
 		std::ostringstream oss;
 		oss << floorInd << ". Story";
-		return oss.str();
+		level.name = oss.str();
 	}
+
+	return level;
 }
 
 #pragma warning(pop) // Restore the previous warning state

@@ -9,6 +9,8 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
 {	
     RootObject rootObject;
     std::vector<ElementBody> bodies;
+    std::map<std::string, LevelProxy> levelProxies;
+
 
     CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(elementIds.size()));
     int elemCount = 0;
@@ -51,6 +53,21 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
 
             ElementTypeCollection& elementTypeCollection = level.elements[archicadObject.type];
             elementTypeCollection.elements.push_back(archicadObject);
+
+            if (levelProxies.find(archicadObject.level) == levelProxies.end())
+            {
+                ArchicadLevel archicadLevel;
+                archicadLevel.name = archicadObject.level;
+                archicadLevel.elevation = archicadObject.levelInfo.elevation;
+                LevelProxy levelProxy;
+                levelProxy.value = archicadLevel;
+                levelProxy.objects.push_back(archicadObject.applicationId);
+                levelProxies[archicadObject.level] = levelProxy;
+            }
+            else
+            {
+                levelProxies[archicadObject.level].objects.push_back(archicadObject.applicationId);
+            }
         }
         catch (const ArchiCadApiException& ae)
         {
@@ -99,6 +116,11 @@ RootObject RootObjectBuilder::GetRootObject(const std::vector<std::string>& elem
     for (const auto& renderMaterialProxy : collectedProxies)
     {
         rootObject.renderMaterialProxies.push_back(renderMaterialProxy.second);
+    }
+
+    for (const auto& levelProxy : levelProxies)
+    {
+        rootObject.levelProxies.push_back(levelProxy.second);
     }
 
     auto projectInfo = CONNECTOR.GetHostToSpeckleConverter().GetProjectInfo();

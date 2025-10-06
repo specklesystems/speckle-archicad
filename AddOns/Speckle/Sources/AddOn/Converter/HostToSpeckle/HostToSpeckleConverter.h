@@ -14,7 +14,7 @@ public:
 	ElementBody GetElementBody(const std::string& elemId) override;
 	Material GetModelMaterial(int materialIndex) override;
 	std::string GetElementName(const std::string& elemId) override;
-	std::string GetElementLevel(const std::string& elemId) override;
+	ArchicadLevel GetElementLevel(const std::string& elemId) override;
 	std::string GetElementType(const std::string& elemId) override;
 	std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) override;
 	ProjectInfo GetProjectInfo() override;

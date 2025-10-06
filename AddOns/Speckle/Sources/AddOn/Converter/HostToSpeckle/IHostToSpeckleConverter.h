@@ -8,6 +8,7 @@
 #include "SendConversionResult.h"
 #include "PropertyFilters.h"
 #include "NavigatorView.h"
+#include "ArchicadLevel.h"
 
 class IHostToSpeckleConverter 
 {
@@ -21,7 +22,7 @@ public:
 	virtual ElementBody GetElementBody(const std::string& elemId) = 0;
 	virtual Material GetModelMaterial(int materialIndex) = 0;
 	virtual std::string GetElementName(const std::string& elemId) = 0;
-	virtual std::string GetElementLevel(const std::string& elemId) = 0;
+	virtual ArchicadLevel GetElementLevel(const std::string& elemId) = 0;
 	virtual std::string GetElementType(const std::string& elemId) = 0;
 	virtual std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) = 0;
 	virtual ProjectInfo GetProjectInfo() = 0;

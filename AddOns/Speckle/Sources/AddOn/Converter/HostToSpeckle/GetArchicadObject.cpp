@@ -10,7 +10,8 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
     archicadObject.applicationId = elemId;
     archicadObject.name = GetElementName(elemId);
     archicadObject.type = GetElementType(elemId);
-    archicadObject.level = GetElementLevel(elemId);
+    archicadObject.levelInfo = GetElementLevel(elemId);
+    archicadObject.level = archicadObject.levelInfo.name;
     conversionResult.sourceType = archicadObject.type;
     conversionResult.sourceId = elemId;
 
