@@ -49,17 +49,9 @@ ArchicadLevel HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 		}
 	}
 
-	if (!floorName.empty())
-	{
-		level.name = floorName;
-	}
-	else
-	{
-		std::ostringstream oss;
-		oss << floorInd << ". Story";
-		level.name = oss.str();
-	}
-
+	std::ostringstream oss;
+	oss << floorInd << ". " << (floorName.empty() ? "Story" : floorName);
+	level.name = oss.str();
 	return level;
 }
 
