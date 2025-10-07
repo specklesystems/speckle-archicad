@@ -145,9 +145,6 @@ std::vector<std::string> HostToSpeckleConverter::GetElementListByLayer(const std
                                 elementList.push_back(guid);
                             }
                         }
-
-                        //std::string guid = APIGuidToString(apiGuid).ToCStr().Get();
-                        //elementList.push_back(guid);
                     }
                 }
                 catch (const std::exception&)
