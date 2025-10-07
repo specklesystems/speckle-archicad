@@ -33,10 +33,6 @@ std::vector<LayerData> HostToSpeckleConverter::GetLayers()
             layerData.id = std::to_string(i);
             layers.push_back(layerData);
         }
-        else
-        {
-            std::cout << "oh";
-        }
     }
 
 	return layers;
