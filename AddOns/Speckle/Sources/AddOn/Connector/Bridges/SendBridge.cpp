@@ -58,6 +58,12 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
         elementTypeFilter.availableCategories.push_back({ typeName, typeName });
     }
 
+    ArchicadLayerFilter layerFilter;
+    for (const auto& layer : CONNECTOR.GetHostToSpeckleConverter().GetLayers())
+    {
+        layerFilter.availableCategories.push_back({ layer.name, layer.id });
+    }
+
     // CNX-2007 
     // ACAPI_Navigator_SearchNavigatorItem API function crashes Archicad with specific files
     // temp remove view filters until we find a workaround or an API fix is released
@@ -67,7 +73,7 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
         viewsFilter.availableViews.push_back(navigatorView.name);
     }*/
 
-    auto filters = nlohmann::json::array({ selectionFilter, elementTypeFilter });
+    auto filters = nlohmann::json::array({ selectionFilter, elementTypeFilter, layerFilter });
     args.eventSource->SetResult(args.methodId, filters);
 }
 

@@ -9,6 +9,7 @@ public:
 
 	std::vector<std::string> GetSelection() override;
 	std::vector<std::string> GetElementList(const std::vector<std::string>& elementTypes) override;
+	std::vector<std::string> GetElementListByLayer(const std::vector<std::string>& layerIndices) override;
 	std::vector<std::string> GetElementListAllVisibleIn3D() override;
 	std::vector<std::string> GetElementTypeList() override;
 	ElementBody GetElementBody(const std::string& elemId) override;
@@ -31,4 +32,5 @@ public:
 	std::vector<ArchicadObject> GetElementChildren(const std::string& elemId, bool includeProperties) override;
 	std::string GetResourceString(short resourceId) override;
 	std::vector<NavigatorView> GetNavigatorViews() override;
+	std::vector<LayerData> GetLayers() override;
 };

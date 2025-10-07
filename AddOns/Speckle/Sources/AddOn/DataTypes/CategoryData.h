@@ -9,5 +9,5 @@ struct CategoryData
     std::string id;
 };
 
-void to_json(nlohmann::json& j, const CategoryData& level);
-void from_json(const nlohmann::json& j, CategoryData& level);
+void to_json(nlohmann::json& j, const CategoryData& data);
+void from_json(const nlohmann::json& j, CategoryData& data);

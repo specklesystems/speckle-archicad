@@ -15,6 +15,11 @@ bool SendFilter::IsArchicadViewsFilter()
     return typeDiscriminator == "ArchicadViewsFilter";
 }
 
+bool SendFilter::IsArchicadLayerFilter()
+{
+    return typeDiscriminator == "ArchicadLayerFilter";
+}
+
 ArchicadSelectionFilter SendFilter::AsArchicadSelectionFilter()
 {
     if (IsArchicadSelectionFilter())
@@ -51,6 +56,18 @@ ArchicadViewsFilter SendFilter::AsArchicadViewsFilter()
     }
 }
 
+ArchicadLayerFilter SendFilter::AsArchicadLayerFilter()
+{
+    if (IsArchicadLayerFilter())
+    {
+        return data.get<ArchicadLayerFilter>();
+    }
+    else
+    {
+        throw std::runtime_error("SendFilter is not an ArchicadLayerFilter");
+    }
+}
+
 std::vector<std::string> SendFilter::GetSelectedObjectIds()
 {
     if (IsArchicadSelectionFilter())
@@ -66,6 +83,12 @@ std::vector<std::string> SendFilter::GetSelectedObjectIds()
     else if (IsArchicadViewsFilter())
     {
         auto filter = AsArchicadViewsFilter();
+        filter.UpdateSelectedObjectIds();
+        return filter.selectedObjectIds;
+    }
+    else if (IsArchicadLayerFilter())
+    {
+        auto filter = AsArchicadLayerFilter();
         filter.UpdateSelectedObjectIds();
         return filter.selectedObjectIds;
     }
