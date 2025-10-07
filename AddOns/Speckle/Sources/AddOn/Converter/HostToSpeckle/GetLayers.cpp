@@ -13,6 +13,8 @@ std::vector<LayerData> HostToSpeckleConverter::GetLayers()
 	CHECK_ERROR(ACAPI_Attribute_GetNum(API_LayerID, layerCount));
 
     GSErrCode err = NoError;
+    // i <= 32768 is a hack because AC does not retrieve layerCount corretcly
+    // there are layer attributes on much higher indices than layerCount
     for (UInt32 i = 1; i <= 32768; i++) 
     {
         API_Attribute layerAttr;

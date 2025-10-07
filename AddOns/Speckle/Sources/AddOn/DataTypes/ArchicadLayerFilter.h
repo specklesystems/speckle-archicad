@@ -10,7 +10,7 @@ struct ArchicadLayerFilter
     std::string name = "Layers";
     // revitCategories was first implemented on UI
     // it will be used in Archicad as well for element type filters
-    std::string id = "revitCategories";
+    std::string id = "revitCategories2";
     std::string summary;
     bool isDefault = false;
     std::vector<std::string> selectedCategories;
