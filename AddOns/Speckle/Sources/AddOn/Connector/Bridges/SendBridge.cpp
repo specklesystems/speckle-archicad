@@ -123,6 +123,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
 
     CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();
+    auto layerStatesStart = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
 
     try
     {
@@ -151,6 +152,18 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     {
         args.eventSource->Send("triggerCancel", sendArgs.modelCardId);
     }
+
+    // restore hidden layers after send (in case user sent with LayerFilter)
+    auto layerStatesEnd = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
+    std::vector<int> layersToHide;
+    for (int i = 0; i < layerStatesStart.size(); i++)
+    {
+        if (layerStatesStart[i].hidden && !layerStatesEnd[i].hidden)
+        {
+            layersToHide.push_back(std::stoi(layerStatesStart[i].id));
+        }
+    }
+    CONNECTOR.GetSpeckleToHostConverter().SetLayerVisibility(layersToHide, false);
 
     CONNECTOR.GetProcessWindow().Close();
 }

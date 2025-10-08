@@ -22,7 +22,7 @@ void SpeckleToHostConverter::ShowIn3D()
 	}
 }
 
-void SpeckleToHostConverter::ShowLayers(const std::vector<int>& layerIndices)
+void SpeckleToHostConverter::SetLayerVisibility(const std::vector<int>& layerIndices, bool visibility)
 {
 	for (const auto i : layerIndices)
 	{
@@ -36,7 +36,7 @@ void SpeckleToHostConverter::ShowLayers(const std::vector<int>& layerIndices)
 
 		if (err == NoError)
 		{
-			layerAttr.layer.head.flags = 0;
+			layerAttr.layer.head.flags = visibility ? 0 : APILay_Hidden;
 			ACAPI_Attribute_Modify(&layerAttr, nullptr);
 		}
 	}

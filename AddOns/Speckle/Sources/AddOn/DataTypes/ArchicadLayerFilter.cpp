@@ -32,7 +32,7 @@ void ArchicadLayerFilter::UpdateSelectedObjectIds()
         std::back_inserter(selectedCategoriesInt),
         [](const std::string& str) { return std::stoi(str); });
 
-    CONNECTOR.GetSpeckleToHostConverter().ShowLayers(selectedCategoriesInt);
+    CONNECTOR.GetSpeckleToHostConverter().SetLayerVisibility(selectedCategoriesInt, true);
 
     selectedObjectIds = CONNECTOR.GetHostToSpeckleConverter().GetElementListByLayer(selectedCategories);
 }

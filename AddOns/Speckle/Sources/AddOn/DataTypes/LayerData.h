@@ -7,6 +7,7 @@ struct LayerData
 {
     std::string name;
     std::string id;
+    bool hidden;
 };
 
 void to_json(nlohmann::json& j, const LayerData& data);

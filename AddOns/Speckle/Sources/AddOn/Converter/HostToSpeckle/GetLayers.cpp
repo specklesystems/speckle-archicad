@@ -31,6 +31,7 @@ std::vector<LayerData> HostToSpeckleConverter::GetLayers()
             std::string stdLayerName = layerName.ToCStr().Get();
             layerData.name = stdLayerName;
             layerData.id = std::to_string(i);
+            layerData.hidden = layerAttr.layer.head.flags & APILay_Hidden;
             layers.push_back(layerData);
         }
     }
