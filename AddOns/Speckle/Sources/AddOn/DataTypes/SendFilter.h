@@ -4,6 +4,7 @@
 #include "ArchicadSelectionFilter.h"
 #include "ArchicadElementTypeFilter.h"
 #include "ArchicadViewsFilter.h"
+#include "ArchicadLayerFilter.h"
 
 struct SendFilter
 {
@@ -13,9 +14,11 @@ struct SendFilter
     bool IsArchicadSelectionFilter();
     bool IsArchicadElementTypeFilter();
     bool IsArchicadViewsFilter();
+    bool IsArchicadLayerFilter();
     ArchicadSelectionFilter AsArchicadSelectionFilter();
     ArchicadElementTypeFilter AsArchicadElementTypeFilter();
     ArchicadViewsFilter AsArchicadViewsFilter();
+    ArchicadLayerFilter AsArchicadLayerFilter();
 
     std::vector<std::string> GetSelectedObjectIds();
 };

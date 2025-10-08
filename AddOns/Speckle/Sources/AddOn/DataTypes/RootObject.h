@@ -4,6 +4,7 @@
 #include <map>
 #include "Level.h"
 #include "RenderMaterialProxy.h"
+#include "LevelProxy.h"
 
 struct RootObject
 {
@@ -13,6 +14,7 @@ struct RootObject
     int version = 3;
     std::map<std::string, Level> elements;
     std::vector<RenderMaterialProxy> renderMaterialProxies;
+    std::vector<LevelProxy> levelProxies;
 };
 
 void to_json(nlohmann::json& j, const RootObject& rootObject);

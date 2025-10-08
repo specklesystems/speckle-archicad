@@ -3,6 +3,7 @@
 #include "json.hpp"
 #include "Mesh.h"
 #include "ElementBody.h"
+#include "ArchicadLevel.h"
 
 struct ArchicadObject
 {
@@ -14,6 +15,7 @@ struct ArchicadObject
     ElementBody displayValue;
     nlohmann::json properties;
     std::vector<ArchicadObject> elements;
+    ArchicadLevel levelInfo;
 };
 
 void to_json(nlohmann::json& j, const ArchicadObject& elem);

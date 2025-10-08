@@ -114,6 +114,50 @@ std::vector<std::string> HostToSpeckleConverter::GetElementList(const std::vecto
 	return elementList;
 }
 
+std::vector<std::string> HostToSpeckleConverter::GetElementListByLayer(const std::vector<std::string>& layerIndices)
+{
+    std::vector<std::string> elementList;
+
+    for (const auto& elementType : GetElementTypeList())
+    {
+        auto it = stringToElementTypesMap.find(elementType);
+        if (it != stringToElementTypesMap.end())
+        {
+            auto types = it->second;
+            for (const auto& t : types)
+            {
+                try
+                {
+                    GS::Array<API_Guid> elemGuids;
+                    CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids));
+                    for (const auto& apiGuid : elemGuids)
+                    {
+                        API_Element element = {};
+                        element.header.guid = apiGuid;
+
+                        if (ACAPI_Element_GetHeader(&element.header) == NoError)
+                        {
+                            std::string layerIndex = element.header.layer.ToUniString().ToCStr().Get();
+                            
+                            if (std::find(layerIndices.begin(), layerIndices.end(), layerIndex) != layerIndices.end())
+                            {
+                                std::string guid = APIGuidToString(apiGuid).ToCStr().Get();
+                                elementList.push_back(guid);
+                            }
+                        }
+                    }
+                }
+                catch (const std::exception&)
+                {
+                    // continue
+                }
+            }
+        }
+    }
+
+    return elementList;
+}
+
 std::vector<std::string> HostToSpeckleConverter::GetElementTypeList()
 {
     return {

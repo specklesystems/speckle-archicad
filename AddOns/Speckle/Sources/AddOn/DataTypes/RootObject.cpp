@@ -15,6 +15,7 @@ void to_json(nlohmann::json& j, const RootObject& rootObject)
 
     j["@elements"] = levels;
     j["renderMaterialProxies"] = rootObject.renderMaterialProxies;
+    j["levelProxies"] = rootObject.levelProxies;
 }
 
 void from_json(const nlohmann::json& j, RootObject& rootObject)
