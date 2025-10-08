@@ -121,10 +121,10 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.serverUrl = modelCard.serverUrl;
     sendArgs.accountId = modelCard.accountId;
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
-
-    CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();
+    
+    CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();   
     auto layerStatesStart = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
-
+    
     try
     {
         nlohmann::json sendObj;
