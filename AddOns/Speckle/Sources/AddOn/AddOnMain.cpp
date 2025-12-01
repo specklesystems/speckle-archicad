@@ -10,7 +10,9 @@ static GSErrCode RegisterMenu(short menuStrResID, short promptStrResID, APIMenuC
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_MenuItem_RegisterMenu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
+#elif defined(AC28)
 	err = ACAPI_MenuItem_RegisterMenu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
 #elif defined(AC27)
 	err = ACAPI_MenuItem_RegisterMenu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
@@ -25,7 +27,9 @@ static GSErrCode InstallMenuHandler(short menuStrResID, APIMenuCommandProc* hand
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_MenuItem_InstallMenuHandler(menuStrResID, handlerProc);
+#elif defined(AC28)
 	err = ACAPI_MenuItem_InstallMenuHandler(menuStrResID, handlerProc);
 #elif defined(AC27)
 	err = ACAPI_MenuItem_InstallMenuHandler(menuStrResID, handlerProc);
@@ -40,7 +44,9 @@ static GSErrCode CatchProjectEvent(GSFlags eventTypes, APIProjectEventHandlerPro
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
+#elif defined(AC28)
 	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
 #elif defined(AC27)
 	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
@@ -55,7 +61,9 @@ static GSErrCode CatchSelectionChange(APISelectionChangeHandlerProc* handlerProc
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_Notification_CatchSelectionChange(handlerProc);
+#elif defined(AC28)
 	err = ACAPI_Notification_CatchSelectionChange(handlerProc);
 #elif defined(AC27)
 	err = ACAPI_Notification_CatchSelectionChange(handlerProc);

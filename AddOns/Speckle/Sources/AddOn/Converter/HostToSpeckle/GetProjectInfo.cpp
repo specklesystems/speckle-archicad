@@ -8,7 +8,9 @@ static GSErrCode ApiProjectInfo(API_ProjectInfo* projectInfo)
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_ProjectOperation_Project(projectInfo);
+#elif defined(AC28)
 	err = ACAPI_ProjectOperation_Project(projectInfo);
 #elif defined(AC27)
 	err = ACAPI_ProjectOperation_Project(projectInfo);

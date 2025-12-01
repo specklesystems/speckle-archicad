@@ -1,0 +1,1 @@
+cmake -G "Visual Studio 17 2022" -A "x64" -DAC_ADDON_LANGUAGE="INT" -DAC_API_DEVKIT_DIR="Libs\acapi29" -B build_29 -DCMAKE_BUILD_TYPE=Debug

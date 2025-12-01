@@ -10,7 +10,9 @@ static GSErrCode ProcessWindow_InitProcessWindow(const GS::UniString* title = nu
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_ProcessWindow_InitProcessWindow(title, nPhase, processCntrolType);
+#elif defined(AC28)
 	err = ACAPI_ProcessWindow_InitProcessWindow(title, nPhase, processCntrolType);
 #elif defined(AC27)
 	err = ACAPI_ProcessWindow_InitProcessWindow(title, nPhase, processCntrolType);
@@ -25,7 +27,9 @@ static GSErrCode ProcessWindow_SetNextProcessPhase(const GS::UniString* subtitle
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_ProcessWindow_SetNextProcessPhase(subtitle, maxval, showPercent);
+#elif defined(AC28)
 	err = ACAPI_ProcessWindow_SetNextProcessPhase(subtitle, maxval, showPercent);
 #elif defined(AC27)
 	err = ACAPI_ProcessWindow_SetNextProcessPhase(subtitle, maxval, showPercent);
@@ -40,7 +44,9 @@ static GSErrCode ProcessWindow_SetProcessValue(Int32* newval)
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_ProcessWindow_SetProcessValue(newval);
+#elif defined(AC28)
 	err = ACAPI_ProcessWindow_SetProcessValue(newval);
 #elif defined(AC27)
 	err = ACAPI_ProcessWindow_SetProcessValue(newval);
@@ -55,7 +61,9 @@ static GSErrCode ProcessWindow_CloseProcessWindow()
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_ProcessWindow_CloseProcessWindow();
+#elif defined(AC28)
 	err = ACAPI_ProcessWindow_CloseProcessWindow();
 #elif defined(AC27)
 	err = ACAPI_ProcessWindow_CloseProcessWindow();
@@ -68,7 +76,9 @@ static GSErrCode ProcessWindow_CloseProcessWindow()
 
 static bool ProcessWindow_IsProcessCanceled()
 {
-#if defined(AC28)
+#if defined(AC29)
+	return (ACAPI_ProcessWindow_IsProcessCanceled() == APIERR_CANCEL);
+#elif defined(AC28)
 	return (ACAPI_ProcessWindow_IsProcessCanceled() == APIERR_CANCEL);
 #elif defined(AC27)
 	return (ACAPI_ProcessWindow_IsProcessCanceled() == APIERR_CANCEL);

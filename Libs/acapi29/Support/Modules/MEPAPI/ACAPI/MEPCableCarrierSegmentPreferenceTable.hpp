@@ -1,0 +1,191 @@
+#ifndef GS_ACAPI_MEP_CABLECARRIER_SEGMENT_PREFERENCE_TABLE_HPP
+#define GS_ACAPI_MEP_CABLECARRIER_SEGMENT_PREFERENCE_TABLE_HPP
+
+#include "MEPAPIExport.hpp"
+
+#include "MEPTypes.hpp"
+
+#include "ACAPI/Object.hpp"
+#include "ACAPI/Result.hpp"
+#include "ACAPI/ModifyScope.hpp"
+
+
+namespace ACAPI::MEP {
+
+
+/**
+ * @brief The CableCarrierSegmentPreferenceTable represents a named entity, that contains rows that consists of a size and a description.
+ * 		  The rows have to be unique by value and are always in ascending order.
+ * @ingroup MEP
+ * @since Archicad 28
+ * @ingroup MEP
+ * @par Example code snippet from Test / New MEP
+ * 	    Getters @snippet Preferences.cpp CableCarrierSegmentPreferenceTable-Getters-Example
+ *      Modification: take a look at @ref DuctRectangularSegmentPreferenceTable "DuctRectangularSegmentPreferenceTable"
+ */
+class MEPAPI_EXPORT CableCarrierSegmentPreferenceTable final : public Object {
+	CableCarrierSegmentPreferenceTable (const UniqueID&);
+public:
+	class Modifier;
+	~CableCarrierSegmentPreferenceTable ();
+
+	/**
+	 * @brief Returns a CableCarrierSegmentPreferenceTable.
+	 * @param uniqueId The UniqueID of the requested CableCarrierSegmentPreferenceTable.
+	 * @return If the uniqueId belongs to a CableCarrierSegmentPreferenceTable, returns the object associated to it, otherwise Error.
+	 */
+	static Result<CableCarrierSegmentPreferenceTable> Get (const UniqueID& uniqueId);
+
+	/** @return Checks if the object still exists. */
+	bool Exists () const;
+
+	/**
+	 * @brief Checks whether the table is editable.
+	 * @return Returns nothing if the table is editable, otherwise the error code and error message containing information about the reason.
+	 */
+	Result<void> IsEditable () const;
+
+	/** @return Returns the name of the table. */
+	GS::UniString GetName () const;
+
+	/**
+	 * @return Returns the size of the table.
+	 */
+	uint32_t GetSize () const;
+
+	/**
+	 * @param index The index of the row. Index starts from 0.
+	 * @return Returns error if the index is not defined for the CableCarrierSegmentPreferenceTable, otherwise returns the value of a table's row.
+	 */
+	Result<double> GetValue (uint32_t index) const;
+
+	/**
+	 * @param index The index of the row. Index starts from 0.
+	 * @return Returns error if the index is not defined for the CableCarrierSegmentPreferenceTable, otherwise returns the description of a table's row.
+	 */
+	Result<GS::UniString> GetDescription (uint32_t index) const;
+
+	/**
+	 * @brief Returns whether the rigid segment segmentation is turned on.
+	 * If this is false, there will be only one rigid segment for each routing segment, and the minimum and maximum segmentation lengths are ignored when generating routings.
+	 * @return Returns true if the rigid segment segmentation is turned on, and false if it's turned off.
+	 */
+	bool GetUseIndividualSegmentLengths () const;
+
+	/**
+	 * @return Returns the minimum segmentation length of the rigid segment.
+	 * If the segmentation is turned off, the value is ignored when generating routings,
+	 * and the rigid segment will be the same length as the routing segment.
+	 */
+	double GetMinimumSegmentationLength () const;
+
+	/**
+	 * @return Returns the maximum segmentation length of the rigid segment.
+	 * If the segmentation is turned off, the value is ignored when generating routings, 
+	 * and the rigid segment will be the same length as the routing segment.
+	 */
+	double GetMaximumSegmentationLength () const;
+
+	/**
+	 * @brief Executes the passed modifier scope in an Undoable command.
+	 * @param modifierFunc The modifier scope (lambda, std::function or function pointer) the caller wants to execute.
+	 * @param undoString The text which appears in the undo queue of Archicad after executing the command.
+	 * @return Returns an error if the process of modification fails for some reason, otherwise nothing.
+	 */
+	template <typename ModifierFunc>
+	Result<void> Modify (const ModifierFunc& modifierFunc, const GS::UniString& undoString);
+};
+
+
+/**
+ * @brief Modifier of the CableCarrierSegmentPreferenceTable.
+ * @ingroup MEP
+ */
+class MEPAPI_EXPORT CableCarrierSegmentPreferenceTable::Modifier : public ACAPI::ModifierBase {
+	CableCarrierSegmentPreferenceTable& parent;
+
+	friend CableCarrierSegmentPreferenceTable;
+protected:
+	/**
+	 * @brief Constructs a Modifier with the CableCarrierSegmentPreferenceTable.
+	 * @param parent The given CableCarrierSegmentPreferenceTable.
+	 */
+	Modifier (CableCarrierSegmentPreferenceTable& parent);
+
+	/**
+	 * @brief Finalizes the modifications.
+	 */
+	void FinalizeModification () override;
+
+public:
+	~Modifier ();
+
+	/**
+	 * @brief Sets the name of the table.
+	 * @param tableName The name to be set.
+	 */
+	void SetName (const GS::UniString& tableName);
+
+	/**
+	 * @brief Inserts a new empty line in the table.
+	 * @return Returns error if there is already an unset row in the CableCarrierSegmentPreferenceTable, otherwise returns the index of the newly inserted row. Do not forget to set a value to it afterwards,
+	 * 		   otherwise it will be automatically deleted at the end of the Modify scope.
+	 */
+	Result<uint32_t> AddNewPreference ();
+
+	/**
+	 * @brief Deletes a row from the table.
+	 * @param index The index of the row. Index starts from 0.
+	 * @return Returns error if the index is out of range, otherwise nothing.
+	 */
+	Result<void> Delete (uint32_t index);
+
+	/**
+	 * @brief Sets the value of a table's row.
+	 * @param index The index of the row. Index starts from 0.
+	 * @param value The value to be set. Must be a non-zero positive number.
+	 * @return Returns error if the index is out of range or if the new value would be a duplicate, otherwise returns the new index of the modified row.
+	 */
+	Result<uint32_t> SetValue (uint32_t index, double value);
+
+	/**
+	 * @brief Sets the description of a table's row.
+	 * @param index The index of the row. Index starts from 0.
+	 * @param description The description to be set.
+	 * @return Returns error if the index is out of range, otherwise nothing.
+	 */
+	Result<void> SetDescription (uint32_t index, const GS::UniString& description);
+
+	/**
+	 * @brief Sets the use of individual segment lengths. If this is false, there will be only one rigid segment for each routing segment, 
+	 * and the minimum and maximum segmentation lengths are ignored when generating routings.
+	 * @param value The value to be set.
+	 */
+	void   SetUseIndividualSegmentLengths (bool value);
+
+	/**
+	 * @brief Sets the segmentation lengths of the rigid segment. If the segmentation is turned off, 
+	 * the value is ignored when generating routings, and the rigid segment will be the same length as the routing segment.
+	 * @param minimum The minimum segmentation length of the rigid segment.
+	 * @param maximum The maximum segmentation length of the rigid segment.
+	 * @return Returns error if any of the parameters are negative, or if the condition minimum * 2 <= maximum is false, otherwise nothing.
+	 */
+	Result<void> SetSegmentationLengths (double minimum, double maximum);
+};
+
+
+template <typename ModifierFunc>
+Result<void> CableCarrierSegmentPreferenceTable::Modify (const ModifierFunc& modifierFunc, const GS::UniString& undoString)
+{
+	Result<void> editableResult = IsEditable ();
+	if (editableResult.IsErr ())
+		return editableResult;
+
+	Modifier modifier (*this);
+	return ExecuteUndoableScope (modifierFunc, modifier, *this, undoString);
+}
+
+
+} // ACAPI::MEP
+
+#endif // GS_ACAPI_MEP_CABLECARRIER_SEGMENT_PREFERENCE_TABLE_HPP

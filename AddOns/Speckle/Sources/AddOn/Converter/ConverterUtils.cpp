@@ -11,7 +11,9 @@ static GSErrCode GetCurrentWindowSight(void** sightPtr)
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_Sight_GetCurrentWindowSight(sightPtr);
+#elif defined(AC28)
 	err = ACAPI_Sight_GetCurrentWindowSight(sightPtr);
 #elif defined(AC27)
 	err = ACAPI_Sight_GetCurrentWindowSight(sightPtr);

@@ -8,7 +8,9 @@ static GSErrCode DeselectAll()
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_Selection_DeselectAll();
+#elif defined(AC28)
 	err = ACAPI_Selection_DeselectAll();
 #elif defined(AC27)
 	err = ACAPI_Selection_DeselectAll();
@@ -23,7 +25,9 @@ static GSErrCode Select(const GS::Array<API_Neig>& selNeigs, bool add)
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_Selection_Select(selNeigs, add);
+#elif defined(AC28)
 	err = ACAPI_Selection_Select(selNeigs, add);
 #elif defined(AC27)
 	err = ACAPI_Selection_Select(selNeigs, add);

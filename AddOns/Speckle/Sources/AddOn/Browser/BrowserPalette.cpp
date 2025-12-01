@@ -9,7 +9,9 @@ static GSErrCode CatchProjectEvent(GSFlags eventTypes, APIProjectEventHandlerPro
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
+#elif defined(AC28)
 	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
 #elif defined(AC27)
 	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
@@ -24,7 +26,9 @@ static GSErrCode GetMenuItemFlags(API_MenuItemRef* menuItem = nullptr, GSFlags* 
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_MenuItem_GetMenuItemFlags(menuItem, flags);
+#elif defined(AC28)
 	err = ACAPI_MenuItem_GetMenuItemFlags(menuItem, flags);
 #elif defined(AC27)
 	err = ACAPI_MenuItem_GetMenuItemFlags(menuItem, flags);
@@ -39,7 +43,9 @@ static GSErrCode SetMenuItemFlags(API_MenuItemRef* menuItem = nullptr, GSFlags* 
 {
 	GSErrCode err = NoError;
 
-#if defined(AC28)
+#if defined(AC29)
+	err = ACAPI_MenuItem_SetMenuItemFlags(menuItem, flags);
+#elif defined(AC28)
 	err = ACAPI_MenuItem_SetMenuItemFlags(menuItem, flags);
 #elif defined(AC27)
 	err = ACAPI_MenuItem_SetMenuItemFlags(menuItem, flags);

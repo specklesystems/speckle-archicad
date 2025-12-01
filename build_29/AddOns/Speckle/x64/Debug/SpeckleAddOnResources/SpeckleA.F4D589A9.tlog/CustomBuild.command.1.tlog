@@ -1,0 +1,32 @@
+^C:\DEV\SPECKLE-ARCHICAD\SPECKLE-ARCHICAD\BUILD_29\CMAKEFILES\BD86E6C5B9A1F217FFF3D746780F2B07\ADDONRESOURCES.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E make_directory C:/dev/speckle-archicad/speckle-archicad/build_29/AddOns/Speckle/ResourceObjects
+if %errorlevel% neq 0 goto :cmEnd
+python C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOnResources/Tools/CompileResources.py INT C:/dev/speckle-archicad/speckle-archicad/Libs/acapi29 C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOn C:/dev/speckle-archicad/speckle-archicad/AddOns/Speckle/Sources/AddOnResources C:/dev/speckle-archicad/speckle-archicad/build_29/AddOns/Speckle/ResourceObjects C:/dev/speckle-archicad/speckle-archicad/build_29/AddOns/Speckle/ResourceObjects/Speckle.res
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/dev/speckle-archicad/speckle-archicad/build_29/AddOns/Speckle/ResourceObjects/AddOnResources.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\DEV\SPECKLE-ARCHICAD\SPECKLE-ARCHICAD\BUILD_29\CMAKEFILES\BFFF75AC7CE24E3D0B4D9B291379D52E\SPECKLEADDONRESOURCES.RULE
+setlocal
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\DEV\SPECKLE-ARCHICAD\SPECKLE-ARCHICAD\ADDONS\SPECKLE\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/dev/speckle-archicad/speckle-archicad -BC:/dev/speckle-archicad/speckle-archicad/build_29 --check-stamp-file C:/dev/speckle-archicad/speckle-archicad/build_29/AddOns/Speckle/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
