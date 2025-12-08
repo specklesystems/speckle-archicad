@@ -1,4 +1,5 @@
 #include "BrowserPalette.h"
+//#include "DummyBrowserAdapter.h"
 #include "ArchiCadBrowserAdapter.h"
 
 static const GS::Guid	paletteGuid ("{B8461D5C-DB5C-45EB-9047-3303212F04AD}");
@@ -75,6 +76,7 @@ BrowserPalette::BrowserPalette () :
 	Attach (*this);
 	BeginEventProcessing ();
 	browserAdapter = std::make_unique<ArchiCadBrowserAdapter>(&dgBrowser);
+	//browserAdapter = std::make_unique<DummyBrowserAdapter>();
 }
 
 BrowserPalette::~BrowserPalette ()

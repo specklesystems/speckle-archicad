@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.16)
 
 project(archicad-speckle)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # default CMAKE_BUILD_TYPE is RELEASE
 if(NOT CMAKE_BUILD_TYPE)
@@ -34,14 +34,14 @@ endif ()
 function (SetCompilerParams target)
 	target_compile_options (${target} PUBLIC "$<$<CONFIG:Debug>:-DDEBUG>")
 	if (WIN32)
-		target_compile_options (${target} PUBLIC /W4 /WX /MP
+		target_compile_options (${target} PUBLIC /W3 /MP
 			/Zc:wchar_t-
 			/wd4499
+			/wd4996 
 			/wd5208
 		)
 	else ()
-		target_compile_options (${target} PUBLIC -Wall -Wextra
-			-fvisibility=hidden
+		target_compile_options (${target} PUBLIC -Wall -Wextra -fvisibility=hidden
 			-Wno-multichar
 			-Wno-ctor-dtor-privacy
 			-Wno-invalid-offsetof
@@ -49,7 +49,15 @@ function (SetCompilerParams target)
 			-Wno-reorder
 			-Wno-overloaded-virtual
 			-Wno-unused-parameter
-			-Wno-deprecated)
+			-Wno-missing-field-initializers
+			-Wno-unknown-pragmas
+			-Wno-missing-braces
+			-Wno-unused-private-field
+			-Wno-return-std-move
+			-Wno-unused-value
+			-Wno-switch
+			-Wno-deprecated
+			-Wno-shorten-64-to-32)
 	endif ()
 
 	target_compile_definitions(${target} PUBLIC

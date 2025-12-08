@@ -7,6 +7,7 @@
 #include "CheckError.h"
 #include "SpeckleConversionException.h"
 
+/*
 namespace
 {
 	std::string bool_to_string(bool b)
@@ -130,10 +131,10 @@ namespace
 		}
 	}
 }
-
+*/
 nlohmann::json HostToSpeckleConverter::GetElementIfcProperties(const std::string& elemId)
 {
-	nlohmann::json properties;
+	/*nlohmann::json properties;
 	auto apiGuid = APIGuidFromString(elemId.c_str());
 	GS::Array<API_IFCProperty> ifcProperties;
 	GSErrCode err = NoError;
@@ -153,5 +154,6 @@ nlohmann::json HostToSpeckleConverter::GetElementIfcProperties(const std::string
 		properties[propertySetName][propertyName] = propertyValue;
 	}
 
-	return properties;
+	return properties;*/
+	return {};
 }
