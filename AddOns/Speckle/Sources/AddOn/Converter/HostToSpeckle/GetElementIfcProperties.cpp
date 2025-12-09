@@ -10,6 +10,7 @@
 #include "ConverterUtils.h"
 #include "CheckError.h"
 #include "SpeckleConversionException.h"
+#include <iostream>
 
 namespace
 {
@@ -159,21 +160,22 @@ nlohmann::json HostToSpeckleConverter::GetElementIfcProperties(const std::string
 	auto apiGuid = APIGuidFromString(elemId.c_str());
 	API_Elem_Head head{};
 	head.guid = apiGuid;
-	auto objectID = IFCAPI::GetObjectAccessor().CreateElementObjectID(head);
-	if (objectID.IsOk())
-	{
-		auto localProperties = IFCAPI::PropertyAccessor(objectID.Unwrap()).GetLocalProperties();
-		if (localProperties.IsOk())
-		{
-			for (const auto& property : localProperties.Unwrap())
-			{
-				std::string propertyName = property.GetName().ToCStr().Get();
-				std::string propertySetName = property.GetPropertySetName().ToCStr().Get();
-				nlohmann::json propertyValue = GetElementIfcPropertyValueAsJson(property);
 
-				properties[propertySetName][propertyName] = propertyValue;
-			}
-		}
+	auto objectID = IFCAPI::GetObjectAccessor().CreateElementObjectID(head);
+	if (objectID.IsErr())
+		return {};
+
+	auto previewProperties = IFCAPI::PropertyAccessor(*objectID).GetPreviewProperties();
+	if (previewProperties.IsErr())
+		return {};
+
+	for (const auto& property : *previewProperties)
+	{
+		std::string propertyName = property.GetName().ToCStr().Get();
+		std::string propertySetName = property.GetPropertySetName().ToCStr().Get();
+		nlohmann::json propertyValue = GetElementIfcPropertyValueAsJson(property);
+
+		properties[propertySetName][propertyName] = propertyValue;
 	}
 
 	return properties;
