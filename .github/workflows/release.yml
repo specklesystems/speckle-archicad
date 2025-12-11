@@ -64,7 +64,7 @@ jobs:
             "repo": "${{ github.repository }}",
             "is_public_release": ${{ env.IS_PUBLIC_RELEASE }}
             }'
-          ref: david/cnx-2816-add-support-for-archicad-29
+          ref: david/archicad29-installer
           wait-for-completion: true
           wait-for-completion-interval: 10s
           wait-for-completion-timeout: 10m
