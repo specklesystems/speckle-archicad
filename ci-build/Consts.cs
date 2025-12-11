@@ -7,7 +7,7 @@ public static class Consts
 
   public static readonly InstallerProject[] InstallerManifests =
   {
-    new("archicad", [new("archicad27", "build/27/INT/Release", "*.apx"), new("archicad28", "build/28/INT/Release", "*.apx")], new("archicad29", "build/29/INT/Release", "*.apx")])
+    new("archicad", [new("archicad27", "build/27/INT/Release", "*.apx"), new("archicad28", "build/28/INT/Release", "*.apx"), new("archicad29", "build/29/INT/Release", "*.apx")]
   };
 }
 
