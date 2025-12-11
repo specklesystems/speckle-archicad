@@ -48,6 +48,15 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	if (!userDefinedProperties.empty())
 		properties["User Defined Properties"] = userDefinedProperties;
 
+	// only for finding property definition ids and printing them into a json file
+	/*nlohmann::json a = GetElementPropertiesByPropertyType(elemId, ArchicadPropertyTypeFilter::FundamentalBuiltIn);
+	if (!a.empty())
+		properties["User Defined Properties"] = a;
+
+	nlohmann::json b = GetElementPropertiesByPropertyType(elemId, ArchicadPropertyTypeFilter::UserLevelBuiltIn);
+	if (!b.empty())
+		properties["User Defined Properties"] = b;*/
+
 	nlohmann::json ifcProperties = GetElementIfcProperties(elemId);
 	if (!ifcProperties.empty())
 		properties["IFC Properties"] = ifcProperties;

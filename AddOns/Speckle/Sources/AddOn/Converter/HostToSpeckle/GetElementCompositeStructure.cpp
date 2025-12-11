@@ -12,6 +12,7 @@ namespace
 	{
 		std::string materialName = "";
 		double volume = 0.0;
+		double area = 0.0;
 		double thickness = 0.0;
 	};
 
@@ -76,7 +77,7 @@ namespace
 		for (const auto& q : compositeQuantities)
 		{
 			auto mat = GetBuildingMaterialName(q.buildMatIndices);
-			composites.push_back({ mat, q.volumes });
+			composites.push_back({ mat, q.volumes, q.projectedArea });
 		}
 
 		return composites;
@@ -102,6 +103,7 @@ namespace
 
 			structure[materialName]["material"] = c.materialName;
 			structure[materialName]["volume"] = c.volume;
+			structure[materialName]["area"] = c.area;
 			structure[materialName]["thickness"] = thickness;
 			structure[materialName]["units"] = "Meter";
 			i++;

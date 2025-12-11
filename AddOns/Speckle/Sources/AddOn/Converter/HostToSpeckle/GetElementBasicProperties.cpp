@@ -209,6 +209,8 @@ namespace
 				propertyJson[propertyGroupName][propertyName] = propertyValue;
 
 				// only for finding property definition ids
+				// add lines after GetElementPropertiesByPropertyType(elemId, ArchicadPropertyTypeFilter::UserDefined)
+				// in GetElementProperties.cpp as needed to print props into a json file
 				//std::string propertyId = APIGuidToString(definition.guid).ToCStr().Get();
 				//propertyJson[propertyGroupName][propertyName] = propertyId;
 			}
