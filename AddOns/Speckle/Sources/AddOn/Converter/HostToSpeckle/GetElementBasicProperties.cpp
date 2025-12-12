@@ -8,6 +8,9 @@
 #include "JsonFileWriter.h"
 
 #include <iostream>
+#include <variant>
+
+using PropertyOwner = std::variant<API_Guid, API_ElemComponentID>;
 
 namespace
 {
@@ -16,10 +19,20 @@ namespace
 		return b ? "True" : "False";
 	}
 
-	std::string GetSingleCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	GSErrCode GetPropertyValue(
+		const PropertyOwner& owner,
+		const API_PropertyDefinition& propertyDef,
+		API_Property& outProp)
+	{
+		return std::visit([&](auto&& id) -> GSErrCode {
+			return ACAPI_Element_GetPropertyValue(id, propertyDef.guid, outProp);
+			}, owner);
+	}
+
+	std::string GetSingleCollectionTypePropertyValue(const PropertyOwner& propertyOwner, const API_PropertyDefinition& propertyDefinition)
 	{
 		API_Property  prop = {};
-		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
+		CHECK_ERROR(GetPropertyValue(propertyOwner, propertyDefinition, prop));
 		std::string propertyValue = "";
 
 		switch (propertyDefinition.valueType)
@@ -47,10 +60,10 @@ namespace
 		return propertyValue;
 	}
 
-	std::vector<std::string> GetListCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	std::vector<std::string> GetListCollectionTypePropertyValue(const PropertyOwner& propertyOwner, const API_PropertyDefinition& propertyDefinition)
 	{
 		API_Property  prop = {};
-		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
+		CHECK_ERROR(GetPropertyValue(propertyOwner, propertyDefinition, prop)); CHECK_ERROR(GetPropertyValue(propertyOwner, propertyDefinition, prop));
 		std::vector<std::string> propertyValues;
 
 		auto variants = prop.value.listVariant.variants;
@@ -83,10 +96,10 @@ namespace
 		return propertyValues;
 	}
 
-	std::string GetSingleChoiceEnumerationCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	std::string GetSingleChoiceEnumerationCollectionTypePropertyValue(const PropertyOwner& propertyOwner, const API_PropertyDefinition& propertyDefinition)
 	{
 		API_Property  prop = {};
-		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
+		CHECK_ERROR(GetPropertyValue(propertyOwner, propertyDefinition, prop));
 		std::string propertyValue = "";
 
 		auto selectedValueGuid = prop.value.singleVariant.variant.guidValue;
@@ -123,10 +136,10 @@ namespace
 		return propertyValue;
 	}
 
-	std::vector<std::string> GetMultipleChoiceEnumerationCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	std::vector<std::string> GetMultipleChoiceEnumerationCollectionTypePropertyValue(const PropertyOwner& propertyOwner, const API_PropertyDefinition& propertyDefinition)
 	{
 		API_Property  prop = {};
-		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
+		CHECK_ERROR(GetPropertyValue(propertyOwner, propertyDefinition, prop));
 		std::vector<std::string> propertyValues;
 		auto variants = prop.value.listVariant.variants;
 
@@ -177,25 +190,25 @@ namespace
 		return group.name.ToCStr().Get();
 	}
 
-	nlohmann::json GetElementPropertyValueAsJson(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	nlohmann::json GetElementPropertyValueAsJson(const PropertyOwner& propertyOwner, const API_PropertyDefinition& propertyDefinition)
 	{
 		switch (propertyDefinition.collectionType)
 		{
 		case API_PropertySingleCollectionType:
-			return GetSingleCollectionTypePropertyValue(elemId, propertyDefinition);
+			return GetSingleCollectionTypePropertyValue(propertyOwner, propertyDefinition);
 		case API_PropertyListCollectionType:
-			return GetListCollectionTypePropertyValue(elemId, propertyDefinition);
+			return GetListCollectionTypePropertyValue(propertyOwner, propertyDefinition);
 		case API_PropertySingleChoiceEnumerationCollectionType:
-			return GetSingleChoiceEnumerationCollectionTypePropertyValue(elemId, propertyDefinition);
+			return GetSingleChoiceEnumerationCollectionTypePropertyValue(propertyOwner, propertyDefinition);
 		case API_PropertyMultipleChoiceEnumerationCollectionType:
-			return GetMultipleChoiceEnumerationCollectionTypePropertyValue(elemId, propertyDefinition);
+			return GetMultipleChoiceEnumerationCollectionTypePropertyValue(propertyOwner, propertyDefinition);
 
 		default:
 			throw SpeckleConversionException("Invalid property collection type.");
 		}
 	}
 
-	nlohmann::json GetElementPropertiesAsJson(const API_Guid& elemId, const std::vector<API_PropertyDefinition>& propertyDefinitions)
+	nlohmann::json GetElementPropertiesAsJson(const PropertyOwner& propertyOwner, const std::vector<API_PropertyDefinition>& propertyDefinitions)
 	{
 		nlohmann::json propertyJson;
 
@@ -203,7 +216,7 @@ namespace
 		{
 			try
 			{
-				nlohmann::json propertyValue = GetElementPropertyValueAsJson(elemId, definition);
+				nlohmann::json propertyValue = GetElementPropertyValueAsJson(propertyOwner, definition);
 				std::string propertyName = GetPropertyName(definition);
 				std::string propertyGroupName = GetPropertyGroupName(definition);
 				propertyJson[propertyGroupName][propertyName] = propertyValue;
@@ -245,4 +258,36 @@ nlohmann::json HostToSpeckleConverter::GetElementBuiltInProperties(const std::st
 	auto definitions = PropertyDefinitions::Instance().GetDefinitions(apiElem.header.type.typeID);
 
 	return GetElementPropertiesAsJson(apiElem.header.guid, definitions);
+}
+
+nlohmann::json HostToSpeckleConverter::GetElementComponentProperties(const std::string& elemId)
+{
+	nlohmann::json componentProperties;
+
+	auto apiElem = ConverterUtils::GetElement(elemId);
+
+	GS::Array<API_ElemComponentID> elemComponents;
+	if (ACAPI_Element_GetComponents(apiElem.header.guid, elemComponents) == NoError)
+	{
+		int i = 0;
+		for (const auto& component : elemComponents)
+		{
+			std::ostringstream oss;
+			oss << std::setw(2) << std::setfill('0') << (i + 1);
+			std::string componentIndex = oss.str();
+			
+			auto propertyDefinitions = PropertyDefinitions::Instance().GetComponentDefinitions();
+
+			std::vector<API_PropertyDefinition> definitions;
+			for (const auto& d : propertyDefinitions)
+				definitions.push_back(d);
+
+			auto propsJson = GetElementPropertiesAsJson(component, definitions);
+			auto value = propsJson.at("ComponentProperties");
+			componentProperties[componentIndex] = value;
+			i++;
+		}
+	}
+
+	return componentProperties;
 }

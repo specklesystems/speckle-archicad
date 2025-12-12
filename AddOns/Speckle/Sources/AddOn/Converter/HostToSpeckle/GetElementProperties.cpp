@@ -61,5 +61,9 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	if (!ifcProperties.empty())
 		properties["IFC Properties"] = ifcProperties;
 
+	nlohmann::json componentProperties = GetElementComponentProperties(elemId);
+	if (!componentProperties.empty())
+		properties["Component Properties"] = componentProperties;
+
 	return properties;
 }

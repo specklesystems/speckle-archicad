@@ -13,7 +13,9 @@ public:
     static PropertyDefinitions& Instance();
 
     std::vector<std::string> GetDefinitionIds(API_ElemTypeID elemType) const;
+    std::vector<std::string> GetComponentDefinitionIds() const;
     std::vector<API_PropertyDefinition> GetDefinitions(API_ElemTypeID elemType);
+    std::vector<API_PropertyDefinition> GetComponentDefinitions();
 
 private:
     PropertyDefinitions() = default;

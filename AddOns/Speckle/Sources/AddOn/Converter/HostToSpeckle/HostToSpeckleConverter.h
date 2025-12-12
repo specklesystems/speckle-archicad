@@ -25,6 +25,7 @@ public:
 	nlohmann::json GetElementCompositeStructure(const std::string& elemId) override;
 	nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyTypeFilter propertyType) override;
 	nlohmann::json GetElementBuiltInProperties(const std::string& elemId) override;
+	nlohmann::json GetElementComponentProperties(const std::string& elemId) override;
 	nlohmann::json GetElementIfcProperties(const std::string& elemId) override;
 	nlohmann::json GetElementProperties(const std::string& elemId) override;
 	WorkingUnits GetWorkingUnits() override;

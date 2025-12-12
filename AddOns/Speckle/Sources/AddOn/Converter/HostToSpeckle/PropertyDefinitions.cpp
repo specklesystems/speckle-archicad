@@ -138,6 +138,15 @@ std::vector<std::string> PropertyDefinitions::GetDefinitionIds(API_ElemTypeID el
     return {};
 }
 
+std::vector<std::string> PropertyDefinitions::GetComponentDefinitionIds() const
+{
+    return 
+    { 
+        "0CFCB157-DFD2-4B3B-83AD-6DC285B669D5",     // Component Net Projected Area
+        "DF702140-ADE7-4B61-8F2C-06052C438E72"      // Component Gross Projected Area
+    };
+}
+
 std::vector<API_PropertyDefinition> PropertyDefinitions::GetDefinitions(API_ElemTypeID elemType)
 {
     auto cached = cache.find(elemType);
@@ -161,6 +170,25 @@ std::vector<API_PropertyDefinition> PropertyDefinitions::GetDefinitions(API_Elem
     }
 
     cache[elemType] = definitions;
+
+    return definitions;
+}
+
+std::vector<API_PropertyDefinition> PropertyDefinitions::GetComponentDefinitions()
+{
+    std::vector<API_PropertyDefinition> definitions;
+
+    for (const auto& propertyId : GetComponentDefinitionIds())
+    {
+        API_Guid propertyGuid = APIGuidFromString(propertyId.c_str());
+        API_PropertyDefinition propertyDefinition{};
+        propertyDefinition.guid = propertyGuid;
+
+        if (ACAPI_Property_GetPropertyDefinition(propertyDefinition) == NoError)
+        {
+            definitions.push_back(propertyDefinition);
+        }
+    }
 
     return definitions;
 }
