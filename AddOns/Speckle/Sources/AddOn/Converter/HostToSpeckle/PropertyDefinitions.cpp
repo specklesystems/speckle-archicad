@@ -5,47 +5,29 @@ const std::unordered_map<API_ElemTypeID, std::vector<std::string>> PropertyDefin
         "C1C47616-2BDD-49BF-92FB-CAC1206BF171", // Wall Height
         "41D36190-E3B6-4504-BF4F-1B7EBD02CBA2", // Wall Width
         "57597878-A6E8-4D43-BF52-CB4E157DBFE4", // Average length of the Wall
-        // Converted TODO items:
-        "BC7F0300-AC0C-468A-BB6C-7042703B1D74", // Surface Area of the Inside Face
-        "DF59F2B5-55DB-415F-8BA9-562C255CB255", // Surface Area of the Outside Face
-        "7A74F4E9-28F5-4EE0-BE1C-8E8B08F04FBC", // Wall Area
-        "058E0BBF-826E-4E94-A40E-23B82CAF55F4", // Surface Area of Empty Openings in the Wall
-        "812610C2-A7DF-4AF9-96E1-1CD044D41846", // Surface Area of the Wall Edges (Net)
-        "CBC831B5-4B36-4DDE-B368-D42CB7152B10", // Surface Area of the Wall Inside Face (Conditional)
+
         "42FF9D89-8001-4DA5-9AAD-B11AF369F0C7", // Surface Area of the Wall Inside Face (Gross)
         "76E0997D-F61D-4501-B4E8-BF47BFDA838D", // Surface Area of the Wall Inside Face (Net)
-        "06481385-9050-48DC-9F97-AE699F816DDE", // Surface Area of the Wall Outside Face (Conditional)
         "BC5C0BC9-797C-4914-96FE-1CE084BA80F2", // Surface Area of the Wall Outside Face (Gross)
         "9FF86DF1-5498-4925-83BA-1D9B97ABE103", // Surface Area of the Wall Outside Face (Net)
-        "DBC01B52-B119-4E4E-91F0-4721EC8B6920", // Thickness of the Wall (Archicad 21)
-        "579822E8-8A61-429F-96AA-77E7C19C1D01", // Area of the Doors
-        "7366A8DD-768F-43D4-84D9-5FF2951D298B", // Area of the Windows
     }},
     { API_SlabID, {
         "A40FD114-CDA3-4554-8831-29FF73151153", // Surface Area of the Slab Top (Gross)
         "AD5116E3-95D9-42E3-A41A-D7155ADF0C5F", // Slab Perimeter
         "A824A045-80D7-4E3D-82A8-C82BD15EF0E5", // Slab Thickness
-        // Converted TODO items:
-        "A262A4F6-B149-4B4A-90A8-A17C253B62C7", // Bottom Surface Area (Conditional)
+
         "BE9B776F-CA40-488A-9CFF-35710DA5F364", // Bottom Surface Area (Gross)
         "FE0E55F4-5D5C-4958-9B9D-34D62515FC68", // Bottom Surface Area (Net)
         "4FE31D03-4314-4135-83A9-02CD357AF471", // Edge Surface Area (Gross)
         "9C9B21CB-1A3B-436A-BFAB-EF5DEFEF9633", // Edge Surface Area (Net)
-        "54F2D1F7-CE44-43D4-B3F9-D9F8E2668C3C", // Top Surface Area (Conditional)
         "DDA19EED-E9CE-459E-BB8F-610C824939D7", // Top Surface Area (Gross)
-        "32369326-82CF-4518-9ABD-B07ACA593A79" // Top Surface Area (Net)
+        "32369326-82CF-4518-9ABD-B07ACA593A79"  // Top Surface Area (Net)
     }},
     { API_BeamID, {
         "DADCDFC6-3AFF-415B-98ED-FDF9EF4B1807", // Beam Height
         "D8707463-22C1-412B-8146-AD7DCEF17E49", // Beam Width
         "BA0E29BD-A795-4A93-A33F-C2C17B46C33A", // 3D Length
         "CCC9ED1E-32D6-410C-9928-EF4C629AFAFB", // Beam Slant Angle
-        // Converted TODO items:
-        "8FA80A17-C680-4200-8185-BC64250326D3", // Surface Area of Both Beam Ends
-        "998224E3-41FD-454A-A279-1DFA009FDFC3", // Surface Area of the Beam Bottom (Net)
-        "F68CABD4-7198-4CCB-9DB9-D32943E74772", // Surface Area of the Beam Left Side (Net)
-        "DD953D84-800D-4556-8EBF-6E33384E26B0", // Surface Area of the Beam Right Side (Net)
-        "217C81EC-0113-438B-B176-693F58681680", // Surface Area of the Beam Top (Net)
     }},
     { API_ColumnID, {
         "2E32E96D-6220-4AE2-86C2-FEDB45450DC2", // Column Core Width
@@ -54,19 +36,6 @@ const std::unordered_map<API_ElemTypeID, std::vector<std::string>> PropertyDefin
         "7EDA68CA-D646-4180-B840-4327181C3E62", // Profile Height
         "A69ECF2A-DFEE-4B64-A1CF-C562F57FB503", // Profile Width
         "98E22B3A-C663-4249-8D85-BC5C4F32D487", // Veneer Thickness
-        // Converted TODO items:
-        "2EF10AB6-E374-42F6-BC03-F4696CACFFF7", // Column Core (Gross, no top/bottom)
-        "863D9834-62CA-4EAA-9FD0-F854549D6ED6", // Column Core (Net, no top/bottom)
-        "1F09B9C5-DCC3-4C8D-ACF3-237C1798315A", // Column Core Bottom (Gross)
-        "2C928CA4-9160-4A4E-A82F-F046FA68A364", // Column Core Bottom (Net)
-        "3B81F3F1-F297-499C-B508-8D69495D2430", // Column Core Top (Gross)
-        "2A56FFC1-56D5-4BD2-96C9-68FBE95CB1A6", // Column Core Top (Net)
-        "8A032B82-07D2-4DDD-8ECD-4E2793A8D02A", // Column Veneer (Gross, no top/bottom)
-        "D74AE1B2-84BC-43D3-9A67-28D2F5E4D83A", // Column Veneer (Net)
-        "E55E9D07-CC06-4413-BB58-9925C3A40FCE", // Column Veneer Bottom (Gross)
-        "2DC11270-2540-4481-B91C-A9989AABB974", // Column Veneer Bottom (Net)
-        "4EC22668-C024-48FC-9A15-A1AE74342E78", // Column Veneer Top (Gross)
-        "89193DEB-15D8-46BC-AA0E-2E427078E247", // Column Veneer Top (Net)
     }},
     { API_RoofID, {
         "544ED0A0-0C04-4DCA-9F9A-82871C34C03E", // Surface Area of the Roof Bottom
