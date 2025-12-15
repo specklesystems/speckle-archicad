@@ -112,7 +112,12 @@ std::vector<std::string> PropertyDefinitions::GetComponentDefinitionIds() const
     return 
     { 
         "0CFCB157-DFD2-4B3B-83AD-6DC285B669D5",     // Component Net Projected Area
-        "DF702140-ADE7-4B61-8F2C-06052C438E72"      // Component Gross Projected Area
+        "DF702140-ADE7-4B61-8F2C-06052C438E72",     // Component Gross Projected Area
+        "809AEEB5-4325-4728-B7F8-3487957A8498",     // Component Net Volume
+        "4ABD711D-4370-4ABD-A9F0-ED10DAC18C30",     // Component Gross Volume
+        "0F4291D6-F007-4B1A-8AC4-072BA50F9BC1",     // Component Thickness
+        "2D408DC5-B164-4A33-A604-D3494B82045B",     // Component Type
+        "7413B019-CF1F-44BF-8036-6F1A0ED14517"      // Component Building Material Index
     };
 }
 
