@@ -1,4 +1,5 @@
 #include "PropertyDefinitions.h"
+#include "CheckError.h"
 
 const std::unordered_map<API_ElemTypeID, std::vector<std::string>> PropertyDefinitions::propertyDefinitionIds = {
     { API_WallID, {
@@ -117,7 +118,6 @@ std::vector<std::string> PropertyDefinitions::GetComponentDefinitionIds() const
         "4ABD711D-4370-4ABD-A9F0-ED10DAC18C30",     // Component Gross Volume
         "0F4291D6-F007-4B1A-8AC4-072BA50F9BC1",     // Component Thickness
         "2D408DC5-B164-4A33-A604-D3494B82045B",     // Component Type
-        "7413B019-CF1F-44BF-8036-6F1A0ED14517"      // Component Building Material Index
     };
 }
 
@@ -165,4 +165,14 @@ std::vector<API_PropertyDefinition> PropertyDefinitions::GetComponentDefinitions
     }
 
     return definitions;
+}
+
+API_PropertyDefinition PropertyDefinitions::GetComponentBuildingMaterialDefinition()
+{
+    API_Guid propertyGuid = APIGuidFromString("7413B019-CF1F-44BF-8036-6F1A0ED14517");
+    API_PropertyDefinition propertyDefinition{};
+    propertyDefinition.guid = propertyGuid;
+
+    CHECK_ERROR(ACAPI_Property_GetPropertyDefinition(propertyDefinition));
+    return propertyDefinition;
 }

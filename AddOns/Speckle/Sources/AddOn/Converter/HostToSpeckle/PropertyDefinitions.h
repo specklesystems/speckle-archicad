@@ -16,6 +16,7 @@ public:
     std::vector<std::string> GetComponentDefinitionIds() const;
     std::vector<API_PropertyDefinition> GetDefinitions(API_ElemTypeID elemType);
     std::vector<API_PropertyDefinition> GetComponentDefinitions();
+    API_PropertyDefinition GetComponentBuildingMaterialDefinition();
 
 private:
     PropertyDefinitions() = default;

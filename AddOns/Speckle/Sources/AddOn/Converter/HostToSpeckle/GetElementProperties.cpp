@@ -3,6 +3,8 @@
 #include "ACAPinc.h"
 #include "ConverterUtils.h"
 
+#include "StopWatch.h"
+
 nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& elemId)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
@@ -19,6 +21,7 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	std::vector<API_ElemTypeID> compositeTypes = { API_WallID, API_SlabID, API_BeamID, API_RoofID, API_ShellID };
 	bool canBeComposite = std::find(compositeTypes.begin(), compositeTypes.end(), elemType) != compositeTypes.end();
 
+	
 	if (canBeComposite)
 	{
 		nlohmann::json compositeStructure = GetElementCompositeStructure(elemId);

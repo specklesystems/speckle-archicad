@@ -7,6 +7,8 @@
 #include "PropertyDefinitions.h"
 #include "JsonFileWriter.h"
 
+#include "StopWatch.h"
+
 #include <iostream>
 #include <variant>
 
@@ -190,7 +192,7 @@ namespace
 		return group.name.ToCStr().Get();
 	}
 
-	nlohmann::json GetElementPropertyValueAsJson(const PropertyOwner& propertyOwner, const API_PropertyDefinition& propertyDefinition)
+	nlohmann::json GetElementPropertyValueAsString(const PropertyOwner& propertyOwner, const API_PropertyDefinition& propertyDefinition)
 	{
 		switch (propertyDefinition.collectionType)
 		{
@@ -216,10 +218,17 @@ namespace
 		{
 			try
 			{
-				nlohmann::json propertyValue = GetElementPropertyValueAsJson(propertyOwner, definition);
+				nlohmann::json propertyValueString = GetElementPropertyValueAsString(propertyOwner, definition);
 				std::string propertyName = GetPropertyName(definition);
 				std::string propertyGroupName = GetPropertyGroupName(definition);
-				propertyJson[propertyGroupName][propertyName] = propertyValue;
+				propertyJson[propertyGroupName][propertyName] = propertyValueString;
+
+				// TODO add property structure similar to Revit
+				/*nlohmann::json propertyValue;
+				propertyValue["name"] = propertyName;
+				propertyValue["value"] = propertyValueString;
+				propertyValue["units"] = "m";
+				propertyJson[propertyGroupName].push_back(propertyValue);*/
 
 				// only for finding property definition ids
 				// add lines after GetElementPropertiesByPropertyType(elemId, ArchicadPropertyTypeFilter::UserDefined)
@@ -234,6 +243,24 @@ namespace
 		}
 		//JsonFileWriter::WriteJsonToFile(propertyJson, "C:\\t\\pro.json");
 		return propertyJson;
+	}
+
+	std::string GetComponentBuildingMaterialName(const API_ElemComponentID& componentId)
+	{
+		try
+		{
+			API_Property prop = {};
+			auto buildingMatPropertyDefinition = PropertyDefinitions::Instance().GetComponentBuildingMaterialDefinition();
+			CHECK_ERROR(GetPropertyValue(componentId, buildingMatPropertyDefinition, prop));
+			int index = prop.value.singleVariant.variant.intValue;
+			auto materialName = ConverterUtils::GetAttributeName(ACAPI_CreateAttributeIndex(index), API_BuildingMaterialID);
+
+			return materialName;
+		}
+		catch (...)
+		{
+			return "No Material";
+		}
 	}
 }
 
@@ -269,22 +296,24 @@ nlohmann::json HostToSpeckleConverter::GetElementComponentProperties(const std::
 	GS::Array<API_ElemComponentID> elemComponents;
 	if (ACAPI_Element_GetComponents(apiElem.header.guid, elemComponents) == NoError)
 	{
+		auto componentDefinitions = PropertyDefinitions::Instance().GetComponentDefinitions();
+
 		int i = 0;
 		for (const auto& component : elemComponents)
-		{
-			std::ostringstream oss;
-			oss << std::setw(2) << std::setfill('0') << (i + 1);
-			std::string componentIndex = oss.str();
-			
-			auto propertyDefinitions = PropertyDefinitions::Instance().GetComponentDefinitions();
-
-			std::vector<API_PropertyDefinition> definitions;
-			for (const auto& d : propertyDefinitions)
-				definitions.push_back(d);
-
-			auto propsJson = GetElementPropertiesAsJson(component, definitions);
+		{	
+			auto propsJson = GetElementPropertiesAsJson(component, componentDefinitions);
+			auto materialName = GetComponentBuildingMaterialName(component);
 			auto value = propsJson.at("ComponentProperties");
-			componentProperties[componentIndex] = value;
+			value["Component Building Material Name"] = materialName;
+			// TODO add proper units for each value type
+			value["Units"] = "Meters";
+			
+			// Format index with leading zero and concatenate with material name
+			// this is needed to keep the skin order in the viewer
+			std::ostringstream oss;
+			oss << std::setw(2) << std::setfill('0') << (i + 1) << " - " << materialName;
+			std::string componentName = oss.str();
+			componentProperties[componentName] = value;
 			i++;
 		}
 	}

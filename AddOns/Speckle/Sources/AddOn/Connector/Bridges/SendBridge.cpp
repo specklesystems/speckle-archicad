@@ -11,6 +11,8 @@
 #include "UserCancelledException.h"
 #include "SendSetting.h"
 
+#include "StopWatch.h"
+
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
