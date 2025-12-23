@@ -64,9 +64,12 @@ nlohmann::json HostToSpeckleConverter::GetElementProperties(const std::string& e
 	if (!ifcProperties.empty())
 		properties["IFC Properties"] = ifcProperties;
 
-	nlohmann::json componentProperties = GetElementComponentProperties(elemId);
+	// Extracting Component Properties slows down the send process BY A LOT
+	// Later we can add it back with a send setting,
+	// for now composite structures will containg the user requested area information
+	/*nlohmann::json componentProperties = GetElementComponentProperties(elemId);
 	if (!componentProperties.empty())
-		properties["Component Properties"] = componentProperties;
+		properties["Component Properties"] = componentProperties;*/
 
 	return properties;
 }
