@@ -5,67 +5,6 @@
 #include "CheckError.h"
 #include "BrowserBridge.h"
 
-
-static GSErrCode RegisterMenu(short menuStrResID, short promptStrResID, APIMenuCodeID menuPosCode, GSFlags menuFlags)
-{
-	GSErrCode err = NoError;
-
-#if defined(AC28)
-	err = ACAPI_MenuItem_RegisterMenu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
-#elif defined(AC27)
-	err = ACAPI_MenuItem_RegisterMenu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
-#elif defined(AC26)
-	err = ACAPI_Register_Menu(menuStrResID, promptStrResID, menuPosCode, menuFlags);
-#endif
-
-	return err;
-}
-
-static GSErrCode InstallMenuHandler(short menuStrResID, APIMenuCommandProc* handlerProc)
-{
-	GSErrCode err = NoError;
-
-#if defined(AC28)
-	err = ACAPI_MenuItem_InstallMenuHandler(menuStrResID, handlerProc);
-#elif defined(AC27)
-	err = ACAPI_MenuItem_InstallMenuHandler(menuStrResID, handlerProc);
-#elif defined(AC26)
-	err = ACAPI_Install_MenuHandler(menuStrResID, handlerProc);
-#endif
-
-	return err;
-}
-
-static GSErrCode CatchProjectEvent(GSFlags eventTypes, APIProjectEventHandlerProc* handlerProc)
-{
-	GSErrCode err = NoError;
-
-#if defined(AC28)
-	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
-#elif defined(AC27)
-	err = ACAPI_ProjectOperation_CatchProjectEvent(eventTypes, handlerProc);
-#elif defined(AC26)
-	err = ACAPI_Notify_CatchProjectEvent(eventTypes, handlerProc);
-#endif
-
-	return err;
-}
-
-static GSErrCode CatchSelectionChange(APISelectionChangeHandlerProc* handlerProc)
-{
-	GSErrCode err = NoError;
-
-#if defined(AC28)
-	err = ACAPI_Notification_CatchSelectionChange(handlerProc);
-#elif defined(AC27)
-	err = ACAPI_Notification_CatchSelectionChange(handlerProc);
-#elif defined(AC26)
-	err = ACAPI_Notify_CatchSelectionChange(handlerProc);
-#endif
-
-	return err;
-}
-
 static GSErrCode ProjectNotificationHandler(API_NotifyEventID notifID, Int32 /*param*/)
 {
 	switch (notifID) 
@@ -134,7 +73,7 @@ API_AddonType ACENV CheckEnvironment(API_EnvirParams* envir)
 
 GSErrCode ACENV RegisterInterface(void)
 {
-	GSErrCode err = RegisterMenu(BrowserPaletteMenuResId, 0, MenuCode_UserDef, MenuFlag_Default);
+	GSErrCode err = ACAPI_MenuItem_RegisterMenu(BrowserPaletteMenuResId, 0, MenuCode_UserDef, MenuFlag_Default);
 
 	return err;
 }
@@ -152,8 +91,8 @@ GSErrCode ACENV Initialize(void)
 	}
 
 	GSErrCode err = NoError;
-
-	err = InstallMenuHandler(BrowserPaletteMenuResId, MenuCommandHandler);
+	
+	err = ACAPI_MenuItem_InstallMenuHandler(BrowserPaletteMenuResId, MenuCommandHandler);
 	if (err != NoError)
 		return err;
 
@@ -161,11 +100,11 @@ GSErrCode ACENV Initialize(void)
 	if (err != NoError)
 		return err;
 
-	err = CatchProjectEvent(API_AllProjectNotificationMask, ProjectNotificationHandler);
+	err = ACAPI_ProjectOperation_CatchProjectEvent(API_AllProjectNotificationMask, ProjectNotificationHandler);
 	if (err != NoError)
 		return err;
 
-	err = CatchSelectionChange(SelectionChangeHandler);
+	err = ACAPI_Notification_CatchSelectionChange(SelectionChangeHandler);
 	if (err != NoError)
 		return err;
 	

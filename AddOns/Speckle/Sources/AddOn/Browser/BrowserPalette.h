@@ -9,7 +9,9 @@
 
 #include <memory>
 
-#if defined(AC28)
+#if defined(AC29)
+#define ACENV
+#elif defined(AC28)
 #define ACENV
 #else
 #define ACENV __ACENV_CALL

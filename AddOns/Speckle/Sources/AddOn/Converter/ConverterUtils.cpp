@@ -6,22 +6,6 @@
 #include <exp.h>
 #include <Sight.hpp>
 
-
-static GSErrCode GetCurrentWindowSight(void** sightPtr)
-{
-	GSErrCode err = NoError;
-
-#if defined(AC28)
-	err = ACAPI_Sight_GetCurrentWindowSight(sightPtr);
-#elif defined(AC27)
-	err = ACAPI_Sight_GetCurrentWindowSight(sightPtr);
-#elif defined(AC26)
-	err = ACAPI_3D_GetCurrentWindowSight(sightPtr);
-#endif
-
-	return err;
-}
-
 API_Element ConverterUtils::GetElement(const std::string elemId)
 {
 	API_Element apiElem{};
@@ -43,7 +27,7 @@ API_ElementMemo ConverterUtils::GetElementMemo(const std::string elemId)
 ModelerAPI::Model ConverterUtils::GetArchiCadModel()
 {
 	void* dummy = nullptr;
-	CHECK_ERROR(GetCurrentWindowSight(&dummy));
+	CHECK_ERROR(ACAPI_Sight_GetCurrentWindowSight(&dummy));
 	Modeler::SightPtr currentSightPtr((Modeler::Sight*)dummy); // init the shared ptr with the raw pointer
 	ModelerAPI::Model archiCadModel{};
 	Modeler::IAttributeReader* attrReader = ACAPI_Attribute_GetCurrentAttributeSetReader();
