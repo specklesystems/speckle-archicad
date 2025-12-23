@@ -3,25 +3,11 @@
 #include "RunMethodEventArgs.h"
 #include "JsonFileWriter.h"
 
-#if defined(AC28)
 using JSBase = JS::Base;
 using JSArray = JS::Array;
 using JSValue = JS::Value;
 using JSFunction = JS::Function;
 using JSObject = JS::Object;
-#elif defined(AC27)
-using JSBase = JS::Base;
-using JSArray = JS::Array;
-using JSValue = JS::Value;
-using JSFunction = JS::Function;
-using JSObject = JS::Object;
-#elif defined(AC26)
-using JSBase = DG::JSBase;
-using JSArray = DG::JSArray;
-using JSValue = DG::JSValue;
-using JSFunction = DG::JSFunction;
-using JSObject = DG::JSObject;
-#endif
 
 namespace
 {

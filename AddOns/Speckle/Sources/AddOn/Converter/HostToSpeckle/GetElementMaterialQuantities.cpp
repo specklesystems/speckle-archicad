@@ -214,6 +214,14 @@ namespace
 		{
 			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.endsMaterial.value), elementQuantity.beamSegment.endSurface, workingUnits);
 		}
+#if defined(AC29)
+		if (apiElem.beamSegment.extrusionMaterial.hasValue)
+		{
+			double extrusionSurface = elementQuantity.beamSegment.topSurface + elementQuantity.beamSegment.bottomSurface + elementQuantity.beamSegment.leftSurface + elementQuantity.beamSegment.rightSurface;
+			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.extrusionMaterial.value), extrusionSurface, workingUnits);
+		}
+#endif
+
 #if defined(AC28)
 		if (apiElem.beamSegment.extrusionMaterial.hasValue)
 		{

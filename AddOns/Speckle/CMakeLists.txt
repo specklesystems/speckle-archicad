@@ -4,16 +4,17 @@ set(SPECKLE_ADDON_LIB SpeckleAddOn)
 set(SPECKLE_ADDON_RESOURCES SpeckleAddOnResources)
 
 function (SetCompilerOptions target)
-	target_compile_features (${target} PUBLIC cxx_std_14)
+	target_compile_features (${target} PUBLIC cxx_std_20)
 	target_compile_options (${target} PUBLIC "$<$<CONFIG:Debug>:-DDEBUG>")
 	if (WIN32)
-		target_compile_options (${target} PUBLIC /W4
+		target_compile_options (${target} PUBLIC /W3 /MP
 			/Zc:wchar_t-
 			/wd4499
+			/wd4996 
+			/wd5208
 		)
 	else ()
-		target_compile_options (${target} PUBLIC -Wall -Wextra
-			-fvisibility=hidden
+		target_compile_options (${target} PUBLIC -Wall -Wextra -fvisibility=hidden
 			-Wno-multichar
 			-Wno-ctor-dtor-privacy
 			-Wno-invalid-offsetof
@@ -21,7 +22,15 @@ function (SetCompilerOptions target)
 			-Wno-reorder
 			-Wno-overloaded-virtual
 			-Wno-unused-parameter
-			-Wno-deprecated)
+			-Wno-missing-field-initializers
+			-Wno-unknown-pragmas
+			-Wno-missing-braces
+			-Wno-unused-private-field
+			-Wno-return-std-move
+			-Wno-unused-value
+			-Wno-switch
+			-Wno-deprecated
+			-Wno-shorten-64-to-32)
 	endif ()
 endfunction ()
 
@@ -32,7 +41,7 @@ set (CMAKE_CONFIGURATION_TYPES Debug;Release;RelWithDebInfo)
 set (SPECKLE_ADDON_NAME "Speckle")
 
 if (WIN32)
-	add_definitions (-DUNICODE -D_UNICODE)
+	add_definitions (-DUNICODE -D_UNICODE -D_ITERATOR_DEBUG_LEVEL=0)
 else ()
 	add_definitions (-Dmacintosh=1)
 endif ()
@@ -225,9 +234,7 @@ target_include_directories (${SPECKLE_ADDON_LIB} PUBLIC
 
 if (WIN32)
 	target_link_libraries (${SPECKLE_ADDON_LIB}
-		"$<$<CONFIG:Debug>:${AC_API_DEVKIT_DIR}/Support/Lib/Win/ACAP_STATD.lib>"
-		"$<$<CONFIG:Release>:${AC_API_DEVKIT_DIR}/Support/Lib/Win/ACAP_STAT.lib>"
-		"$<$<CONFIG:RelWithDebInfo>:${AC_API_DEVKIT_DIR}/Support/Lib/Win/ACAP_STAT.lib>"
+		"${AC_API_DEVKIT_DIR}/Support/Lib/Win/ACAP_STAT.lib"
 	)
 else ()
 	find_library (CocoaFramework Cocoa)
@@ -255,7 +262,7 @@ add_dependencies (${SPECKLE_ADDON_LIB} ${SPECKLE_ADDON_RESOURCES})
 # group to folder
 set_target_properties(${SPECKLE_ADDON_RESOURCES} PROPERTIES FOLDER Resources)
 
-set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT\\Archicad 27\\Archicad.exe")
+set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT_INT\\Archicad 29\\Archicad.exe")
 
 # other libs
 target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite sha md5)
