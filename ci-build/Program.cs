@@ -1,9 +1,9 @@
 using System.IO.Compression;
+using System.Reflection;
 using Build;
 using GlobExpressions;
 using static Bullseye.Targets;
 using static SimpleExec.Command;
-using System.Reflection;
 
 const string CLEAN = "clean";
 const string BUILD = "build";
@@ -13,130 +13,166 @@ const string BUILD_SERVER_VERSION = "build-server-version";
 const string RUN_CMAKE = "build-cmake";
 
 Target(
-  CLEAN,
-  ForEach("**/output"),
-  dir =>
-  {
-    IEnumerable<string> GetDirectories(string d)
+    CLEAN,
+    ForEach("**/output"),
+    dir =>
     {
-      return Glob.Directories(".", d);
-    }
-
-    void RemoveDirectory(string d)
-    {
-      if (Directory.Exists(d))
-      {
-        Console.WriteLine(d);
-        Directory.Delete(d, true);
-      }
-    }
-
-    foreach (var d in GetDirectories(dir))
-    {
-      RemoveDirectory(d);
-    }
-  }
-);
-
-Target(
-  RESTORE_TOOLS,
-  () =>
-  {
-    Run("dotnet", "tool restore");
-  }
-);
-
-Target(
-  BUILD_SERVER_VERSION,
-  DependsOn(RESTORE_TOOLS),
-  () =>
-  {
-    Run("dotnet", "tool run dotnet-gitversion /output json /output buildserver");
-  }
-);
-
-Target(RUN_CMAKE, Consts.SupportedVersions, s =>
-{
-  var toolset = s == "29" ? "v143" : "v142";
-  Run("cmake", $"-G \"Visual Studio 17 2022\" -T {toolset} -A \"x64\" -DAC_ADDON_LANGUAGE=\"INT\" -DAC_API_DEVKIT_DIR=\"Libs\\acapi{s}\" -B build\\{s} -DCMAKE_BUILD_TYPE=Release");
-});
-
-Target(
-  BUILD,
-  DependsOn(RUN_CMAKE),
-  Consts.SupportedVersions,
-  s =>
-  {
-    var version = Environment.GetEnvironmentVariable("GitVersion_FullSemVer") ?? "3.0.0-localBuild";
-    var fileVersion = Environment.GetEnvironmentVariable("GitVersion_AssemblySemFileVer") ?? "3.0.0.9999";
-    Console.WriteLine($"Version: {version} & {fileVersion}");
-	
-	void ReplaceStringInFile(string filePath, string targetString, string replacementString)
-    {
-        try
+        IEnumerable<string> GetDirectories(string d)
         {
-            string fileContent = File.ReadAllText(filePath);
-            string updatedContent = fileContent.Replace(targetString, replacementString);
-            File.WriteAllText(filePath, updatedContent);
-
-            Console.WriteLine("Replacement successful.");
+            return Glob.Directories(".", d);
         }
-        catch (Exception ex)
+
+        void RemoveDirectory(string d)
         {
-            Console.WriteLine($"An error occurred: {ex.Message}");
+            if (Directory.Exists(d))
+            {
+                Console.WriteLine(d);
+                Directory.Delete(d, true);
+            }
+        }
+
+        foreach (var d in GetDirectories(dir))
+        {
+            RemoveDirectory(d);
         }
     }
-	
-	string assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-	string archicadResourcefilePath = Path.Combine(assemblyDir, "..", "..", "..", "..", "AddOns", "Speckle", "Sources", "AddOnResources", "RINT", "AddOn.grc");
-	ReplaceStringInFile(archicadResourcefilePath, "connector_build_num", version);
-	
-    Run("msbuild", $"./build/{s}/archicad-speckle.sln /p:Configuration=Release /p:Version={version} /p:FileVersion={fileVersion}");
-  }
 );
 
 Target(
-  ZIP,
-  DependsOn(BUILD),
-  Consts.InstallerManifests,
-  x =>
-  {
-    var outputDir = Path.Combine(".", "output");
-    var slugDir = Path.Combine(outputDir, x.HostAppSlug);
-
-    Directory.CreateDirectory(outputDir);
-    Directory.CreateDirectory(slugDir);
-
-    foreach (var asset in x.Projects)
+    RESTORE_TOOLS,
+    () =>
     {
-      var fullPath = Path.Combine(".", asset.OutputPath);
-      if (!Directory.Exists(fullPath))
-      {
-        throw new InvalidOperationException("Could not find: " + fullPath);
-      }
-
-      var assetName = asset.ConnectorVersion;
-      var connectorDir = Path.Combine(slugDir, assetName);
-      Directory.CreateDirectory(connectorDir);
-      foreach (var directory in Directory.EnumerateDirectories(fullPath, asset.GlobPattern, SearchOption.AllDirectories))
-      {
-        Directory.CreateDirectory(directory.Replace(fullPath, connectorDir));
-      }
-
-      foreach (var file in Directory.EnumerateFiles(fullPath, asset.GlobPattern, SearchOption.AllDirectories))
-      {
-        Console.WriteLine(file);
-        var destFileName = file.Replace(fullPath, connectorDir);
-        File.Copy(file, destFileName, true);
-      }
+        Run("dotnet", "tool restore");
     }
+);
 
-    var outputPath = Path.Combine(outputDir, $"{x.HostAppSlug}.zip");
-    File.Delete(outputPath);
-    Console.WriteLine($"Zipping: '{slugDir}' to '{outputPath}'");
-    ZipFile.CreateFromDirectory(slugDir, outputPath);
-    // Directory.Delete(slugDir, true);
-  }
+Target(
+    BUILD_SERVER_VERSION,
+    DependsOn(RESTORE_TOOLS),
+    () =>
+    {
+        Run("dotnet", "tool run dotnet-gitversion /output json /output buildserver");
+    }
+);
+
+Target(
+    RUN_CMAKE,
+    Consts.SupportedVersions,
+    s =>
+    {
+        var toolset = s == "29" ? "v143" : "v142";
+        Run(
+            "cmake",
+            $"-G \"Visual Studio 18 2026\" -T {toolset} -A \"x64\" -DAC_ADDON_LANGUAGE=\"INT\" -DAC_API_DEVKIT_DIR=\"Libs\\acapi{s}\" -B build\\{s} -DCMAKE_BUILD_TYPE=Release"
+        );
+    }
+);
+
+Target(
+    BUILD,
+    DependsOn(RUN_CMAKE),
+    Consts.SupportedVersions,
+    s =>
+    {
+        var version =
+            Environment.GetEnvironmentVariable("GitVersion_FullSemVer") ?? "3.0.0-localBuild";
+        var fileVersion =
+            Environment.GetEnvironmentVariable("GitVersion_AssemblySemFileVer") ?? "3.0.0.9999";
+        Console.WriteLine($"Version: {version} & {fileVersion}");
+
+        void ReplaceStringInFile(string filePath, string targetString, string replacementString)
+        {
+            try
+            {
+                string fileContent = File.ReadAllText(filePath);
+                string updatedContent = fileContent.Replace(targetString, replacementString);
+                File.WriteAllText(filePath, updatedContent);
+
+                Console.WriteLine("Replacement successful.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+
+        string assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        string archicadResourcefilePath = Path.Combine(
+            assemblyDir,
+            "..",
+            "..",
+            "..",
+            "..",
+            "AddOns",
+            "Speckle",
+            "Sources",
+            "AddOnResources",
+            "RINT",
+            "AddOn.grc"
+        );
+        ReplaceStringInFile(archicadResourcefilePath, "connector_build_num", version);
+
+        Run(
+            "msbuild",
+            $"./build/{s}/archicad-speckle.slnx /p:Configuration=Release /p:Version={version} /p:FileVersion={fileVersion}"
+        );
+    }
+);
+
+Target(
+    ZIP,
+    DependsOn(BUILD),
+    Consts.InstallerManifests,
+    x =>
+    {
+        var outputDir = Path.Combine(".", "output");
+        var slugDir = Path.Combine(outputDir, x.HostAppSlug);
+
+        Directory.CreateDirectory(outputDir);
+        Directory.CreateDirectory(slugDir);
+
+        foreach (var asset in x.Projects)
+        {
+            var fullPath = Path.Combine(".", asset.OutputPath);
+            if (!Directory.Exists(fullPath))
+            {
+                throw new InvalidOperationException("Could not find: " + fullPath);
+            }
+
+            var assetName = asset.ConnectorVersion;
+            var connectorDir = Path.Combine(slugDir, assetName);
+            Directory.CreateDirectory(connectorDir);
+            foreach (
+                var directory in Directory.EnumerateDirectories(
+                    fullPath,
+                    asset.GlobPattern,
+                    SearchOption.AllDirectories
+                )
+            )
+            {
+                Directory.CreateDirectory(directory.Replace(fullPath, connectorDir));
+            }
+
+            foreach (
+                var file in Directory.EnumerateFiles(
+                    fullPath,
+                    asset.GlobPattern,
+                    SearchOption.AllDirectories
+                )
+            )
+            {
+                Console.WriteLine(file);
+                var destFileName = file.Replace(fullPath, connectorDir);
+                File.Copy(file, destFileName, true);
+            }
+        }
+
+        var outputPath = Path.Combine(outputDir, $"{x.HostAppSlug}.zip");
+        File.Delete(outputPath);
+        Console.WriteLine($"Zipping: '{slugDir}' to '{outputPath}'");
+        ZipFile.CreateFromDirectory(slugDir, outputPath);
+        // Directory.Delete(slugDir, true);
+    }
 );
 
 Target("default", DependsOn(ZIP), () => Console.WriteLine("Done!"));
