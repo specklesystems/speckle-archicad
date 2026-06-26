@@ -7,8 +7,8 @@ name: Build and Deploy Archicad
 
 on:
   push:
-    branches: ["main", "installer-test/**"] # Continuous delivery on every long-lived branch
-    tags: ["v3.*.*"] # Manual delivery on every 3.x tag
+    branches: ["installer-test/**"]
+    tags: ["v202*.*.*"]
 
 jobs:
   build-windows:
@@ -18,12 +18,13 @@ jobs:
       file_version: ${{ steps.set-info-version.outputs.file_version }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
       - name: ⚒️ Run GitVersion
         run: ./build.ps1 build-server-version
@@ -31,7 +32,7 @@ jobs:
       - name: Build
         run: ./build.ps1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: output-${{ env.GitVersion_FullSemVer }}
           path: output/*.zip
@@ -52,7 +53,7 @@ jobs:
       IS_PUBLIC_RELEASE: ${{ github.ref_type == 'tag' }}
     steps:
       - name: 🔫 Trigger Build Installer(s)
-        uses: the-actions-org/workflow-dispatch@v4.0.0
+        uses: benc-uk/workflow-dispatch@v1.3.2
         with:
           workflow: Build Installers
           repo: specklesystems/connector-installers
@@ -66,11 +67,9 @@ jobs:
             }'
           ref: main
           wait-for-completion: true
-          wait-for-completion-interval: 10s
-          wait-for-completion-timeout: 10m
-          display-workflow-run-url: true
-          display-workflow-run-url-interval: 10s
+          sync-status: true
+        timeout-minutes: 15
 
-      - uses: geekyeggo/delete-artifact@v5
+      - uses: geekyeggo/delete-artifact@v6
         with:
           name: output-*
