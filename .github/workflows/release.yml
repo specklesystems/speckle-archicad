@@ -15,37 +15,43 @@ jobs:
     runs-on: windows-latest
     outputs:
       semver: ${{ steps.set-version.outputs.semver }}
-      file_version: ${{ steps.set-info-version.outputs.file_version }}
+      file_version: ${{ steps.set-version.outputs.file_version }}
 
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-          fetch-depth: 0
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v3
 
-      - name: ⚒️ Run GitVersion
-        run: ./build.ps1 build-server-version
+      - id: set-version
+        name: Set version to output
+        run: |
+          TAG=${{ github.ref_name }}
+          if [[ "${{ github.ref }}" != refs/tags/* ]]; then
+            TAG="0.0.0.${{ github.run_number }}"
+          fi
+          SEMVER="${TAG}"
+          FILE_VERSION=$(echo "$TAG" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          FILE_VERSION="$FILE_VERSION.${{ github.run_number }}"
+
+          echo "semver=$SEMVER" >> "$GITHUB_OUTPUT"
+          echo "fileVersion=$FILE_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo $SEMVER
+          echo $FILE_VERSION
 
       - name: Build
         run: ./build.ps1
 
       - uses: actions/upload-artifact@v7
         with:
-          name: output-${{ env.GitVersion_FullSemVer }}
+          name: output-${{ steps.set-version.outputs.semver }}
           path: output/*.zip
           retention-days: 1
           if-no-files-found: error
 
-      - id: set-version
-        name: Set version to output
-        run: echo "semver=${{ env.GitVersion_FullSemVer }}" >> "$Env:GITHUB_OUTPUT"
-
-      - id: set-info-version
-        name: Set file version to output
-        run: echo "file_version=${{ env.GitVersion_AssemblySemVer}}" >> "$Env:GITHUB_OUTPUT" # version will be retrieved from tag?
   deploy-installers:
     runs-on: ubuntu-latest
     needs: build-windows

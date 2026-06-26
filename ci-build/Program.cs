@@ -9,7 +9,6 @@ const string CLEAN = "clean";
 const string BUILD = "build";
 const string ZIP = "zip";
 const string RESTORE_TOOLS = "restore-tools";
-const string BUILD_SERVER_VERSION = "build-server-version";
 const string RUN_CMAKE = "build-cmake";
 
 Target(
@@ -47,15 +46,6 @@ Target(
 );
 
 Target(
-    BUILD_SERVER_VERSION,
-    DependsOn(RESTORE_TOOLS),
-    () =>
-    {
-        Run("dotnet", "tool run dotnet-gitversion /output json /output buildserver");
-    }
-);
-
-Target(
     RUN_CMAKE,
     Consts.SupportedVersions,
     s =>
@@ -74,10 +64,8 @@ Target(
     Consts.SupportedVersions,
     s =>
     {
-        var version =
-            Environment.GetEnvironmentVariable("GitVersion_FullSemVer") ?? "3.0.0-localBuild";
-        var fileVersion =
-            Environment.GetEnvironmentVariable("GitVersion_AssemblySemFileVer") ?? "3.0.0.9999";
+        var version = Environment.GetEnvironmentVariable("SEMVER") ?? "0.0.0-localBuild";
+        var fileVersion = Environment.GetEnvironmentVariable("FILE_VERSION") ?? "0.0.0.9999";
         Console.WriteLine($"Version: {version} & {fileVersion}");
 
         void ReplaceStringInFile(string filePath, string targetString, string replacementString)
