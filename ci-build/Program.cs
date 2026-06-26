@@ -58,7 +58,7 @@ Target(
 Target(RUN_CMAKE, Consts.SupportedVersions, s =>
 {
   var toolset = s == "29" ? "v143" : "v142";
-  Run("cmake", $"-G \"Visual Studio 17 2022\" -T {toolset} -A \"x64\" -DAC_ADDON_LANGUAGE=\"INT\" -DAC_API_DEVKIT_DIR=\"Libs\\acapi{s}\" -B build\\{s} -DCMAKE_BUILD_TYPE=Release");
+  Run("cmake", $"-G \"Visual Studio 18 2026\" -T {toolset} -A \"x64\" -DAC_ADDON_LANGUAGE=\"INT\" -DAC_API_DEVKIT_DIR=\"Libs\\acapi{s}\" -B build\\{s} -DCMAKE_BUILD_TYPE=Release");
 });
 
 Target(
