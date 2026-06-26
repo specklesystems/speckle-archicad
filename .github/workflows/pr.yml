@@ -6,9 +6,8 @@
 name: Build Archicad
 
 on:
-  pull_request: # Run build on every pull request that is not to main
-    branches-ignore:
-      - main
+  pull_request:
+
 
 permissions:
   contents: read
