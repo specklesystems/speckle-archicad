@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     outputs:
       semver: ${{ steps.set-version.outputs.semver }}
-      file_version: ${{ steps.set-version.outputs.file_version }}
+      fileVersion: ${{ steps.set-version.outputs.fileVersion }}
 
     steps:
       - uses: actions/checkout@v7
@@ -68,7 +68,7 @@ jobs:
           inputs: '{
             "run_id": "${{ github.run_id }}",
             "semver": "${{ needs.build-windows.outputs.semver }}",
-            "file_version": "${{needs.build-windows.outputs.file_version}}",
+            "file_version": "${{needs.build-windows.outputs.fileVersion}}",
             "repo": "${{ github.repository }}",
             "is_public_release": ${{ env.IS_PUBLIC_RELEASE }}
             }'
