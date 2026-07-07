@@ -10,6 +10,7 @@
 #include "AfterSendObjectsArgs.h"
 #include "UserCancelledException.h"
 #include "SendSetting.h"
+#include "ArchicadArtifactRootObjectBuilder.h"
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
@@ -64,7 +65,7 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
         layerFilter.availableCategories.push_back({ layer.name, layer.id });
     }
 
-    // CNX-2007 
+    // CNX-2007
     // ACAPI_Navigator_SearchNavigatorItem API function crashes Archicad with specific files
     // temp remove view filters until we find a workaround or an API fix is released
     /*ArchicadViewsFilter viewsFilter;
@@ -79,11 +80,11 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
 
 void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 {
-    SendSetting sendPropertiesSetting{ 
-        "sendProperties" , 
+    SendSetting sendPropertiesSetting{
+        "sendProperties" ,
         "Include Object Properties (disable for better performance)",
-        "boolean", 
-        true 
+        "boolean",
+        true
     };
     args.eventSource->SetResult(args.methodId, { sendPropertiesSetting });
 }
@@ -111,9 +112,78 @@ void SendBridge::Send(const RunMethodEventArgs& args)
 
     std::string modelCardId = args.data[0].get<std::string>();
     SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
-    
+
     CONNECTOR.GetProcessWindow().Init("Sending...", 1);
 
+    CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();
+    auto layerStatesStart = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
+
+    bool includeProperties = GetSendPropertiesSetting(modelCard);
+
+    // Speckle 4.0: write the parquet artefact bundle locally and upload it natively
+    // (sign -> presigned PUT -> complete). Falls back to the legacy send-via-browser
+    // path only when the server has no v2 data endpoints.
+    if (!TrySendViaArtifacts(args, modelCard, includeProperties))
+    {
+        SendViaBrowserLegacy(args, modelCard, includeProperties);
+    }
+
+    // restore hidden layers after send (in case user sent with LayerFilter)
+    auto layerStatesEnd = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
+    std::vector<int> layersToHide;
+    for (int i = 0; i < layerStatesStart.size(); i++)
+    {
+        if (layerStatesStart[i].hidden && !layerStatesEnd[i].hidden)
+        {
+            layersToHide.push_back(std::stoi(layerStatesStart[i].id));
+        }
+    }
+    CONNECTOR.GetSpeckleToHostConverter().SetLayerVisibility(layersToHide, false);
+
+    CONNECTOR.GetProcessWindow().Close();
+}
+
+bool SendBridge::TrySendViaArtifacts(const RunMethodEventArgs& args, SenderModelCard& modelCard, bool includeProperties)
+{
+    std::string token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
+
+    try
+    {
+        ArchicadArtifactRootObjectBuilder builder;
+        std::vector<SendConversionResult> conversionResults;
+        NativeSendResult result = builder.BuildAndUpload(
+            modelCard.sendFilter.GetSelectedObjectIds(),
+            includeProperties,
+            modelCard.serverUrl,
+            token,
+            modelCard.projectId,
+            modelCard.modelId,
+            conversionResults);
+
+        // Resolve the UI's Send() call and report the created version + conversion results.
+        args.eventSource->SetResult(args.methodId, nlohmann::json::object());
+
+        nlohmann::json res{};
+        res["modelCardId"] = modelCard.modelCardId;
+        res["versionId"] = result.versionId;
+        res["sendConversionResults"] = conversionResults;
+        args.eventSource->Send("setModelSendResult", res);
+        return true;
+    }
+    catch (const ServerNotSupportedException&)
+    {
+        // Old server: no ingestion / no pre-allocated versionId -> legacy browser path.
+        return false;
+    }
+    catch (const UserCancelledException&)
+    {
+        args.eventSource->Send("triggerCancel", modelCard.modelCardId);
+        return true;
+    }
+}
+
+void SendBridge::SendViaBrowserLegacy(const RunMethodEventArgs& args, SenderModelCard& modelCard, bool includeProperties)
+{
     SendViaBrowserArgs sendArgs{};
     sendArgs.modelCardId = modelCard.modelCardId;
     sendArgs.projectId = modelCard.projectId;
@@ -121,15 +191,10 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     sendArgs.serverUrl = modelCard.serverUrl;
     sendArgs.accountId = modelCard.accountId;
     sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
-    
-    CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();   
-    auto layerStatesStart = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
-    
+
     try
     {
-        nlohmann::json sendObj;
         RootObjectBuilder rootObjectBuilder{};
-        bool includeProperties = GetSendPropertiesSetting(modelCard);
         auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.GetSelectedObjectIds(), conversionResultCache, includeProperties);
         BaseObjectSerializer serializer{};
         auto rootObjectId = serializer.Serialize(root);
@@ -152,20 +217,6 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     {
         args.eventSource->Send("triggerCancel", sendArgs.modelCardId);
     }
-
-    // restore hidden layers after send (in case user sent with LayerFilter)
-    auto layerStatesEnd = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
-    std::vector<int> layersToHide;
-    for (int i = 0; i < layerStatesStart.size(); i++)
-    {
-        if (layerStatesStart[i].hidden && !layerStatesEnd[i].hidden)
-        {
-            layersToHide.push_back(std::stoi(layerStatesStart[i].id));
-        }
-    }
-    CONNECTOR.GetSpeckleToHostConverter().SetLayerVisibility(layersToHide, false);
-
-    CONNECTOR.GetProcessWindow().Close();
 }
 
 void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)

@@ -49,18 +49,30 @@ namespace
 		return quantity;
 	}
 
+	// Quantity values ride as {name, value, units} parameter dicts — the shape the
+	// Speckle EAV flattener turns into one typed row with the units column set
+	// (matching the Revit connector's Material Quantities convention).
+	nlohmann::json MakeQuantityParam(const char* name, double value, const std::string& units)
+	{
+		return { { "name", name }, { "value", value }, { "units", units } };
+	}
+
+	void SetQuantity(nlohmann::json& quantities, const std::string& materialName, double area, double volume, const WorkingUnits& workingUnits)
+	{
+		quantities[materialName]["area"] = MakeQuantityParam("area", area, workingUnits.calculatedAreaUnits);
+		quantities[materialName]["volume"] = MakeQuantityParam("volume", volume, workingUnits.calculatedVolumeUnits);
+	}
+
 	void AddSurfaceQuantity(nlohmann::json& quantities, const std::string& materialName, const double area, const WorkingUnits& workingUnits)
 	{
 		if (quantities.contains(materialName))
 		{
-			double originalArea = quantities[materialName]["area"];
-			quantities[materialName]["area"] = originalArea + area;
+			double originalArea = quantities[materialName]["area"]["value"];
+			quantities[materialName]["area"]["value"] = originalArea + area;
 		}
 		else
 		{
-			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["area"] = area;
-			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
+			quantities[materialName]["area"] = MakeQuantityParam("area", area, workingUnits.calculatedAreaUnits);
 		}
 	}
 
@@ -86,10 +98,7 @@ namespace
 		if (!materialName.empty())
 		{
 			double totalSurface = elementQuantity.wall.surface1 + elementQuantity.wall.surface2 + elementQuantity.wall.surface3;
-			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["volume"] = elementQuantity.wall.volume;
-			quantities[materialName]["area"] = totalSurface;
-			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
+			SetQuantity(quantities, materialName, totalSurface, elementQuantity.wall.volume, workingUnits);
 		}
 
 		if (apiElem.wall.sidMat.hasValue)
@@ -128,10 +137,7 @@ namespace
 		if (!materialName.empty())
 		{
 			double totalSurface = elementQuantity.slab.bottomSurface + elementQuantity.slab.topSurface + elementQuantity.slab.edgeSurface;
-			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["volume"] = elementQuantity.slab.volume;
-			quantities[materialName]["area"] = totalSurface;
-			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
+			SetQuantity(quantities, materialName, totalSurface, elementQuantity.slab.volume, workingUnits);
 		}
 
 		if (apiElem.slab.topMat.hasValue)
@@ -170,10 +176,7 @@ namespace
 		if (!materialName.empty())
 		{
 			double totalSurface = elementQuantity.beamSegment.bottomSurface + elementQuantity.beamSegment.topSurface + elementQuantity.beamSegment.leftSurface + elementQuantity.beamSegment.rightSurface + elementQuantity.beamSegment.endSurface;
-			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["volume"] = elementQuantity.beamSegment.volume;
-			quantities[materialName]["area"] = totalSurface;
-			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
+			SetQuantity(quantities, materialName, totalSurface, elementQuantity.beamSegment.volume, workingUnits);
 		}
 
 		// this is needed because if the materials have been overridden on the basic structure settings page
@@ -272,10 +275,7 @@ namespace
 
 		if (!materialName.empty())
 		{
-			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["volume"] = volume;
-			quantities[materialName]["area"] = (sideSurface + topAndBottomSurface);
-			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
+			SetQuantity(quantities, materialName, sideSurface + topAndBottomSurface, volume, workingUnits);
 		}
 
 		if (apiElem.columnSegment.extrusionSurfaceMaterial.hasValue)
@@ -308,10 +308,7 @@ namespace
 
 		if (!materialName.empty())
 		{
-			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["volume"] = elementQuantity.roof.volume;
-			quantities[materialName]["area"] = elementQuantity.roof.contourArea;
-			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
+			SetQuantity(quantities, materialName, elementQuantity.roof.contourArea, elementQuantity.roof.volume, workingUnits);
 		}
 
 		if (apiElem.roof.shellBase.topMat.hasValue)
@@ -349,10 +346,7 @@ namespace
 
 		if (!materialName.empty())
 		{
-			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["volume"] = elementQuantity.shell.volume;
-			quantities[materialName]["area"] = elementQuantity.shell.floorplanArea;
-			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
+			SetQuantity(quantities, materialName, elementQuantity.shell.floorplanArea, elementQuantity.shell.volume, workingUnits);
 		}
 
 		if (apiElem.shell.shellBase.topMat.hasValue)
@@ -381,10 +375,7 @@ namespace
 
 		if (!materialName.empty())
 		{
-			quantities[materialName]["materialName"] = materialName;
-			quantities[materialName]["volume"] = elementQuantity.morph.volume;
-			quantities[materialName]["area"] = elementQuantity.morph.floorPlanArea;
-			quantities[materialName]["units"] = workingUnits.calculatedAreaUnits;
+			SetQuantity(quantities, materialName, elementQuantity.morph.floorPlanArea, elementQuantity.morph.volume, workingUnits);
 		}
 
 		return quantities;
