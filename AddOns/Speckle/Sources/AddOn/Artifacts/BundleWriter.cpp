@@ -575,7 +575,13 @@ std::map<std::string, std::string> BundleWriter::Complete()
         const std::string fileName = _baseName + "." + t.second + ".parquet";
         std::filesystem::path fullPath = std::filesystem::path(_outputDir) / fileName;
         const std::string pathUtf8 = fullPath.string();
-        Execute("COPY " + t.first + " TO '" + EscapeSqlLiteral(pathUtf8) + "' (FORMAT PARQUET, COMPRESSION ZSTD)");
+        // DICTIONARY_SIZE_LIMIT 0 disables dictionary encoding: the viewer's
+        // duckdb-wasm build returned NULLs for our dictionary-encoded VARCHAR
+        // columns (eav value_string), while the ecosystem-proven producers
+        // (Parquet.Net, Arrow) emit PLAIN strings that read fine everywhere.
+        Execute(
+            "COPY " + t.first + " TO '" + EscapeSqlLiteral(pathUtf8) +
+            "' (FORMAT PARQUET, COMPRESSION ZSTD, DICTIONARY_SIZE_LIMIT 0)");
         files[fileName] = pathUtf8;
     }
     return files;
