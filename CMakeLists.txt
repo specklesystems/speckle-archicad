@@ -73,7 +73,7 @@ set(LIB_INCLUDE_DIRS
 		${CMAKE_SOURCE_DIR}/Libs/sqlite/include
 		${CMAKE_SOURCE_DIR}/Libs/sha/include
 		${CMAKE_SOURCE_DIR}/Libs/md5/include
-		${CMAKE_SOURCE_DIR}/Libs/duckdb/src/include
+		${CMAKE_SOURCE_DIR}/Libs/duckdb/include
 		${CMAKE_SOURCE_DIR}/Libs/bundlespec/include)
 set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}")
 
@@ -88,4 +88,5 @@ add_subdirectory(Libs/duckdb)
 # AddOns
 add_subdirectory(AddOns/Speckle)
 
-set_target_properties(json spdlog sqlite sha md5 duckdb PROPERTIES FOLDER Libs)
+# (duckdb is an IMPORTED binary target — no FOLDER grouping needed)
+set_target_properties(json spdlog sqlite sha md5 PROPERTIES FOLDER Libs)
