@@ -294,7 +294,14 @@ void BundleWriter::AddEavRow(
     }
 
     if (type == "boolean")
-        duckdb_append_bool(appender, text == "true");
+    {
+        // Case-insensitive, matching the SDK's bool.TryParse semantics — Archicad
+        // extractors historically emitted "True"/"False" with a capital.
+        std::string lower = text;
+        for (auto& c : lower)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        duckdb_append_bool(appender, lower == "true");
+    }
     else
         duckdb_append_null(appender);
 

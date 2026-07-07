@@ -43,8 +43,10 @@ namespace
     {
         const int objK = writer.InternObject(obj.applicationId);
 
-        // Root scalars mirror the eav root-scalar fields the SDK indexes (name/type/level/units).
+        // Root scalars mirror the eav root-scalar fields the SDK indexes
+        // (speckle_type/name/type/level/units — same set Revit emits, minus category/family).
         std::vector<std::pair<std::string, nlohmann::json>> rootScalars;
+        rootScalars.emplace_back("speckle_type", obj.speckle_type);
         if (!obj.name.empty())
             rootScalars.emplace_back("name", obj.name);
         if (!obj.type.empty())
