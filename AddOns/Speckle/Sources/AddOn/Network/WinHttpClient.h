@@ -16,4 +16,13 @@ public:
         const std::string& url,
         const std::string& filePath,
         const std::map<std::string, std::string>& extraHeaders) override;
+
+    HttpResponse Get(
+        const std::string& url,
+        const std::string& bearerToken) override;
+
+    HttpResponse GetToFile(
+        const std::string& url,
+        const std::string& bearerToken,
+        const std::string& filePath) override;
 };
