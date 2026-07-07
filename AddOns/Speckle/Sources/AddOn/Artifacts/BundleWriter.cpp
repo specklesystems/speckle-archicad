@@ -8,58 +8,13 @@
 #include <filesystem>
 #include <stdexcept>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-
 #include "duckdb.h"
 #include "picosha2.h"
+#include "DuckDbRuntime.h"
 
 namespace
 {
     constexpr int MAX_DEPTH = 10;
-
-#ifdef _WIN32
-    // duckdb.dll is delay-loaded (/DELAYLOAD). Windows resolves plugin
-    // dependencies against Archicad.exe's folder, not the .apx folder, so load
-    // it by full path from the add-on's own directory before the first duckdb
-    // call — the delay-load helper then reuses the already-loaded module.
-    // Same pattern the .NET connectors use for nironcompress.dll.
-    void EnsureDuckDbLoaded()
-    {
-        static bool loaded = false;
-        if (loaded)
-            return;
-
-        HMODULE self = nullptr;
-        if (!GetModuleHandleExW(
-                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                reinterpret_cast<LPCWSTR>(&EnsureDuckDbLoaded),
-                &self))
-        {
-            throw std::runtime_error("Could not resolve the add-on module handle");
-        }
-
-        wchar_t path[MAX_PATH];
-        if (GetModuleFileNameW(self, path, MAX_PATH) == 0)
-        {
-            throw std::runtime_error("Could not resolve the add-on module path");
-        }
-
-        std::filesystem::path dllPath = std::filesystem::path(path).parent_path() / L"duckdb.dll";
-        if (LoadLibraryW(dllPath.c_str()) == nullptr)
-        {
-            throw std::runtime_error(
-                "Could not load duckdb.dll from the add-on folder (" + dllPath.string() +
-                ") — is it deployed next to Speckle.apx?");
-        }
-        loaded = true;
-    }
-#else
-    void EnsureDuckDbLoaded() {}
-#endif
 
     duckdb_appender Appender(void* p) { return static_cast<duckdb_appender>(p); }
 
@@ -169,7 +124,7 @@ namespace
 BundleWriter::BundleWriter(const std::string& outputDir, const std::string& baseName)
     : _outputDir(outputDir), _baseName(baseName)
 {
-    EnsureDuckDbLoaded();
+    DuckDbRuntime::EnsureLoaded();
     std::filesystem::create_directories(outputDir);
 
     duckdb_database db = nullptr;

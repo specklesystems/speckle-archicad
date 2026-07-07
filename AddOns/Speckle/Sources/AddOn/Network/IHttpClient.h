@@ -34,4 +34,16 @@ public:
         const std::string& url,
         const std::string& filePath,
         const std::map<std::string, std::string>& extraHeaders) = 0;
+
+    // GET an absolute https URL, response body in memory. bearerToken may be empty.
+    virtual HttpResponse Get(
+        const std::string& url,
+        const std::string& bearerToken) = 0;
+
+    // GET an absolute https URL, streaming the body to a local file (parquet downloads).
+    // The returned response carries status/headers but an empty body.
+    virtual HttpResponse GetToFile(
+        const std::string& url,
+        const std::string& bearerToken,
+        const std::string& filePath) = 0;
 };

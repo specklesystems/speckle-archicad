@@ -6,6 +6,7 @@
 #include <winhttp.h>
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <vector>
@@ -203,6 +204,97 @@ HttpResponse WinHttpClient::PostJson(
         throw std::runtime_error("WinHttpSendRequest failed, error " + std::to_string(GetLastError()));
 
     return ReadResponse(request.h);
+}
+
+namespace
+{
+    // Shared GET plumbing: send the request, then either buffer the body
+    // (sink == nullptr handled by ReadResponse) or stream it into sink.
+    HttpResponse DoGet(
+        const std::string& url,
+        const std::string& bearerToken,
+        std::ofstream* sink)
+    {
+        ParsedUrl parsed = ParseUrl(url);
+        HInternet session = OpenSession();
+
+        HInternet connection(WinHttpConnect(session.h, parsed.host.c_str(), parsed.port, 0));
+        if (!connection)
+            throw std::runtime_error("WinHttpConnect failed, error " + std::to_string(GetLastError()));
+
+        HInternet request(WinHttpOpenRequest(
+            connection.h, L"GET", parsed.path.c_str(), nullptr,
+            WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
+            parsed.secure ? WINHTTP_FLAG_SECURE : 0));
+        if (!request)
+            throw std::runtime_error("WinHttpOpenRequest failed, error " + std::to_string(GetLastError()));
+
+        std::wstring headers;
+        if (!bearerToken.empty())
+            headers = L"Authorization: Bearer " + Widen(bearerToken) + L"\r\n";
+
+        if (!WinHttpSendRequest(
+                request.h,
+                headers.empty() ? WINHTTP_NO_ADDITIONAL_HEADERS : headers.c_str(),
+                headers.empty() ? 0 : static_cast<DWORD>(-1),
+                WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
+            throw std::runtime_error("WinHttpSendRequest failed, error " + std::to_string(GetLastError()));
+
+        if (sink == nullptr)
+            return ReadResponse(request.h);
+
+        // Streamed variant: headers/status via the normal path, body to the sink.
+        if (!WinHttpReceiveResponse(request.h, nullptr))
+            throw std::runtime_error("WinHttpReceiveResponse failed, error " + std::to_string(GetLastError()));
+
+        HttpResponse response;
+        DWORD status = 0;
+        DWORD statusSize = sizeof(status);
+        WinHttpQueryHeaders(
+            request.h,
+            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+            WINHTTP_HEADER_NAME_BY_INDEX,
+            &status,
+            &statusSize,
+            WINHTTP_NO_HEADER_INDEX);
+        response.statusCode = static_cast<int>(status);
+
+        std::vector<char> chunk(256 * 1024);
+        for (;;)
+        {
+            DWORD available = 0;
+            if (!WinHttpQueryDataAvailable(request.h, &available))
+                throw std::runtime_error("WinHttpQueryDataAvailable failed, error " + std::to_string(GetLastError()));
+            if (available == 0)
+                break;
+            DWORD toRead = std::min<DWORD>(available, static_cast<DWORD>(chunk.size()));
+            DWORD read = 0;
+            if (!WinHttpReadData(request.h, chunk.data(), toRead, &read))
+                throw std::runtime_error("WinHttpReadData failed, error " + std::to_string(GetLastError()));
+            sink->write(chunk.data(), read);
+        }
+        return response;
+    }
+}
+
+HttpResponse WinHttpClient::Get(const std::string& url, const std::string& bearerToken)
+{
+    return DoGet(url, bearerToken, nullptr);
+}
+
+HttpResponse WinHttpClient::GetToFile(
+    const std::string& url,
+    const std::string& bearerToken,
+    const std::string& filePath)
+{
+    std::ofstream file(filePath, std::ios::binary | std::ios::trunc);
+    if (!file)
+        throw std::runtime_error("Cannot open file for download: " + filePath);
+    HttpResponse response = DoGet(url, bearerToken, &file);
+    file.close();
+    if (!response.IsSuccess())
+        std::filesystem::remove(filePath); // never leave a partial/error body behind
+    return response;
 }
 
 HttpResponse WinHttpClient::PutFile(
