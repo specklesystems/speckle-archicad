@@ -151,6 +151,15 @@ BundleWriter::BundleWriter(const std::string& outputDir, const std::string& base
     Execute("CREATE TABLE meta (schema_version INTEGER, produced_by VARCHAR)");
     Execute("CREATE TABLE rel_types (rel INTEGER, name VARCHAR, src_ns VARCHAR, dst_ns VARCHAR)");
     Execute("CREATE TABLE node_kinds (kind INTEGER, name VARCHAR)");
+    // Type-dedup tables (spec: optional; viewer: REQUIRED). Archicad has no type
+    // parameter dedup yet, so they stay empty — but the viewer's loader only creates
+    // its object_properties view (which every scene-tree/property query reads) when
+    // eav + object_type + type_eav are ALL present, so they must ship regardless.
+    Execute("CREATE TABLE types (type_index INTEGER NOT NULL, type_key VARCHAR NOT NULL)");
+    Execute(
+        "CREATE TABLE type_eav (type_index INTEGER, path_index INTEGER, value_string VARCHAR, "
+        "value_double DOUBLE, value_boolean BOOLEAN, unit VARCHAR, internal_definition_name VARCHAR)");
+    Execute("CREATE TABLE object_type (object_index INTEGER NOT NULL, type_index INTEGER NOT NULL)");
 
     for (const char* table : { "objects", "paths", "eav", "nodes", "relations", "scene_views", "geometries" })
     {
@@ -542,6 +551,9 @@ std::map<std::string, std::string> BundleWriter::Complete()
         { "objects", "eav.objects" },
         { "paths", "eav.paths" },
         { "eav", "eav.eav" },
+        { "types", "eav.types" },
+        { "type_eav", "eav.type_eav" },
+        { "object_type", "eav.object_type" },
         { "nodes", "envelope.nodes" },
         { "relations", "envelope.relations" },
         { "scene_views", "envelope.scene_views" },
