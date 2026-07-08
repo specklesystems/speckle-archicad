@@ -6,15 +6,6 @@
 
 #include "SendConversionResult.h"
 
-// Thrown when the target server has no v2 data endpoints (ingestion create
-// failed, or it did not pre-allocate a versionId). SendBridge catches this
-// and falls back to the legacy send-via-browser path.
-class ServerNotSupportedException : public std::runtime_error
-{
-public:
-    explicit ServerNotSupportedException(const std::string& message) : std::runtime_error(message) {}
-};
-
 struct NativeSendResult
 {
     std::string versionId;
