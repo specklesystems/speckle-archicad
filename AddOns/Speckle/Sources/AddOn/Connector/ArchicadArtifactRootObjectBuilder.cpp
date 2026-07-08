@@ -103,25 +103,16 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     ArtifactUploader uploader(http, serverUrl, token, projectId);
 
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked
-    //    into the parquet filenames and used as the commit PK at complete. Servers without
-    //    the v2 data endpoints fail here -> legacy browser fallback.
-    IngestionInfo ingestion;
-    try
-    {
-        ingestion = uploader.CreateIngestion(
-            modelId,
-            "Sending from Archicad",
-            "archicad",
-            CONNECTOR.GetHostToSpeckleConverter().GetHostAppReleaseInfo());
-    }
-    catch (const std::exception& e)
-    {
-        throw ServerNotSupportedException(
-            std::string("Model ingestion API unavailable (") + e.what() + ")");
-    }
+    //    into the parquet filenames and used as the commit PK at complete. Failures
+    //    propagate as-is (auth, network, old server) — there is no legacy fallback.
+    IngestionInfo ingestion = uploader.CreateIngestion(
+        modelId,
+        "Sending from Archicad",
+        "archicad",
+        CONNECTOR.GetHostToSpeckleConverter().GetHostAppReleaseInfo());
     if (ingestion.versionId.empty())
     {
-        throw ServerNotSupportedException(
+        throw std::runtime_error(
             "The server did not pre-allocate a version id for this ingestion; "
             "the Speckle 4.0 artefact upload path requires the v2 data endpoints.");
     }

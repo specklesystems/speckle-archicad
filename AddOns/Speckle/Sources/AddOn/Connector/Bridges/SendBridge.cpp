@@ -1,15 +1,9 @@
 #include "SendBridge.h"
-#include "SendViaBrowserArgs.h"
-#include "RootObject.h"
-#include "Material.h"
 #include "Connector.h"
-#include "RootObjectBuilder.h"
 #include "InvalidMethodNameException.h"
-#include "ArchiCadApiException.h"
-#include "BaseObjectSerializer.h"
-#include "AfterSendObjectsArgs.h"
 #include "UserCancelledException.h"
 #include "SendSetting.h"
+#include "SendConversionResult.h"
 #include "ArchicadArtifactRootObjectBuilder.h"
 
 
@@ -17,7 +11,7 @@ SendBridge::SendBridge(IBrowserAdapter* browser)
 {
     sendBinding = std::make_unique<Binding>(
         "sendBinding",
-        std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send", "AfterSendObjects" },
+        std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send" },
         browser,
         this
     );
@@ -36,10 +30,6 @@ void SendBridge::RunMethod(const RunMethodEventArgs& args)
     else if (args.methodName == "Send")
     {
         Send(args);
-    }
-    else if (args.methodName == "afterSendObjects")
-    {
-        AfterSendObjects(args);
     }
     else
     {
@@ -121,12 +111,8 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     bool includeProperties = GetSendPropertiesSetting(modelCard);
 
     // Speckle 4.0: write the parquet artefact bundle locally and upload it natively
-    // (sign -> presigned PUT -> complete). Falls back to the legacy send-via-browser
-    // path only when the server has no v2 data endpoints.
-    if (!TrySendViaArtifacts(args, modelCard, includeProperties))
-    {
-        SendViaBrowserLegacy(args, modelCard, includeProperties);
-    }
+    // (sign -> presigned PUT -> complete).
+    SendViaArtifacts(args, modelCard, includeProperties);
 
     // restore hidden layers after send (in case user sent with LayerFilter)
     auto layerStatesEnd = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
@@ -143,7 +129,7 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     CONNECTOR.GetProcessWindow().Close();
 }
 
-bool SendBridge::TrySendViaArtifacts(const RunMethodEventArgs& args, SenderModelCard& modelCard, bool includeProperties)
+void SendBridge::SendViaArtifacts(const RunMethodEventArgs& args, SenderModelCard& modelCard, bool includeProperties)
 {
     std::string token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
 
@@ -168,77 +154,9 @@ bool SendBridge::TrySendViaArtifacts(const RunMethodEventArgs& args, SenderModel
         res["versionId"] = result.versionId;
         res["sendConversionResults"] = conversionResults;
         args.eventSource->Send("setModelSendResult", res);
-        return true;
-    }
-    catch (const ServerNotSupportedException&)
-    {
-        // Old server: no ingestion / no pre-allocated versionId -> legacy browser path.
-        return false;
     }
     catch (const UserCancelledException&)
     {
         args.eventSource->Send("triggerCancel", modelCard.modelCardId);
-        return true;
     }
-}
-
-void SendBridge::SendViaBrowserLegacy(const RunMethodEventArgs& args, SenderModelCard& modelCard, bool includeProperties)
-{
-    SendViaBrowserArgs sendArgs{};
-    sendArgs.modelCardId = modelCard.modelCardId;
-    sendArgs.projectId = modelCard.projectId;
-    sendArgs.modelId = modelCard.modelId;
-    sendArgs.serverUrl = modelCard.serverUrl;
-    sendArgs.accountId = modelCard.accountId;
-    sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
-
-    try
-    {
-        RootObjectBuilder rootObjectBuilder{};
-        auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.GetSelectedObjectIds(), conversionResultCache, includeProperties);
-        BaseObjectSerializer serializer{};
-        auto rootObjectId = serializer.Serialize(root);
-        auto batches = serializer.BatchObjects(10);
-
-        sendArgs.referencedObjectId = rootObjectId;
-
-        int i = 1;
-        int batchSize = static_cast<int>(batches.size());
-        for (const auto& b : batches)
-        {
-            sendArgs.batch = b;
-            sendArgs.currentBatch = i;
-            i++;
-            sendArgs.totalBatch = batchSize;
-            args.eventSource->SendBatchViaBrowser(args.methodId, sendArgs);
-        }
-    }
-    catch (const UserCancelledException&)
-    {
-        args.eventSource->Send("triggerCancel", sendArgs.modelCardId);
-    }
-}
-
-void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
-{
-    if (args.data.size() < 2)
-        throw std::invalid_argument("Too few arguments when calling " + args.methodName);
-
-    std::string modelCardId = args.data[0].get<std::string>();
-    SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
-
-    AfterSendObjectsArgs afterSendObjectsArgs{};
-    afterSendObjectsArgs.modelCardId = modelCard.modelCardId;
-    afterSendObjectsArgs.projectId = modelCard.projectId;
-    afterSendObjectsArgs.modelId = modelCard.modelId;
-    afterSendObjectsArgs.serverUrl = modelCard.serverUrl;
-    afterSendObjectsArgs.accountId = modelCard.accountId;
-    afterSendObjectsArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
-    std::string referencedObjectId = args.data[1].get<std::string>();
-    afterSendObjectsArgs.referencedObjectId = referencedObjectId;
-    afterSendObjectsArgs.sendConversionResults = nlohmann::json::array();
-    afterSendObjectsArgs.sendConversionResults = conversionResultCache;
-
-    args.eventSource->CreateVersionViaBrowser(args.methodId, afterSendObjectsArgs);
-    conversionResultCache.clear();
 }
