@@ -79,11 +79,14 @@ namespace
 		return values;
 	}
 
-	std::pair<nlohmann::json, nlohmann::json> GetIfcBoundedPropertyValue(const IFCAPI::PropertyBoundedValue& propertyBoundedValue)
+	// A bounded value is a lower/upper range, not a list — emit it as a keyed object so
+	// the EAV flattener stores each bound as its own row (properties.<pset>.<name>.lower
+	// / .upper) instead of an array, which the property walk would otherwise drop.
+	nlohmann::json GetIfcBoundedPropertyValue(const IFCAPI::PropertyBoundedValue& propertyBoundedValue)
 	{
-		std::pair<nlohmann::json, nlohmann::json> values;
-		values.first = GetIfcPropertyValue(propertyBoundedValue.GetLowerBoundValue());
-		values.second = GetIfcPropertyValue(propertyBoundedValue.GetUpperBoundValue());
+		nlohmann::json values;
+		values["lower"] = GetIfcPropertyValue(propertyBoundedValue.GetLowerBoundValue());
+		values["upper"] = GetIfcPropertyValue(propertyBoundedValue.GetUpperBoundValue());
 
 		return values;
 	}
@@ -246,11 +249,14 @@ namespace
 		return values;
 	}
 
-	std::pair<nlohmann::json, nlohmann::json> GetIfcBoundedPropertyValue(const API_IFCProperty& property)
+	// A bounded value is a lower/upper range, not a list — emit it as a keyed object so
+	// the EAV flattener stores each bound as its own row (properties.<pset>.<name>.lower
+	// / .upper) instead of an array, which the property walk would otherwise drop.
+	nlohmann::json GetIfcBoundedPropertyValue(const API_IFCProperty& property)
 	{
-		std::pair<nlohmann::json, nlohmann::json> values;
-		values.first = GetIfcPropertyValue(property.boundedValue.lowerBoundValue);
-		values.second = GetIfcPropertyValue(property.boundedValue.upperBoundValue);
+		nlohmann::json values;
+		values["lower"] = GetIfcPropertyValue(property.boundedValue.lowerBoundValue);
+		values["upper"] = GetIfcPropertyValue(property.boundedValue.upperBoundValue);
 
 		return values;
 	}

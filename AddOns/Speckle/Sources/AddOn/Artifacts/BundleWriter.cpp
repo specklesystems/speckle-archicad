@@ -107,6 +107,27 @@ namespace
         return v.is_boolean() || v.is_string() || v.is_number();
     }
 
+    // Joins an array's scalar elements into one comma-separated string, reusing the
+    // same String(value) text as scalar rows. Null / non-scalar elements are skipped
+    // (Archicad property arrays are always scalar-valued in practice). Returns "" for
+    // an empty or all-non-scalar array so the caller can drop it instead of emitting a
+    // blank row.
+    std::string JoinArrayScalars(const nlohmann::json& arr)
+    {
+        std::string out;
+        bool first = true;
+        for (const auto& el : arr)
+        {
+            if (el.is_null() || !IsScalar(el))
+                continue;
+            if (!first)
+                out += ", ";
+            out += ToText(el);
+            first = false;
+        }
+        return out;
+    }
+
     std::string EscapeSqlLiteral(const std::string& s)
     {
         std::string out;
@@ -363,8 +384,26 @@ void BundleWriter::WalkProperties(int objectK, const nlohmann::json& obj, const 
         }
 
         if (IsScalar(val))
+        {
             AddEavRow(objectK, path, val, nullptr, nullptr);
-        // arrays / other non-scalars are skipped, matching the SDK's walk
+            continue;
+        }
+
+        if (val.is_array())
+        {
+            // Archicad — unlike Revit, which the SDK's array-skipping walk was shaped
+            // around — emits genuinely multi-valued properties as JSON arrays (native
+            // List / Multiple-Choice Enumeration collection types, and IFC List /
+            // Enumerated properties). The EAV model is one value per row, so we collapse
+            // the elements into a single comma-separated string to preserve them rather
+            // than drop the whole property. (IFC bounded ranges are split into lower/upper
+            // rows upstream, so they never reach here as an array.)
+            const std::string joined = JoinArrayScalars(val);
+            if (!joined.empty())
+                AddEavRow(objectK, path, nlohmann::json(joined), nullptr, nullptr);
+            continue;
+        }
+        // remaining non-scalars (nested arrays, objects without name/value) are skipped
     }
 }
 
