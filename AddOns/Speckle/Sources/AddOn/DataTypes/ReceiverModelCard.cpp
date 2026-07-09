@@ -1,20 +1,5 @@
 #include "ReceiverModelCard.h"
 
-void to_json(nlohmann::json& j, const ReceiverModelCard& card)
-{
-    j["projectName"] = card.projectName;
-    j["modelName"] = card.modelName;
-    j["typeDiscriminator"] = card.typeDiscriminator;
-    j["modelId"] = card.modelId;
-    j["projectId"] = card.projectId;
-    j["accountId"] = card.accountId;
-    j["serverUrl"] = card.serverUrl;
-    j["expired"] = card.expired;
-    j["modelCardId"] = card.modelCardId;
-    j["selectedVersionId"] = card.selectedVersionId;
-    j["bakedObjectIds"] = card.bakedObjectIds;
-}
-
 void from_json(const nlohmann::json& j, ReceiverModelCard& card)
 {
     card.projectName = j.at("projectName").get<std::string>();

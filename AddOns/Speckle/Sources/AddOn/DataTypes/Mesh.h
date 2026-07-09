@@ -18,6 +18,3 @@ struct Mesh
     void ApplyTransform(const std::vector<double>& transform);
     void ApplyScaling(const double scaling);
 };
-
-void to_json(nlohmann::json& j, const Mesh& mesh);
-void from_json(const nlohmann::json& j, Mesh& mesh);

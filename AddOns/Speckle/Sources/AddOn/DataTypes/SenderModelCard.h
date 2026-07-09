@@ -16,5 +16,4 @@ struct SenderModelCard
     std::vector<SendSetting> settings;
 };
 
-void to_json(nlohmann::json& j, const SenderModelCard& c);
 void from_json(const nlohmann::json& j, SenderModelCard& card);

@@ -13,13 +13,10 @@ std::string SpeckleToHostConverter::CreateGroup(const std::vector<std::string>& 
 		group.Push(guid);
 	}
 
-	//API_Guid groupGuid = APINULLGuid;
-	//CHECK_ERROR(ACAPI_Grouping_CreateGroup(group, &groupGuid));
 	CHECK_ERROR(ACAPI_CallUndoableCommand("Create Group",
 		[&]() -> GSErrCode {
 			return ACAPI_Grouping_CreateGroup(group);
 		}));
 
-	//return APIGuidToString(groupGuid).ToCStr().Get();
 	return "asd";
 }
