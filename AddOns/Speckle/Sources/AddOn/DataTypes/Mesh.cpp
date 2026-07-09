@@ -1,56 +1,5 @@
 #include "Mesh.h"
 
-void to_json(nlohmann::json& j, const Mesh& mesh)
-{
-    j["speckle_type"] = mesh.speckle_type;
-    j["applicationId"] = mesh.applicationId;
-    j["units"] = mesh.units;
-    j["vertices"] = mesh.vertices;
-    j["faces"] = mesh.faces;
-    j["colors"] = mesh.colors;
-}
-
-void from_json(const nlohmann::json& j, Mesh& mesh)
-{
-    try
-    {
-        mesh.speckle_type = j.at("speckle_type").get<std::string>();
-    }
-    catch (const std::exception&)
-    {
-        mesh.speckle_type = "Objects.Geometry.Mesh";
-    }
-
-    try
-    {
-        mesh.applicationId = j.at("applicationId").get<std::string>();
-    }
-    catch (const std::exception&)
-    {
-        mesh.applicationId = "0";
-    }
-
-    try
-    {
-        mesh.units = j.at("units").get<std::string>();
-    }
-    catch (const std::exception&)
-    {
-        mesh.units = "m";
-    }
-    
-    mesh.vertices = j.at("vertices").get<std::vector<double>>();
-    mesh.faces = j.at("faces").get<std::vector<int>>();
-    try
-    {
-        mesh.colors = j.at("colors").get<std::vector<int>>();
-    }
-    catch (const std::exception&)
-    {
-        mesh.colors = std::vector<int>();
-    }
-}
-
 void Mesh::ApplyTransform(const std::vector<double>& transform)
 {
     if (transform.size() != 16)

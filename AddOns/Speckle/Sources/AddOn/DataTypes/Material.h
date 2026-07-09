@@ -14,6 +14,3 @@ struct Material
     double metalness = 0.0;
     double roughness = 1.0;
 };
-
-void to_json(nlohmann::json& j, const Material& material);
-void from_json(const nlohmann::json& j, Material& material);
