@@ -17,5 +17,3 @@ struct ArchicadObject
     std::vector<ArchicadObject> elements;
     ArchicadLevel levelInfo;
 };
-
-void to_json(nlohmann::json& j, const ArchicadObject& elem);
