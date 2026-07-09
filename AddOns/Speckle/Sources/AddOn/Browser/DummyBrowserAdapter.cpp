@@ -1,7 +1,5 @@
 #include "DummyBrowserAdapter.h"
 #include "Binding.h"
-#include "RunMethodEventArgs.h"
-#include "JsonFileWriter.h"
 
 DummyBrowserAdapter::DummyBrowserAdapter(){}
 

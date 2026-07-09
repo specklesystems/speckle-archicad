@@ -1,6 +1,5 @@
 #pragma once
 
-#include "SendFilter.h"
 #include "SenderModelCard.h"
 #include "ReceiverModelCard.h"
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "json.hpp"
-#include "Mesh.h"
 #include "ElementBody.h"
 #include "ArchicadLevel.h"
 

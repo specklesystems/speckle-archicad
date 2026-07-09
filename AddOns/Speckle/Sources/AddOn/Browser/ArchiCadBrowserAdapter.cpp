@@ -1,7 +1,6 @@
 #include "ArchiCadBrowserAdapter.h"
 #include "Binding.h"
 #include "RunMethodEventArgs.h"
-#include "JsonFileWriter.h"
 
 using JSBase = JS::Base;
 using JSArray = JS::Array;

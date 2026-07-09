@@ -5,7 +5,6 @@
 #include "CheckError.h"
 #include "SpeckleConversionException.h"
 #include "PropertyDefinitions.h"
-#include "JsonFileWriter.h"
 
 #include <iostream>
 
