@@ -36,7 +36,6 @@ void ProcessWindow::SetProcessValue(int value)
 	{
 		Int32 newval = value;
 		CHECK_ERROR(ACAPI_ProcessWindow_SetProcessValue(&newval));
-		//TIWait(0.001);
 		time = std::chrono::high_resolution_clock::now();
 	}
 }
