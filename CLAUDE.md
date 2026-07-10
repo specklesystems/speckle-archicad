@@ -8,6 +8,10 @@ A Speckle connector for Archicad, implemented as a native C++20 Archicad Add-On 
 
 Supported Archicad versions: **27, 28, 29** (declared in `ci-build/Consts.cs`). Windows is the primary/CI-built platform (the code has mac branches but CI builds Windows only).
 
+## Researching the Archicad API
+
+When implementing a new feature that needs an Archicad API you haven't used before (a new element type, property, geometry, MEP, IFC, etc.), do the research from primary sources rather than recollection — the C++ API surface changed noticeably across versions 24→29. See **`ARCHICAD_API_RESOURCES.md`** in the repo root: it lists the official doc site, the developer portal, the GitHub DevKit repo/releases, and the community forum, and includes `gh`/`curl` recipes for downloading the DevKit release zip and grepping its `Examples/` and `Support/Modules/` without a browser. The release zip's `Examples/<Area>_Test/` add-ons and the `ACAPI::<Area>` namespaces on the doc site are the ground truth for whether an API supports something. The vendored DevKits under `Libs/acapi27|28|29/` contain only `Support/` (headers/libs), not the examples — download the zip for those. Keep that file's "Last verified" date and latest-release note current if you re-check the sources.
+
 ## Building
 
 Two ways to build:
