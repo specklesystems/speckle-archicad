@@ -67,26 +67,50 @@ function (SetCompilerParams target)
 endfunction ()
 
 
+# ── Speckle bundle format: shared spec/writer/reader package + static Arrow ──
+# BUNDLE_SPEC follows the converters intake pattern: default = the vendored published
+# artifact (bundle-spec-cpp-<x> extracted under Libs/bundlespec), overridable to a live
+# spec-repo checkout for cross-repo development (-DBUNDLE_SPEC=C:/path/to/checkout).
+# The pin assert fails configure on a version mismatch; pass -DBUNDLE_SPEC_EXPECT_VERSION=""
+# when pointing at a bare checkout (which has no synthesized bundle_spec_version.h).
+set(BUNDLE_SPEC "${CMAKE_SOURCE_DIR}/Libs/bundlespec" CACHE PATH "speckle-bundle-spec published artifact or checkout")
+set(BUNDLE_SPEC_EXPECT_VERSION "5.0.0" CACHE STRING "expected bundle-spec pin (empty = skip assert)")
+set(BUNDLE_SPEC_INCLUDE "${BUNDLE_SPEC}/generated/cpp")
+include("${BUNDLE_SPEC}/cmake/AssertBundleSpecPin.cmake")
+
+# Vendored minimal static Arrow (see Libs/arrow/ARROW_VERSION.txt): libs ship zipped,
+# extracted here at configure time; the toolset picks the matching lib set.
+if (WIN32)
+	if (CMAKE_VS_PLATFORM_TOOLSET MATCHES "v142")
+		set(ARROW_TOOLSET "v142")
+	else ()
+		set(ARROW_TOOLSET "v143")
+	endif ()
+	set(ARROW_LIB_DIR "${CMAKE_SOURCE_DIR}/Libs/arrow/${ARROW_TOOLSET}")
+	if (NOT EXISTS "${ARROW_LIB_DIR}/arrow_static.lib" OR
+	    "${CMAKE_SOURCE_DIR}/Libs/arrow/${ARROW_TOOLSET}.zip" IS_NEWER_THAN "${ARROW_LIB_DIR}/arrow_static.lib")
+		message(STATUS "Extracting vendored Arrow libs (${ARROW_TOOLSET})")
+		file(ARCHIVE_EXTRACT INPUT "${CMAKE_SOURCE_DIR}/Libs/arrow/${ARROW_TOOLSET}.zip" DESTINATION "${ARROW_LIB_DIR}")
+	endif ()
+endif ()
+
 set(LIB_INCLUDE_DIRS
 		${CMAKE_SOURCE_DIR}/Libs/json/include
 		${CMAKE_SOURCE_DIR}/Libs/spdlog/include
 		${CMAKE_SOURCE_DIR}/Libs/sqlite/include
-		${CMAKE_SOURCE_DIR}/Libs/sha/include
-		${CMAKE_SOURCE_DIR}/Libs/md5/include
-		${CMAKE_SOURCE_DIR}/Libs/duckdb/include
-		${CMAKE_SOURCE_DIR}/Libs/bundlespec/include)
+		${CMAKE_SOURCE_DIR}/Libs/arrow/include
+		${BUNDLE_SPEC_INCLUDE}
+		${BUNDLE_SPEC}/cpp/core
+		${BUNDLE_SPEC}/cpp/writer
+		${BUNDLE_SPEC}/cpp/reader)
 set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}")
 
 #Libs
 add_subdirectory(Libs/json)
 add_subdirectory(Libs/spdlog)
 add_subdirectory(Libs/sqlite)
-add_subdirectory(Libs/sha)
-add_subdirectory(Libs/md5)
-add_subdirectory(Libs/duckdb)
 
 # AddOns
 add_subdirectory(AddOns/Speckle)
 
-# (duckdb is an IMPORTED binary target — no FOLDER grouping needed)
-set_target_properties(json spdlog sqlite sha md5 PROPERTIES FOLDER Libs)
+set_target_properties(json spdlog sqlite PROPERTIES FOLDER Libs)

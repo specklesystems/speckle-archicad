@@ -1,0 +1,38 @@
+{
+  "name": "@speckle/bundle-spec",
+  "version": "5.0.0",
+  "schemaVersion": 5,
+  "specHash": "sha256:9677b20fb55fcefbf73f65d95f8203f3002676ef22a2868204db060ab0fbd286",
+  "targets": {
+    "cpp": {
+      "include": "generated/cpp",
+      "files": {
+        "generated/cpp/bundle_schemas.h": "sha256:6b4552ee98417b292335d940e7493678e47589e547d09ae409042e87fa361853",
+        "generated/cpp/envelope_spec.h": "sha256:186633e69e4d99fa2c3a97f716133fe4fde1f3451be12452b3b1d52df67a4947"
+      }
+    },
+    "cppPackage": {
+      "include": "cpp",
+      "files": {
+        "cmake/AssertBundleSpecPin.cmake": "sha256:985247222391f2e0c9bdf75b5642e53bd129afafbb1fe7a7e3542e33d1b590da",
+        "cmake/SpeckleBundleCpp.cmake": "sha256:78cfdb851dd9cfacc4758647e2582f2f0426933717015853dbc52d98bcfce63f",
+        "cpp/core/eav_flatten.h": "sha256:cd44971524ca44ff0a449448cde71284f8b9d2e9deaa5e3298aef88f1b501c4b",
+        "cpp/core/sgeo.h": "sha256:444e7c5266da917429e33e7af93b8f39ebafbe536686cc868830de334e1a66f8",
+        "cpp/core/units.h": "sha256:553e2d5cdc9d083a890bcb3dbe7180f8f814829aee8d803ae111a5298091391b",
+        "cpp/reader/bundle_reader.h": "sha256:c77e4cfa4e444d6ea64fd5c5a38261f48fceb4d91955c6bd543ef997275f49e7",
+        "cpp/writer/bundle_writer.h": "sha256:5a9ecd77b53071764431ff3b1fb3c645265f40e4ad7751b6b3fd51285b50ab33",
+        "cpp/writer/envelope_catalog.h": "sha256:ff3a2faf0fdfacb01ec99601c0928fffc25a139ebc69c0ea3af87507bbc0a1ac",
+        "cpp/writer/fragment_keys.h": "sha256:5db5463f130b0ccd23fa1df43f2feca40a6e6df1977fb81ced87f293303c2e67",
+        "cpp/writer/geom_sharder.h": "sha256:0597f6f714291582e44d48932fb8f648eaf8cb9d27b5bcff6d5a7d22b034cb52",
+        "cpp/writer/parquet_table.h": "sha256:ecf3afd86da8fbc9b96a7efcf908895262ae17d1dd47fbbbbceb07585b22e5b6"
+      }
+    },
+    "python": {
+      "package": "speckle_bundle_spec",
+      "files": {
+        "bundle_schemas.py": "sha256:70fc765315bba8fa1e998d33d08a9a4560617b026a63ce679196072a66cb0372",
+        "bundle_spec.py": "sha256:fc950b3353e4189208f0ce77a750035f3b60a658e4570d6574927d50884b9a1f"
+      }
+    }
+  }
+}

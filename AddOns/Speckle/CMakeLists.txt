@@ -286,18 +286,18 @@ set_target_properties(${SPECKLE_ADDON_RESOURCES} PROPERTIES FOLDER Resources)
 set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT_INT\\Archicad 29\\Archicad.exe")
 
 # other libs
-target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite sha md5 duckdb)
+target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite)
 if (WIN32)
-	target_link_libraries(${SPECKLE_ADDON_LIB} winhttp delayimp)
-	# duckdb.dll is delay-loaded: Windows resolves plugin dependencies against
-	# Archicad.exe's folder, not the .apx folder, so BundleWriter LoadLibrary's
-	# it by full path from the add-on's own directory before first use.
-	target_link_options(${SPECKLE_ADDON_LIB} PRIVATE /DELAYLOAD:duckdb.dll)
-	# Ship the DLL next to the .apx (debugging + installer zip pick it up from there).
-	add_custom_command(TARGET ${SPECKLE_ADDON_LIB} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${CMAKE_SOURCE_DIR}/Libs/duckdb/redist/duckdb.dll"
-			"$<TARGET_FILE_DIR:${SPECKLE_ADDON_LIB}>")
+	target_link_libraries(${SPECKLE_ADDON_LIB} winhttp)
+	# Vendored static Arrow/Parquet (bundle read+write) — linked INTO the .apx, so the
+	# add-on stays a single file (no DLLs, no delay-load bootstrap). ARROW_STATIC /
+	# PARQUET_STATIC switch the headers off __declspec(dllimport).
+	target_compile_definitions(${SPECKLE_ADDON_LIB} PRIVATE ARROW_STATIC PARQUET_STATIC)
+	target_link_libraries(${SPECKLE_ADDON_LIB}
+		"${ARROW_LIB_DIR}/parquet_static.lib"
+		"${ARROW_LIB_DIR}/arrow_static.lib"
+		"${ARROW_LIB_DIR}/arrow_bundled_dependencies.lib"
+		ws2_32)
 endif ()
 
 #compile definitions

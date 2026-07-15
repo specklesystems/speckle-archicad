@@ -19,13 +19,18 @@
 #include <windows.h>
 #endif
 
-#include "duckdb.h"
 #include "json.hpp"
 
-#include "DuckDbRuntime.h"
 #include "GdlLibpartXml.h"
-#include "SgeoDecoder.h"
 #include "UserCancelledException.h"
+
+// Shared bundle read layer (speckle-bundle-spec cpp package) — typed parquet reading
+// (BundleReader), SGEO decode, the units table, and the Rel/NodeKind enums (no more
+// magic numbers). DuckDB is gone.
+#include "bundle_reader.h"
+#include "envelope_spec.h"
+#include "sgeo.h"
+#include "units.h"
 
 namespace fs = std::filesystem;
 using nlohmann::json;
@@ -40,19 +45,6 @@ namespace
         while (!result.empty() && result.back() == '/')
             result.pop_back();
         return result;
-    }
-
-    double UnitsToMetersFactor(const std::string& units)
-    {
-        if (units == "m" || units.empty() || units == "none") return 1.0;
-        if (units == "mm") return 0.001;
-        if (units == "cm") return 0.01;
-        if (units == "km") return 1000.0;
-        if (units == "in") return 0.0254;
-        if (units == "ft") return 0.3048;
-        if (units == "yd") return 0.9144;
-        if (units == "mi") return 1609.344;
-        return 1.0;
     }
 
     std::string RandomDirName(size_t length)
@@ -129,7 +121,7 @@ namespace
         if (values.size() != 16)
             return false;
 
-        const double f = UnitsToMetersFactor(units);
+        const double f = ::units::toMeters(units);
         values[3] *= f;
         values[7] *= f;
         values[11] *= f;
@@ -137,77 +129,6 @@ namespace
         std::copy(values.begin(), values.end(), out.m);
         out.isIdentity = false;
         return true;
-    }
-
-    // ── DuckDB helpers (C API, materialized results) ─────────────────────────
-
-    struct DuckDb
-    {
-        duckdb_database db = nullptr;
-        duckdb_connection con = nullptr;
-
-        DuckDb()
-        {
-            DuckDbRuntime::EnsureLoaded(); // delay-loaded DLL — MUST precede any duckdb_* call
-            if (duckdb_open(nullptr, &db) != DuckDBSuccess)
-                throw std::runtime_error("ArtifactReceiver: failed to open DuckDB");
-            if (duckdb_connect(db, &con) != DuckDBSuccess)
-                throw std::runtime_error("ArtifactReceiver: failed to connect to DuckDB");
-        }
-
-        ~DuckDb()
-        {
-            if (con)
-                duckdb_disconnect(&con);
-            if (db)
-                duckdb_close(&db);
-        }
-    };
-
-    struct QueryResult
-    {
-        duckdb_result result{};
-        bool valid = false;
-
-        ~QueryResult()
-        {
-            if (valid)
-                duckdb_destroy_result(&result);
-        }
-    };
-
-    void Query(DuckDb& db, const std::string& sql, QueryResult& out)
-    {
-        if (duckdb_query(db.con, sql.c_str(), &out.result) != DuckDBSuccess)
-        {
-            std::string error = duckdb_result_error(&out.result) ? duckdb_result_error(&out.result) : "unknown";
-            duckdb_destroy_result(&out.result);
-            throw std::runtime_error("ArtifactReceiver query failed: " + error);
-        }
-        out.valid = true;
-    }
-
-    std::string SqlPath(const std::string& path)
-    {
-        std::string out;
-        out.reserve(path.size());
-        for (const char c : path)
-        {
-            out.push_back(c);
-            if (c == '\'')
-                out.push_back('\'');
-        }
-        return out;
-    }
-
-    std::string GetVarchar(duckdb_result* result, idx_t col, idx_t row)
-    {
-        if (duckdb_value_is_null(result, col, row))
-            return "";
-        char* v = duckdb_value_varchar(result, col, row);
-        std::string out = v ? v : "";
-        duckdb_free(v);
-        return out;
     }
 
     // ── external converter processes ─────────────────────────────────────────
@@ -319,13 +240,15 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
     json artifactList = json::parse(listResponse.body);
     const json& files = artifactList.contains("files") ? artifactList["files"] : artifactList;
 
+    // The reader owns the file-name contract (suffix predicates) — no local strings.
     auto isNeeded = [](const std::string& name)
     {
-        const bool geometries = name.find(".geometries") != std::string::npos && name.rfind(".parquet") != std::string::npos;
-        const bool nodes = name.rfind(".envelope.nodes.parquet") != std::string::npos;
-        const bool relations = name.rfind(".envelope.relations.parquet") != std::string::npos;
-        const bool objects = name.rfind(".eav.objects.parquet") != std::string::npos;
-        return geometries || nodes || relations || objects;
+        return speckle::BundleReader::isReceiveTable(name);
+    };
+    auto endsWith = [](const std::string& s, const char* suffix)
+    {
+        const std::string suf(suffix);
+        return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
     };
 
     std::vector<std::string> geometryPaths;
@@ -345,13 +268,13 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         if (processWindow.IsProcessCanceled())
             throw UserCancelledException("The user cancelled the receive operation");
 
-        if (name.find(".geometries") != std::string::npos)
+        if (speckle::BundleReader::isGeometryShard(name))
             geometryPaths.push_back(localPath);
-        else if (name.rfind(".envelope.nodes.parquet") != std::string::npos)
+        else if (endsWith(name, speckle::BundleReader::kNodesSuffix))
             nodesPath = localPath;
-        else if (name.rfind(".envelope.relations.parquet") != std::string::npos)
+        else if (endsWith(name, speckle::BundleReader::kRelationsSuffix))
             relationsPath = localPath;
-        else if (name.rfind(".eav.objects.parquet") != std::string::npos)
+        else if (endsWith(name, speckle::BundleReader::kObjectsSuffix))
             objectsPath = localPath;
     }
 
@@ -363,42 +286,40 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
 
     // ── 2. read the bundle ───────────────────────────────────────────────────
     processWindow.SetNextProcessPhase("Reading version data", 1);
-    DuckDb db;
+    std::vector<fs::path> shardPaths(geometryPaths.begin(), geometryPaths.end());
+    speckle::BundleReader reader(objectsPath, relationsPath, nodesPath, std::move(shardPaths));
 
     std::map<int, std::string> appIdByObj;
+    reader.forEachObject([&](const speckle::BundleReader::ObjectRow& o)
     {
-        QueryResult q;
-        Query(db, "SELECT object_index, application_id FROM read_parquet('" + SqlPath(objectsPath) + "')", q);
-        const idx_t rows = duckdb_row_count(&q.result);
-        for (idx_t r = 0; r < rows; r++)
-            appIdByObj[duckdb_value_int32(&q.result, 0, r)] = GetVarchar(&q.result, 1, r);
-    }
+        appIdByObj[o.objectIndex] = o.applicationId;
+    });
 
-    // relations: DISPLAY=1, DEFINES=4, HAS_MATERIAL=5, DISPLAY_INSTANCE=8, DEFINES_INSTANCE=9
+    // Relations, delivered sorted by (src, ord) — the ordering the mesh/instance
+    // assembly below relies on. Filtered by the spec enums, no magic numbers.
     std::map<int, std::vector<int>> displayByObj;
     std::map<int, std::vector<int>> definesByDef;
     std::map<int, int> materialByGeom;
     std::map<int, std::vector<int>> instancesByObj;
     std::map<int, std::vector<int>> childInstancesByDef;
     {
-        QueryResult q;
-        Query(db,
-              "SELECT rel, src, dst FROM read_parquet('" + SqlPath(relationsPath) +
-                  "') WHERE rel IN (1, 4, 5, 8, 9) ORDER BY src, ord",
-              q);
-        const idx_t rows = duckdb_row_count(&q.result);
-        for (idx_t r = 0; r < rows; r++)
+        using bundlespec::Rel;
+        const auto rels = reader.readRelations({
+            static_cast<int>(Rel::DISPLAY),
+            static_cast<int>(Rel::DEFINES),
+            static_cast<int>(Rel::HAS_MATERIAL),
+            static_cast<int>(Rel::DISPLAY_INSTANCE),
+            static_cast<int>(Rel::DEFINES_INSTANCE),
+        });
+        for (const auto& r : rels)
         {
-            const int rel = duckdb_value_int32(&q.result, 0, r);
-            const int src = duckdb_value_int32(&q.result, 1, r);
-            const int dst = duckdb_value_int32(&q.result, 2, r);
-            switch (rel)
+            switch (static_cast<Rel>(r.rel))
             {
-            case 1: displayByObj[src].push_back(dst); break;
-            case 4: definesByDef[src].push_back(dst); break;
-            case 5: materialByGeom[src] = dst; break;
-            case 8: instancesByObj[src].push_back(dst); break;
-            case 9: childInstancesByDef[src].push_back(dst); break;
+            case Rel::DISPLAY: displayByObj[r.src].push_back(r.dst); break;
+            case Rel::DEFINES: definesByDef[r.src].push_back(r.dst); break;
+            case Rel::HAS_MATERIAL: materialByGeom[r.src] = r.dst; break;
+            case Rel::DISPLAY_INSTANCE: instancesByObj[r.src].push_back(r.dst); break;
+            case Rel::DEFINES_INSTANCE: childInstancesByDef[r.src].push_back(r.dst); break;
             default: break;
             }
         }
@@ -418,66 +339,42 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
     };
     std::map<int, InstanceNode> instanceNodes;
     std::map<int, MaterialNode> materialNodes;
-    {
-        QueryResult q;
-        Query(db,
-              "SELECT id, kind, name, def_ref, transform, units, argb, opacity, roughness FROM read_parquet('" +
-                  SqlPath(nodesPath) + "') WHERE kind IN (2, 3)",
-              q);
-        const idx_t rows = duckdb_row_count(&q.result);
-        for (idx_t r = 0; r < rows; r++)
+    reader.forEachNode(
+        [&](const speckle::BundleReader::NodeRow& n)
         {
-            const int id = duckdb_value_int32(&q.result, 0, r);
-            const int kind = duckdb_value_int32(&q.result, 1, r);
-            if (kind == 2)
+            if (n.kind == static_cast<int>(bundlespec::NodeKind::INSTANCE))
             {
                 InstanceNode node;
-                if (!duckdb_value_is_null(&q.result, 3, r))
-                    node.defRef = duckdb_value_int32(&q.result, 3, r);
-                const std::string transform = GetVarchar(&q.result, 4, r);
-                const std::string units = GetVarchar(&q.result, 5, r);
-                if (!transform.empty())
-                    ParseTransform(transform, units, node.transform);
-                instanceNodes[id] = node;
+                if (n.defRef)
+                    node.defRef = *n.defRef;
+                if (n.transform && !n.transform->empty())
+                    ParseTransform(*n.transform, n.units.value_or(""), node.transform);
+                instanceNodes[n.id] = node;
             }
             else
             {
                 MaterialNode node;
-                node.name = GetVarchar(&q.result, 2, r);
-                if (!duckdb_value_is_null(&q.result, 6, r))
-                    node.argb = duckdb_value_int32(&q.result, 6, r);
-                if (!duckdb_value_is_null(&q.result, 7, r))
-                    node.opacity = duckdb_value_double(&q.result, 7, r);
-                if (!duckdb_value_is_null(&q.result, 8, r))
-                    node.roughness = duckdb_value_double(&q.result, 8, r);
-                materialNodes[id] = node;
+                node.name = n.name.value_or("");
+                if (n.argb)
+                    node.argb = *n.argb;
+                if (n.opacity)
+                    node.opacity = *n.opacity;
+                if (n.roughness)
+                    node.roughness = *n.roughness;
+                materialNodes[n.id] = node;
             }
-        }
-    }
+        },
+        { static_cast<int>(bundlespec::NodeKind::INSTANCE),
+          static_cast<int>(bundlespec::NodeKind::MATERIAL) });
 
     std::map<int, std::pair<std::vector<std::uint8_t>, std::string>> geometryBlobs;
+    reader.forEachGeometry([&](const speckle::BundleReader::GeometryRow& g)
     {
-        std::string fileList;
-        for (const auto& p : geometryPaths)
-        {
-            if (!fileList.empty())
-                fileList += ", ";
-            fileList += "'" + SqlPath(p) + "'";
-        }
-        QueryResult q;
-        Query(db, "SELECT geometryIndex, content, type FROM read_parquet([" + fileList + "])", q);
-        const idx_t rows = duckdb_row_count(&q.result);
-        for (idx_t r = 0; r < rows; r++)
-        {
-            const int k = duckdb_value_int32(&q.result, 0, r);
-            duckdb_blob blob = duckdb_value_blob(&q.result, 1, r);
-            std::vector<std::uint8_t> content(
-                static_cast<const std::uint8_t*>(blob.data),
-                static_cast<const std::uint8_t*>(blob.data) + blob.size);
-            duckdb_free(blob.data);
-            geometryBlobs[k] = { std::move(content), GetVarchar(&q.result, 2, r) };
-        }
-    }
+        // g.content points into the live record batch — copy; the XML assembly below
+        // consumes the blobs long after the reader is done.
+        std::vector<std::uint8_t> content(g.content, g.content + g.contentLength);
+        geometryBlobs[g.geometryIndex] = { std::move(content), g.type };
+    });
 
     // ── 3. assemble per-object meshes and write XMLs ─────────────────────────
     // Objects with a DISPLAY or DISPLAY_INSTANCE edge are bakeable; everything
@@ -595,10 +492,10 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 if (blob == geometryBlobs.end())
                     continue;
 
-                SgeoDecoder::DecodedMesh decoded;
+                sgeo::DecodedMesh decoded;
                 try
                 {
-                    if (!SgeoDecoder::TryDecodeMesh(blob->second.first.data(), blob->second.first.size(), decoded))
+                    if (!sgeo::decodeMesh(blob->second.first.data(), blob->second.first.size(), decoded))
                         continue; // non-mesh primitive (lines/points) or raw solid — geometry-only scope
                 }
                 catch (const std::exception&)
@@ -606,7 +503,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                     continue; // corrupt blob — skip the fragment, keep the object
                 }
 
-                const double factor = UnitsToMetersFactor(decoded.units);
+                const double factor = ::units::toMeters(decoded.units);
                 if (factor != 1.0)
                 {
                     for (auto& v : decoded.vertices)

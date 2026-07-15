@@ -26,9 +26,9 @@ struct NativeSendResult
 //
 // The parquet bundle lands in %TEMP%\Speckle\artifacts\{versionId}\ and is
 // uploaded sign -> presigned PUT -> complete (complete creates the version).
-// Everything runs synchronously on the ACAPI main thread: DuckDB and WinHTTP
-// are synchronous APIs, so the C# worker-thread requirement (sync-over-async
-// parquet IO) does not apply here.
+// Everything runs synchronously on the ACAPI main thread: the shared Arrow
+// bundle writer and WinHTTP are synchronous APIs, so the C# worker-thread
+// requirement (sync-over-async parquet IO) does not apply here.
 class ArchicadArtifactRootObjectBuilder
 {
 public:

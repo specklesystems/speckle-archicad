@@ -9,43 +9,89 @@
 #include "ArchicadObject.h"
 #include "ArtefactSessionLog.h"
 #include "ArtifactUploader.h"
-#include "BundleWriter.h"
 #include "Connector.h"
-#include "SgeoEncoder.h"
+#include "JsonToPDict.h"
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
 #include "WinHttpClient.h"
 
+// Shared bundle producer (speckle-bundle-spec cpp package) — the same writer the
+// converters use; DuckDB is gone. The writer mints Ks unconditionally, so the dedup
+// maps (geometry app-id, material index, level key) live here in the feeder.
+#include "bundle_writer.h"
+#include "envelope_catalog.h"
+#include "sgeo.h"
+
 namespace
 {
-    // Resolves (and caches) the MATERIAL node for a Modeler material index.
-    int GetOrAddMaterialNode(BundleWriter& writer, std::map<int, int>& cache, int materialIndex)
+    // Default geometry shard cap — the SDK's SPECKLE_GEOMETRY_SHARD_MB=1536 (1.5 GiB
+    // uncompressed), same as the converters. Bundles under the cap keep the single
+    // canonical {base}.geometries.parquet name.
+    constexpr int64_t kGeomShardCapBytes = 1536LL * 1024 * 1024;
+
+    struct DedupMaps
     {
-        auto it = cache.find(materialIndex);
-        if (it != cache.end())
+        std::map<int, int> materialK;          // Modeler material index -> node K
+        std::map<std::string, int> levelK;     // floorId key -> node K
+        std::map<std::string, int> geometryK;  // geometry app id -> geometry K
+    };
+
+    // Resolves (and caches) the MATERIAL node for a Modeler material index.
+    int GetOrAddMaterialNode(BundleWriter& writer, DedupMaps& maps, int materialIndex)
+    {
+        auto it = maps.materialK.find(materialIndex);
+        if (it != maps.materialK.end())
             return it->second;
 
         Material material = CONNECTOR.GetHostToSpeckleConverter().GetModelMaterial(materialIndex);
         const int argb = static_cast<int>(material.diffuse);
-        const int k = writer.AddMaterial(
-            std::to_string(materialIndex), argb, material.opacity, material.metalness, material.roughness);
-        cache.emplace(materialIndex, k);
+        // Material nodes carry no name (matches the previous writer); the receive side
+        // falls back to "Speckle Material <K>". Roughness is real data (1 − shining/100);
+        // metalness is always 0 in Archicad and stays the shared writer's fixed 0.0.
+        const int k = writer.addNode(
+            bundlespec::NodeKind::MATERIAL, nullptr, -1, nullptr, nullptr, nullptr,
+            true, argb, material.opacity, material.roughness);
+        maps.materialK.emplace(materialIndex, k);
         return k;
+    }
+
+    void AddProperties(
+        BundleWriter& writer,
+        int objK,
+        const nlohmann::json& properties,
+        const std::vector<std::pair<std::string, std::string>>& rootScalars)
+    {
+        std::vector<std::pair<std::string, PVal>> roots;
+        roots.reserve(rootScalars.size());
+        for (const auto& kv : rootScalars)
+            roots.emplace_back(kv.first, PVal::Str(kv.second));
+
+        auto dict = JsonToPDict::Convert(properties);
+
+        // Archicad property groups are user-definable — disable the Revit-shaped
+        // key special-cases so e.g. a group named "Material Quantities" survives.
+        eav::WalkOptions opts;
+        opts.skipTypeParamsStructure = false;
+        opts.materialQuantitiesSpecialCase = false;
+
+        std::vector<EavRow> rows;
+        eav::flatten(*dict, roots, nullptr, rows, opts);
+        writer.writeInstanceEav(objK, rows);
     }
 
     // Emits one ArchicadObject (and recursively its children) into the bundle.
     // Returns the object's dense K.
     int EmitObject(
         BundleWriter& writer,
-        std::map<int, int>& materialCache,
+        DedupMaps& maps,
         const ArchicadObject& obj,
         bool isTopLevel)
     {
-        const int objK = writer.InternObject(obj.applicationId);
+        const int objK = writer.internObject(obj.applicationId);
 
         // Root scalars mirror the eav root-scalar fields the SDK indexes
         // (speckle_type/name/type/level/units — same set Revit emits, minus category/family).
-        std::vector<std::pair<std::string, nlohmann::json>> rootScalars;
+        std::vector<std::pair<std::string, std::string>> rootScalars;
         rootScalars.emplace_back("speckle_type", obj.speckle_type);
         if (!obj.name.empty())
             rootScalars.emplace_back("name", obj.name);
@@ -54,13 +100,21 @@ namespace
         if (!obj.level.empty())
             rootScalars.emplace_back("level", obj.level);
         rootScalars.emplace_back("units", "m");
-        writer.AddProperties(obj.applicationId, obj.properties, rootScalars);
+        AddProperties(writer, objK, obj.properties, rootScalars);
 
         if (isTopLevel && !obj.level.empty())
         {
-            const int levelK = writer.AddLevel(
-                std::to_string(obj.levelInfo.floorId), obj.level, obj.levelInfo.elevation);
-            writer.OnLevel(objK, levelK);
+            const std::string levelKey = std::to_string(obj.levelInfo.floorId);
+            auto lk = maps.levelK.find(levelKey);
+            int levelK;
+            if (lk != maps.levelK.end())
+                levelK = lk->second;
+            else
+            {
+                levelK = writer.addLevelNode(&obj.level, obj.levelInfo.elevation);
+                maps.levelK.emplace(levelKey, levelK);
+            }
+            writer.addRel(static_cast<int>(bundlespec::Rel::ON_LEVEL), objK, levelK, 0);
         }
 
         // Display geometry: deterministic per-mesh ids "{elementGuid}:{i}" (the v1 path used a
@@ -69,12 +123,22 @@ namespace
         for (const auto& mesh : obj.displayValue.meshes)
         {
             const std::string geometryAppId = obj.applicationId + ":" + std::to_string(ord);
-            const auto sgeo = SgeoEncoder::EncodeMesh(mesh.vertices, mesh.faces, mesh.colors, mesh.units);
-            const int geometryK = writer.AddGeometrySgeo(geometryAppId, sgeo);
-            writer.Display(objK, geometryK, ord);
+            int geometryK;
+            auto gk = maps.geometryK.find(geometryAppId);
+            if (gk != maps.geometryK.end())
+                geometryK = gk->second;
+            else
+            {
+                const auto blob = sgeo::encodeMesh(
+                    mesh.vertices, mesh.faces, units::code(mesh.units), mesh.colors);
+                const std::string id = sgeo::sha256hex(blob.data(), blob.size());
+                geometryK = writer.addGeometry(id, blob.data(), static_cast<int64_t>(blob.size()));
+                maps.geometryK.emplace(geometryAppId, geometryK);
+            }
+            writer.addRel(static_cast<int>(bundlespec::Rel::DISPLAY), objK, geometryK, ord);
 
-            const int materialK = GetOrAddMaterialNode(writer, materialCache, mesh.materialIndex);
-            writer.HasMaterial(geometryK, materialK);
+            const int materialK = GetOrAddMaterialNode(writer, maps, mesh.materialIndex);
+            writer.addRel(static_cast<int>(bundlespec::Rel::HAS_MATERIAL), geometryK, materialK, 0);
             ord++;
         }
 
@@ -82,8 +146,8 @@ namespace
         int subOrd = 0;
         for (const auto& child : obj.elements)
         {
-            const int childK = EmitObject(writer, materialCache, child, false);
-            writer.Subelement(objK, childK, subOrd++);
+            const int childK = EmitObject(writer, maps, child, false);
+            writer.addRel(static_cast<int>(bundlespec::Rel::SUBELEMENT), objK, childK, subOrd++);
         }
 
         return objK;
@@ -123,12 +187,15 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     {
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
-        BundleWriter writer(outputDir.string(), ingestion.versionId);
+        std::filesystem::create_directories(outputDir);
+        BundleWriter writer(outputDir.string(), ingestion.versionId, kGeomShardCapBytes);
+        if (!writer.ok())
+            throw std::runtime_error("BundleWriter: failed to create the parquet bundle in " + outputDir.string());
 
         // 2. Collect + emit in one pass (ACAPI main thread).
         session.BeginPhase("CollectAndWrite");
         CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(elementIds.size()));
-        std::map<int, int> materialCache;
+        DedupMaps maps;
         int elemCount = 0;
         for (const auto& elemId : elementIds)
         {
@@ -141,7 +208,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             {
                 auto archicadObject =
                     CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult, includeProperties);
-                EmitObject(writer, materialCache, archicadObject, true);
+                EmitObject(writer, maps, archicadObject, true);
 
                 const double ms =
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - objStart).count();
@@ -166,25 +233,36 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
                 throw UserCancelledException("The user cancelled the send operation");
         }
 
-        // 3. Default explorer projection: Story (ON_LEVEL) -> Element type (eav "type") —
-        //    the same hierarchy the old nested Level/ElementTypeCollection tree encoded.
-        writer.AddSceneView(0, "Default", true, {
+        const int objectCount = static_cast<int>(writer.objectCount());
+        session.SetStat("objects", objectCount);
+        session.EndPhase();
+
+        // 3. Flush the parquet bundle + the constant catalog sidecars + the default
+        //    explorer projection: Story (ON_LEVEL) -> Element type (eav "type") — the
+        //    same hierarchy the old nested Level/ElementTypeCollection tree encoded.
+        session.BeginPhase("WriteParquet");
+        CONNECTOR.GetProcessWindow().SetNextProcessPhase("Writing bundle", 1);
+        writer.finalize();
+        if (!writer.ok())
+            throw std::runtime_error("BundleWriter: failed to write the parquet bundle");
+        envcat::writeCatalogTables(outputDir.string(), ingestion.versionId, "Speckle Archicad BundleWriter");
+        envcat::writeSceneViewTiers(outputDir.string(), ingestion.versionId, {
             { "rel", std::to_string(static_cast<int>(bundlespec::Rel::ON_LEVEL)) },
             { "eav", "type" },
         });
 
-        const int objectCount = writer.ObjectCount();
-        session.SetStat("objects", objectCount);
-        session.EndPhase();
-
-        // 4. Flush the parquet bundle.
-        session.BeginPhase("WriteParquet");
-        CONNECTOR.GetProcessWindow().SetNextProcessPhase("Writing bundle", 1);
-        auto files = writer.Complete();
+        // Collect the written files for the uploader (fileName -> full path). The dir
+        // is exclusive to this versionId, so everything in it belongs to the bundle.
+        std::map<std::string, std::string> files;
+        for (const auto& entry : std::filesystem::directory_iterator(outputDir))
+        {
+            if (entry.is_regular_file() && entry.path().extension() == ".parquet")
+                files[entry.path().filename().string()] = entry.path().string();
+        }
         session.SetStat("files", static_cast<long long>(files.size()));
         session.EndPhase();
 
-        // 5. Upload: sign -> presigned PUT per file -> complete (creates the version).
+        // 4. Upload: sign -> presigned PUT per file -> complete (creates the version).
         session.BeginPhase("Upload");
         CONNECTOR.GetProcessWindow().SetNextProcessPhase("Uploading", static_cast<int>(files.size()));
         const std::string rootId = "binary-" + ingestion.versionId;
