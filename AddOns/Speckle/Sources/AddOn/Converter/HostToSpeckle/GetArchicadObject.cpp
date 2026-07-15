@@ -18,7 +18,22 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
     archicadObject.elements = GetElementChildren(elemId, includeProperties);
     if (archicadObject.elements.empty())
     {
-        archicadObject.displayValue = GetElementBody(elemId);
+        // GDL/library-part objects are extracted as instances (shared DEFINITION +
+        // per-placement transform). Anything else — or an object that fails to extract
+        // as an instance — falls back to baked world-coordinate geometry.
+        bool instanced = false;
+        if (archicadObject.type == "Object")
+        {
+            ObjectInstance instance = GetObjectInstance(elemId);
+            if (instance.valid)
+            {
+                archicadObject.instance = std::move(instance);
+                instanced = true;
+            }
+        }
+
+        if (!instanced)
+            archicadObject.displayValue = GetElementBody(elemId);
     }
 
     archicadObject.properties = includeProperties ? GetElementProperties(elemId) : nlohmann::json::object();

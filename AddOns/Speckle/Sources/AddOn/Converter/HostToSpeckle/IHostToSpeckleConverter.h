@@ -22,6 +22,7 @@ public:
 	virtual std::vector<std::string> GetElementListAllVisibleIn3D() = 0;
 	virtual std::vector<std::string> GetElementTypeList() = 0;
 	virtual ElementBody GetElementBody(const std::string& elemId) = 0;
+	virtual ObjectInstance GetObjectInstance(const std::string& elemId) = 0;
 	virtual Material GetModelMaterial(int materialIndex) = 0;
 	virtual std::string GetElementName(const std::string& elemId) = 0;
 	virtual ArchicadLevel GetElementLevel(const std::string& elemId) = 0;

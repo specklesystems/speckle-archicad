@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -65,9 +66,18 @@ public:
     int AddCollection(const std::string& collectionKey, const std::string& name, const int* parentK, const std::string& subtype);
     int AddContainer(const std::string& containerKey, const std::string& name, const int* parentK, const std::string& subtype);
 
+    // Instancing nodes. A DEFINITION is shared geometry (linked via DEFINES); an INSTANCE
+    // is one placement of a definition (its transform + a def_ref back to the definition K),
+    // referenced from an object via DISPLAY_INSTANCE. transform is 16 row-major doubles
+    // (M11..M44), serialized to the nodes.transform CSV the SDK reader parses.
+    int AddDefinition(const std::string& definitionKey, const std::string& name);
+    int AddInstance(const std::string& placementKey, int defK, const std::array<double, 16>& transform, const std::string& units);
+
     // ── relations ─────────────────────────────────────────────────────
     void Display(int objectK, int geometryK, int ord);
     void Subelement(int parentObjectK, int childObjectK, int ord);
+    void Defines(int definitionK, int geometryK, int ord);
+    void DisplayInstance(int objectK, int instanceK, int ord);
     void HasMaterial(int geometryK, int materialK);
     void HasColor(int srcK, int colorK);
     void OnLevel(int objectK, int levelK);
