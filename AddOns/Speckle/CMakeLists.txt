@@ -40,6 +40,25 @@ set (CMAKE_SUPPRESS_REGENERATION 1)
 set (CMAKE_CONFIGURATION_TYPES Debug;Release;RelWithDebInfo)
 set (SPECKLE_ADDON_NAME "Speckle")
 
+if (APPLE)
+	set(SPECKLE_ADDON_VERSION "1.0.0" CACHE STRING "Speckle add-on semantic version")
+	file(READ
+		"${AC_API_DEVKIT_DIR}/Support/Frameworks/GSRoot.framework/Versions/A/Resources/Info.plist"
+		GSROOT_INFO_PLIST)
+	string(REGEX MATCH "GSBuildNum[^0-9]+([0-9]+)" _ "${GSROOT_INFO_PLIST}")
+	set(AC_DEVKIT_BUILD_NUMBER "${CMAKE_MATCH_1}")
+	if (NOT AC_DEVKIT_BUILD_NUMBER)
+		message(FATAL_ERROR "Could not read the Archicad DevKit build number")
+	endif ()
+	math(EXPR AC_COMPATIBILITY_VERSION "${ARCHICAD_VERSION} * 100000 + ${AC_DEVKIT_BUILD_NUMBER}")
+	set(SPECKLE_BUNDLE_VERSION "${SPECKLE_ADDON_VERSION}.${AC_COMPATIBILITY_VERSION}")
+	set(SPECKLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/SpeckleInfo.plist")
+	configure_file(
+		"${CMAKE_CURRENT_LIST_DIR}/Sources/AddOnResources/RFIX.mac/Info.plist"
+		"${SPECKLE_INFO_PLIST}"
+		@ONLY)
+endif ()
+
 if (WIN32)
 	add_definitions (-DUNICODE -D_UNICODE -D_ITERATOR_DEBUG_LEVEL=0)
 else ()
@@ -109,7 +128,7 @@ if (WIN32)
 		DEPENDS ${AddOnResourceFiles} ${AddOnImageFiles}
 		COMMENT "Compiling resources..."
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${ResourceObjectsDir}"
-		COMMAND python "${AddOnResourcesFolderAbsolute}/Tools/CompileResources.py" "${AC_ADDON_LANGUAGE}" "${AC_API_DEVKIT_DIR}" "${AddOnSourcesFolderAbsolute}" "${AddOnResourcesFolderAbsolute}" "${ResourceObjectsDir}" "${ResourceObjectsDir}/${SPECKLE_ADDON_NAME}.res"
+		COMMAND "${Python3_EXECUTABLE}" "${AddOnResourcesFolderAbsolute}/Tools/CompileResources.py" "${AC_ADDON_LANGUAGE}" "${AC_API_DEVKIT_DIR}" "${AddOnSourcesFolderAbsolute}" "${AddOnResourcesFolderAbsolute}" "${ResourceObjectsDir}" "${ResourceObjectsDir}/${SPECKLE_ADDON_NAME}.res"
 		COMMAND ${CMAKE_COMMAND} -E touch "${ResourceObjectsDir}/AddOnResources.stamp"
 	)
 else ()
@@ -118,8 +137,8 @@ else ()
 		DEPENDS ${AddOnResourceFiles} ${AddOnImageFiles}
 		COMMENT "Compiling resources..."
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${ResourceObjectsDir}"
-		COMMAND python "${AddOnResourcesFolderAbsolute}/Tools/CompileResources.py" "${AC_ADDON_LANGUAGE}" "${AC_API_DEVKIT_DIR}" "${AddOnSourcesFolderAbsolute}" "${AddOnResourcesFolderAbsolute}" "${ResourceObjectsDir}" "${CMAKE_BINARY_DIR}/$<CONFIG>/${SPECKLE_ADDON_NAME}.bundle/Contents/Resources"
-		COMMAND ${CMAKE_COMMAND} -E copy "${AC_API_DEVKIT_DIR}/Support/Inc/PkgInfo" "${CMAKE_BINARY_DIR}/$<CONFIG>/${SPECKLE_ADDON_NAME}.bundle/Contents/PkgInfo"
+		COMMAND "${Python3_EXECUTABLE}" "${AddOnResourcesFolderAbsolute}/Tools/CompileResources.py" "${AC_ADDON_LANGUAGE}" "${AC_API_DEVKIT_DIR}" "${AddOnSourcesFolderAbsolute}" "${AddOnResourcesFolderAbsolute}" "${ResourceObjectsDir}" "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}/$<CONFIG>/${SPECKLE_ADDON_NAME}.bundle/Contents/Resources"
+		COMMAND ${CMAKE_COMMAND} -E copy "${AC_API_DEVKIT_DIR}/Support/Inc/PkgInfo" "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}/$<CONFIG>/${SPECKLE_ADDON_NAME}.bundle/Contents/PkgInfo"
 		COMMAND ${CMAKE_COMMAND} -E touch "${ResourceObjectsDir}/AddOnResources.stamp"
 	)
 endif ()
@@ -182,7 +201,7 @@ file (GLOB ArtifactsFiles ${ArtifactsFolder}/*.h ${ArtifactsFolder}/*.cpp)
 source_group ("Artifacts" FILES ${ArtifactsFiles})
 
 set (NetworkFolder Sources/AddOn/Network)
-file (GLOB NetworkFiles ${NetworkFolder}/*.h ${NetworkFolder}/*.cpp)
+file (GLOB NetworkFiles ${NetworkFolder}/*.h ${NetworkFolder}/*.cpp ${NetworkFolder}/*.mm)
 source_group ("Network" FILES ${NetworkFiles})
 
 set (DiagnosticsFolder Sources/AddOn/Diagnostics)
@@ -225,9 +244,15 @@ set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES OUTPUT_NAME ${SPECKLE_ADD
 if (WIN32)
 	set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES SUFFIX ".apx")
 else ()
-	set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES BUNDLE TRUE)
-	set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_LIST_DIR}/${AddOnResourcesFolder}/RFIX.mac/Info.plist")
-	set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}/$<CONFIG>")
+	set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES
+		BUNDLE TRUE
+		BUNDLE_EXTENSION bundle
+		MACOSX_BUNDLE_INFO_PLIST "${SPECKLE_INFO_PLIST}"
+		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}/$<CONFIG>"
+		BUILD_WITH_INSTALL_RPATH TRUE
+		INSTALL_RPATH "@loader_path/../Frameworks;@executable_path/../Frameworks")
+	set_property(TARGET ${SPECKLE_ADDON_LIB} APPEND PROPERTY LINK_DEPENDS "${SPECKLE_INFO_PLIST}")
+	target_compile_options(${SPECKLE_ADDON_LIB} PRIVATE "$<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>")
 endif ()
 
 if (WIN32)
@@ -259,10 +284,16 @@ if (WIN32)
 	)
 else ()
 	find_library (CocoaFramework Cocoa)
+	find_library (FoundationFramework Foundation)
 	target_link_libraries (${SPECKLE_ADDON_LIB}
-		"${AC_API_DEVKIT_DIR}/Support/Lib/Mactel/libACAP_STAT.a"
+		"${AC_API_DEVKIT_DIR}/Support/Lib/libACAP_STAT.a"
 		${CocoaFramework}
+		${FoundationFramework}
 	)
+	# The DevKit contains frameworks introduced by later Archicad maintenance
+	# builds. Keep only dylibs that satisfy symbols the connector actually uses,
+	# otherwise a build against the latest DevKit will not load in base releases.
+	target_link_options(${SPECKLE_ADDON_LIB} PRIVATE "-Wl,-dead_strip_dylibs")
 endif ()
 
 SetCompilerOptions (${SPECKLE_ADDON_LIB})
@@ -286,7 +317,7 @@ set_target_properties(${SPECKLE_ADDON_RESOURCES} PROPERTIES FOLDER Resources)
 set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT_INT\\Archicad 29\\Archicad.exe")
 
 # other libs
-target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite sha md5 duckdb)
+target_link_libraries(${SPECKLE_ADDON_LIB} json spdlog sqlite sha md5 duckdb)
 if (WIN32)
 	target_link_libraries(${SPECKLE_ADDON_LIB} winhttp delayimp)
 	# duckdb.dll is delay-loaded: Windows resolves plugin dependencies against
@@ -298,6 +329,22 @@ if (WIN32)
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 			"${CMAKE_SOURCE_DIR}/Libs/duckdb/redist/duckdb.dll"
 			"$<TARGET_FILE_DIR:${SPECKLE_ADDON_LIB}>")
+else ()
+	find_program(CODESIGN_EXECUTABLE codesign REQUIRED)
+	set(DEFAULT_CODESIGN_IDENTITY "$ENV{SPECKLE_CODESIGN_IDENTITY}")
+	if (NOT DEFAULT_CODESIGN_IDENTITY)
+		set(DEFAULT_CODESIGN_IDENTITY "-")
+	endif ()
+	set(SPECKLE_CODESIGN_IDENTITY "${DEFAULT_CODESIGN_IDENTITY}" CACHE STRING "macOS code-signing identity; '-' creates a local ad-hoc signature")
+	add_custom_command(TARGET ${SPECKLE_ADDON_LIB} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory
+			"$<TARGET_BUNDLE_DIR:${SPECKLE_ADDON_LIB}>/Contents/Frameworks"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			"$<TARGET_FILE:duckdb>"
+			"$<TARGET_BUNDLE_DIR:${SPECKLE_ADDON_LIB}>/Contents/Frameworks/libduckdb.dylib"
+		COMMAND "${CODESIGN_EXECUTABLE}" --force --deep --sign "${SPECKLE_CODESIGN_IDENTITY}"
+			"$<TARGET_BUNDLE_DIR:${SPECKLE_ADDON_LIB}>"
+		COMMENT "Signing the Speckle macOS bundle")
 endif ()
 
 #compile definitions

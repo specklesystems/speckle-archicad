@@ -19,8 +19,8 @@ std::vector<ArchicadObject> HostToSpeckleConverter::GetElementChildren(const std
         for (UInt32 i = 0; i < apiElem.beam.nSegments; i++)
         {
             auto segment = (apiElemMemo.beamSegments)[i];
-            auto segmentId = APIGuidToString(segment.head.guid).ToCStr().Get();
-            children.push_back(GetArchicadObject(segmentId, segmentConversionResult, includeProperties));
+            auto segmentId = APIGuidToString(segment.head.guid).ToCStr();
+            children.push_back(GetArchicadObject(segmentId.Get(), segmentConversionResult, includeProperties));
         }
     }
     else if (elementType == "Column")
@@ -28,8 +28,8 @@ std::vector<ArchicadObject> HostToSpeckleConverter::GetElementChildren(const std
         for (UInt32 i = 0; i < apiElem.column.nSegments; i++)
         {
             auto segment = (apiElemMemo.columnSegments)[i];
-            auto segmentId = APIGuidToString(segment.head.guid).ToCStr().Get();
-            children.push_back(GetArchicadObject(segmentId, segmentConversionResult, includeProperties));
+            auto segmentId = APIGuidToString(segment.head.guid).ToCStr();
+            children.push_back(GetArchicadObject(segmentId.Get(), segmentConversionResult, includeProperties));
         }
     }
 

@@ -11,10 +11,10 @@
 #include "ArtifactUploader.h"
 #include "BundleWriter.h"
 #include "Connector.h"
+#include "HttpClientFactory.h"
 #include "SgeoEncoder.h"
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
-#include "WinHttpClient.h"
 
 namespace
 {
@@ -99,7 +99,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     const std::string& modelId,
     std::vector<SendConversionResult>& conversionResults)
 {
-    auto http = std::make_shared<WinHttpClient>();
+    auto http = CreateHttpClient();
     ArtifactUploader uploader(http, serverUrl, token, projectId);
 
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked

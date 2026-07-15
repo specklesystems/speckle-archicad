@@ -1,6 +1,9 @@
 #include "LoggerFactory.h"
+#include "PlatformPaths.h"
 
+#ifdef _MSC_VER
 #pragma warning ( disable: 4244 )
+#endif
 
 bool LoggerFactory::isEnabled = true;
 static const std::wstring logFileName = L"zonestamp_addon_log.txt";
@@ -15,7 +18,12 @@ std::shared_ptr<ILogger> LoggerFactory::GetLogger(std::string loggerName, std::w
 {
 	if (logFile.empty())
 	{
-		return std::make_shared<Logger>(GetOrCreateLogger(loggerName, L"C:\\logs\\log.txt"));
+		const auto defaultPath = PlatformPaths::GetSpeckleApplicationDataDirectory()
+			/ "Archicad" / "Logs" / "connector.log";
+		std::filesystem::create_directories(defaultPath.parent_path());
+		const std::string path = PlatformPaths::ToUtf8(defaultPath);
+		return std::make_shared<Logger>(GetOrCreateLogger(
+			loggerName, std::wstring(path.begin(), path.end())));
 	}
 
 	return std::make_shared<Logger>(GetOrCreateLogger(loggerName, logFile));

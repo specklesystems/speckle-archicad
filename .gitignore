@@ -11,6 +11,7 @@
 .vscode
 .vs/*
 .history
+.cache/
 **/INT
 *.gsm
 *.bak

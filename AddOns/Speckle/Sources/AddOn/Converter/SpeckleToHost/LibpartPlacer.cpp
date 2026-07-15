@@ -1,5 +1,7 @@
 #include "LibpartPlacer.h"
+#ifdef _WIN32
 #include "APIHelper.hpp"
+#endif
 #include "Box3DData.h"
 #include <CheckError.h>
 #include <SpeckleConversionException.h>
@@ -15,6 +17,22 @@
 #include <string>
 
 namespace fs = std::filesystem;
+
+namespace
+{
+#ifdef _WIN32
+    using LibraryCacheGuard = LibraryHelper;
+#else
+    // LibraryHelper relies on a private Archicad entry point that is not part
+    // of the macOS DevKit. The public library APIs already refresh correctly
+    // on macOS, so no cache suppression is needed there.
+    class LibraryCacheGuard
+    {
+    public:
+        explicit LibraryCacheGuard(bool) {}
+    };
+#endif
+}
 
 API_DatabaseInfo LibpartPlacer::GetCurrentDB()
 {
@@ -65,10 +83,10 @@ static GSErrCode CreateSubFolder(const GS::UniString& name, IO::Location& locati
 	{
 		location.AppendToLocal(folderName);
 		{
-			LibraryHelper helper(false);
+			LibraryCacheGuard helper(false);
 			err = ACAPI_LibraryManagement_DeleteEmbeddedLibItem(&location, false, true);
 		}
-		LibraryHelper helper(true);
+		LibraryCacheGuard helper(true);
 		err = folder.CreateFolder(folderName);
 	}
 
@@ -142,7 +160,7 @@ void LibpartPlacer::PlaceLibparts(const std::vector<Int32>& libIndices)
 {
 	ACAPI_CallUndoableCommand("Placing received objects",
 		[&]() -> GSErrCode {
-			LibraryHelper helper(false);
+			LibraryCacheGuard helper(false);
 			auto originalDB = GetCurrentDB();
 			SwitchToFloorPlanDB();
 

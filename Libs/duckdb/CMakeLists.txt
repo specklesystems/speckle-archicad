@@ -31,7 +31,31 @@ if (WIN32)
         IMPORTED_IMPLIB ${CMAKE_CURRENT_SOURCE_DIR}/lib/duckdb.lib
         INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 else ()
-    # Mac is not CI-built; wire the official libduckdb dylib here when needed.
-    add_library(duckdb INTERFACE)
-    target_include_directories(duckdb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    if (APPLE)
+        set(SPECKLE_DUCKDB_ROOT "$ENV{SPECKLE_DUCKDB_ROOT}" CACHE PATH "Directory containing the official DuckDB macOS dylib")
+        if (SPECKLE_DUCKDB_ROOT)
+            set(DUCKDB_DYLIB "${SPECKLE_DUCKDB_ROOT}/libduckdb.dylib")
+        else ()
+            include(FetchContent)
+            FetchContent_Declare(
+                duckdb_prebuilt
+                URL https://github.com/duckdb/duckdb/releases/download/v1.5.4/libduckdb-osx-universal.zip
+                URL_HASH SHA256=3f3c52970ad1407ec5037062e1a5e575b24bd5b993c889f89fe5876eff47782c
+                DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+            FetchContent_MakeAvailable(duckdb_prebuilt)
+            set(DUCKDB_DYLIB "${duckdb_prebuilt_SOURCE_DIR}/libduckdb.dylib")
+        endif ()
+
+        if (NOT EXISTS "${DUCKDB_DYLIB}")
+            message(FATAL_ERROR "DuckDB macOS library was not found at ${DUCKDB_DYLIB}")
+        endif ()
+
+        add_library(duckdb SHARED IMPORTED GLOBAL)
+        set_target_properties(duckdb PROPERTIES
+            IMPORTED_LOCATION "${DUCKDB_DYLIB}"
+            INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    else ()
+        add_library(duckdb INTERFACE)
+        target_include_directories(duckdb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    endif ()
 endif ()

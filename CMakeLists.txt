@@ -1,6 +1,14 @@
 cmake_minimum_required (VERSION 3.16)
 
-project(archicad-speckle)
+if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.6" CACHE STRING "Minimum supported macOS version")
+endif()
+
+project(archicad-speckle LANGUAGES C CXX)
+
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -10,6 +18,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 enable_testing()
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 if(MSVC)
   # Enable Link Time Code Generation (LTGC) for the entire project
@@ -26,6 +35,10 @@ if (EXISTS ${ACAPINC_FILE_LOCATION})
 	file (READ ${ACAPINC_FILE_LOCATION} ACAPIncContent)
 	string (REGEX MATCHALL "#define[ \t]+ServerMainVers_([0-9][0-9])" VersionList ${ACAPIncContent})
 	set (ARCHICAD_VERSION ${CMAKE_MATCH_1})
+	if (DEFINED AC_VERSION AND NOT "${AC_VERSION}" STREQUAL "${ARCHICAD_VERSION}")
+		message(FATAL_ERROR "AC_VERSION ${AC_VERSION} does not match DevKit version ${ARCHICAD_VERSION}")
+	endif ()
+	set(AC_VERSION "${ARCHICAD_VERSION}" CACHE STRING "Target Archicad major version" FORCE)
 	message (STATUS "Archicad Version: ${ARCHICAD_VERSION}")
 else ()
 	message (FATAL_ERROR "Failed to detect Archicad version, please check the value of the AC_API_DEVKIT_DIR variable.")
@@ -84,6 +97,12 @@ add_subdirectory(Libs/sqlite)
 add_subdirectory(Libs/sha)
 add_subdirectory(Libs/md5)
 add_subdirectory(Libs/duckdb)
+
+# fmt 8's consteval parser predates current Apple Clang and fails to compile
+# with Clang 21. Runtime format validation is sufficient for this legacy copy.
+if(APPLE)
+    target_compile_definitions(spdlog PUBLIC FMT_CONSTEVAL=)
+endif()
 
 # AddOns
 add_subdirectory(AddOns/Speckle)

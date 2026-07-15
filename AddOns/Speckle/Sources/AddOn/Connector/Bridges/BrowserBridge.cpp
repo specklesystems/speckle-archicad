@@ -1,4 +1,5 @@
 #include "BrowserBridge.h"
+#include "BridgeDiagnostics.h"
 
 std::unique_ptr<BrowserBridge> BrowserBridge::instance = nullptr;
 
@@ -12,7 +13,10 @@ BrowserBridge& BrowserBridge::GetInstance()
 
 void BrowserBridge::InitBrowserBridge(IBrowserAdapter* browserAdapter)
 {
+	BridgeDiagnostics::Reset();
 	_browserAdapter = browserAdapter;
+	BridgeDiagnostics::Write("browser-load-ui");
+	LoadUI();
 
 	accountsBridge = std::make_unique<AccountBridge>(browserAdapter);
 	baseBridge = std::make_unique<BaseBridge>(browserAdapter);
@@ -21,12 +25,19 @@ void BrowserBridge::InitBrowserBridge(IBrowserAdapter* browserAdapter)
 	sendBridge = std::make_unique<SendBridge>(browserAdapter);
 	receiveBridge = std::make_unique<ReceiveBridge>(browserAdapter);
 	testBridge = std::make_unique<TestBridge>(browserAdapter);	
+	BridgeDiagnostics::Write("browser-bridges-ready");
+
+	// The remote DUI can finish its one-time connector detection before the
+	// asynchronous native objects become visible. Reload once after every
+	// binding has been accepted so the fresh JavaScript context sees them all.
+	BridgeDiagnostics::Write("browser-reload-ui-after-bindings");
+	LoadUI();
 }
 
 void BrowserBridge::LoadUI()
 {
-    if (_browserAdapter == nullptr)
-        return;
+	if (_browserAdapter == nullptr)
+		return;
 
 	_browserAdapter->LoadURL("https://dui.speckle.systems/");
 }

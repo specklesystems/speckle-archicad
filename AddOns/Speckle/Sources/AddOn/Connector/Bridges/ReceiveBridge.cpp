@@ -5,7 +5,7 @@
 #include "UserCancelledException.h"
 #include "LibpartPlacer.h"
 #include "ArtifactReceiver.h"
-#include "WinHttpClient.h"
+#include "HttpClientFactory.h"
 
 #include "APIEnvir.h"
 #include "ACAPinc.h"
@@ -91,6 +91,40 @@ static std::string RemoveInvalidChars(const std::string& input)
     return output;
 }
 
+static fs::path FindXmlConverter(const fs::path& applicationFolder)
+{
+#ifdef _WIN32
+    return applicationFolder / "LP_XMLConverter.exe";
+#else
+    const fs::path relativePath =
+        fs::path("LP_XMLConverter.app") / "Contents" / "MacOS" / "LP_XMLConverter";
+    const std::vector<fs::path> directCandidates{
+        applicationFolder / relativePath,
+        applicationFolder / "Contents" / "MacOS" / relativePath,
+        applicationFolder.parent_path() / relativePath
+    };
+    for (const auto& candidate : directCandidates)
+    {
+        if (fs::exists(candidate))
+            return candidate;
+    }
+
+    if (fs::is_directory(applicationFolder))
+    {
+        for (const auto& entry : fs::directory_iterator(applicationFolder))
+        {
+            if (entry.is_directory() && entry.path().extension() == ".app")
+            {
+                const fs::path candidate = entry.path() / "Contents" / "MacOS" / relativePath;
+                if (fs::exists(candidate))
+                    return candidate;
+            }
+        }
+    }
+    return applicationFolder / relativePath;
+#endif
+}
+
 static void DeletePreviouslyBakedElements(const std::vector<std::string>& bakedObjectIds)
 {
     if (bakedObjectIds.empty())
@@ -122,11 +156,12 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     std::string modelCardId = args.data[0].get<std::string>();
     ReceiverModelCard card = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
 
-    std::string xmlConverterPath = CONNECTOR.GetHostToSpeckleConverter().GetApplicationFolder() + "\\LP_XMLConverter.exe";
+    const fs::path applicationFolder = CONNECTOR.GetHostToSpeckleConverter().GetApplicationFolder();
+    const fs::path xmlConverterPath = FindXmlConverter(applicationFolder);
     if (!fs::exists(xmlConverterPath))
     {
         throw std::runtime_error(
-            "LP_XMLConverter.exe was not found next to Archicad (" + xmlConverterPath +
+            "LP_XMLConverter was not found in the Archicad application (" + xmlConverterPath.string() +
             ") — it is required to receive models.");
     }
 
@@ -138,14 +173,14 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     std::string workingDir;
     try
     {
-        auto http = std::make_shared<WinHttpClient>();
+        auto http = CreateHttpClient();
         ArtifactReceiver receiver(http, card.serverUrl, token);
 
         const std::string versionId =
             receiver.ResolveVersionId(card.projectId, card.modelId, card.selectedVersionId);
 
         ArtifactReceiver::Result received = receiver.Receive(
-            card.projectId, card.modelId, versionId, xmlConverterPath, CONNECTOR.GetProcessWindow());
+            card.projectId, card.modelId, versionId, xmlConverterPath.string(), CONNECTOR.GetProcessWindow());
         workingDir = received.rootDir;
 
         // Replace the previous bake, then register + place the fresh GSMs.

@@ -1,44 +1,18 @@
 #include "AccountDatabase.h"
+#include "PlatformPaths.h"
 #include "sqlite3.h"
 #include <iostream>
-#include <windows.h>
-#include <shlobj.h>
 
 static const int ACCOUNT_ID_COLUMN = 0;
 static const int ACCOUNT_DATA_COLUMN = 1;
 
 namespace
 {
-    // Function to convert wide string to narrow string
-    std::string WideStringToString(const std::wstring& wideString) 
+    const std::string& GetAccountsDatabasePath()
     {
-        int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, wideString.c_str(), -1, NULL, 0, NULL, NULL);
-        if (sizeNeeded <= 0) 
-        {
-            throw std::runtime_error("WideCharToMultiByte conversion failed");
-        }
-        std::string narrowString(sizeNeeded, 0);
-        WideCharToMultiByte(CP_UTF8, 0, wideString.c_str(), -1, &narrowString[0], sizeNeeded, NULL, NULL);
-        return narrowString;
-    }
-
-    // Function to get the dynamic DB path
-    const char* GetAccountsDatabasePath() 
-    {
-        static char resultPath[MAX_PATH];
-        wchar_t appDataPath[MAX_PATH];
-        if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) 
-        {
-            std::wstring wideDbPath = std::wstring(appDataPath) + L"\\Speckle\\Accounts.db";
-            std::string dbPath = WideStringToString(wideDbPath);
-            strncpy_s(resultPath, dbPath.c_str(), MAX_PATH - 1);
-            resultPath[MAX_PATH - 1] = '\0'; // Ensure null-termination
-            return resultPath;
-        }
-        else 
-        {
-            throw std::runtime_error("Failed to get AppData path");
-        }
+        static const std::string path = PlatformPaths::ToUtf8(
+            PlatformPaths::GetSpeckleApplicationDataDirectory() / "Accounts.db");
+        return path;
     }
 }
 
@@ -83,46 +57,109 @@ void AccountDatabase::RefreshFromDB()
 
 void AccountDatabase::LoadAccountsFromDB()
 {
-    sqlite3* db;
-    sqlite3_stmt* stmt;
-    int rc;
+    sqlite3* db = nullptr;
+    sqlite3_stmt* stmt = nullptr;
 
-    // Open the database (or create it if it doesn’t exist)
-    rc = sqlite3_open(GetAccountsDatabasePath(), &db);
-    if (rc != SQLITE_OK)
+    const int openResult = sqlite3_open_v2(
+        GetAccountsDatabasePath().c_str(), &db, SQLITE_OPEN_READONLY, nullptr);
+    if (openResult != SQLITE_OK)
     {
-        std::cerr << "Error opening database: " << sqlite3_errmsg(db) << std::endl;
+        std::cerr << "Error opening account database: "
+                  << (db != nullptr ? sqlite3_errmsg(db) : "unknown error") << std::endl;
+        if (db != nullptr)
+            sqlite3_close(db);
+        return;
     }
 
-    // SQL query to execute
     const char* sql = "SELECT * FROM objects";
-
-    // Prepare the SQL statement
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK)
+    const int prepareResult = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (prepareResult != SQLITE_OK)
     {
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_close(db);
+        return;
     }
 
-    // Execute the query and collect results
+    std::map<std::string, nlohmann::json> accounts;
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         try
         {
             const char* id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, ACCOUNT_ID_COLUMN));
             const char* account = reinterpret_cast<const char*>(sqlite3_column_text(stmt, ACCOUNT_DATA_COLUMN));
-            _accountsData[id] = nlohmann::json::parse(account);
+            if (id != nullptr && account != nullptr)
+                accounts[id] = nlohmann::json::parse(account);
         }
         catch (...)
         {
-            // TODO
+            // Ignore malformed rows while keeping the remaining accounts usable.
         }
     }
 
-    // Finalize the statement and close the database
     sqlite3_finalize(stmt);
     sqlite3_close(db);
+    _accountsData = std::move(accounts);
+}
+
+void AccountDatabase::AddOrUpdateAccount(
+    const std::string& id,
+    const nlohmann::json& account)
+{
+    sqlite3* db = nullptr;
+    sqlite3_stmt* stmt = nullptr;
+
+    const int openResult = sqlite3_open_v2(
+        GetAccountsDatabasePath().c_str(),
+        &db,
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+        nullptr);
+    if (openResult != SQLITE_OK)
+    {
+        const std::string error = db != nullptr ? sqlite3_errmsg(db) : "unknown error";
+        if (db != nullptr)
+            sqlite3_close(db);
+        throw std::runtime_error("Failed to open the Speckle account database: " + error);
+    }
+
+    const char* createTableSql = R"(
+        CREATE TABLE IF NOT EXISTS objects(
+            hash TEXT PRIMARY KEY,
+            content TEXT
+        ) WITHOUT ROWID;
+    )";
+    char* createError = nullptr;
+    if (sqlite3_exec(db, createTableSql, nullptr, nullptr, &createError) != SQLITE_OK)
+    {
+        const std::string error = createError != nullptr ? createError : "unknown error";
+        sqlite3_free(createError);
+        sqlite3_close(db);
+        throw std::runtime_error("Failed to initialize the Speckle account database: " + error);
+    }
+
+    const char* insertSql =
+        "INSERT OR REPLACE INTO objects (hash, content) VALUES (?, ?);";
+    if (sqlite3_prepare_v2(db, insertSql, -1, &stmt, nullptr) != SQLITE_OK)
+    {
+        const std::string error = sqlite3_errmsg(db);
+        sqlite3_close(db);
+        throw std::runtime_error("Failed to prepare the Speckle account update: " + error);
+    }
+
+    const std::string serializedAccount = account.dump();
+    sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, serializedAccount.c_str(), -1, SQLITE_TRANSIENT);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        const std::string error = sqlite3_errmsg(db);
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        throw std::runtime_error("Failed to save the Speckle account: " + error);
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    _accountsData[id] = account;
 }
 
 void AccountDatabase::RemoveAccountById(const std::string& id)
@@ -131,7 +168,7 @@ void AccountDatabase::RemoveAccountById(const std::string& id)
     int rc;
 
     // Open the database
-    rc = sqlite3_open(GetAccountsDatabasePath(), &db);
+    rc = sqlite3_open(GetAccountsDatabasePath().c_str(), &db);
     if (rc != SQLITE_OK)
     {
         std::cerr << "Error opening database: " << sqlite3_errmsg(db) << std::endl;

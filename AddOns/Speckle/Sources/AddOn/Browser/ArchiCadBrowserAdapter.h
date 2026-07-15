@@ -8,6 +8,11 @@ class ArchiCadBrowserAdapter : public IBrowserAdapter
 private:
 	DG::Browser* _browser;
 
+#ifdef __APPLE__
+	bool _macCompatibilityObjectRegistered = false;
+	void RegisterMacCefSharpCompatibilityObject();
+#endif
+
 public:
 	ArchiCadBrowserAdapter(DG::Browser* browser);
 

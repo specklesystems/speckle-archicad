@@ -5,26 +5,34 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.graphisoft.AddOn</string>
+	<string>systems.speckle.connector.archicad</string>
+	<key>CFBundleDisplayName</key>
+	<string>Speckle</string>
 	<key>CFBundleName</key>
-	<string>AddOn</string>
+	<string>Speckle</string>
+	<key>CFBundleExecutable</key>
+	<string>Speckle</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AddOn</string>
+	<string>Speckle Connector for Archicad</string>
 	<key>CFBundleShortVersionString</key>
-	<string>AddOn</string>
+	<string>@SPECKLE_ADDON_VERSION@</string>
 	<key>CFBundlePackageType</key>
 	<string>.APX</string>
 	<key>CFBundleSignature</key>
 	<string>GSAP</string>
 	<key>CFBundleVersion</key>
-	<string>1.0</string>
+	<string>@SPECKLE_BUNDLE_VERSION@</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleIconFile</key>
-	<string>ArchiCADPlugin.icns</string>
+	<string>ArchiCADPlugin</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.11.0</string>
-	<key>LSRequiresCarbon</key>
-	<true/>
+	<string>12.6</string>
+	<key>GSAddOnDescription</key>
+	<string>Speckle Connector for Archicad @ARCHICAD_VERSION@</string>
+	<key>GSVersionAppendix</key>
+	<string>INT</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © Speckle Systems</string>
 </dict>
 </plist>

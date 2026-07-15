@@ -6,8 +6,7 @@
 // Minimal HTTP surface for the Speckle 4.0 artefact upload path:
 // one JSON POST (GraphQL + the v2 sign/complete endpoints) and one
 // streamed file PUT (presigned S3 upload). Implemented with WinHTTP on
-// Windows (no vendored TLS); add a libcurl implementation when the mac
-// build becomes real.
+// Windows and NSURLSession on macOS, using each platform's TLS stack.
 struct HttpResponse
 {
     int statusCode = 0;

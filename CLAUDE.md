@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Speckle connector for Archicad, implemented as a native C++20 Archicad Add-On (`.apx`). It embeds a web-based UI (Speckle's shared DUI3 frontend, loaded from `https://dui.speckle.systems/`) inside an Archicad palette, and bridges that JavaScript UI to native Archicad API calls that read/write model geometry, properties, and metadata.
 
-Supported Archicad versions: **27, 28, 29** (declared in `ci-build/Consts.cs`). Windows is the primary/CI-built platform (the code has mac branches but CI builds Windows only).
+Supported Archicad versions: **27, 28, 29** (declared in `ci-build/Consts.cs`). The connector builds on Windows and macOS; CI currently builds Windows only.
 
 ## Researching the Archicad API
 
@@ -22,16 +22,19 @@ generate_project_27.bat   # or _28 / _29 — creates build_27/ (build_28/, build
 ```
 Then open `build_27/archicad-speckle.sln` in Visual Studio 2022 and build, or debug with Archicad as the startup project (see README "Debugging"). Toolset is **v142** for 27/28 and **v143** for 29 (see the `.bat` files and `ci-build/Program.cs`).
 
-**Full CI-style build (all versions, Release, zipped installers):**
+**macOS (one version, Debug or Release):**
+```
+./build.sh 27 Release       # or 28 / 29
+```
+This downloads and caches the official macOS Graphisoft DevKit for the selected version, builds a universal `arm64;x86_64` bundle, embeds DuckDB, and ad-hoc signs it. Output: `build/mac/<version>/INT/<configuration>/Speckle.bundle`. Use `AC_API_DEVKIT_DIR` for a local DevKit, `SPECKLE_DUCKDB_ROOT` for a local DuckDB package, `SPECKLE_MAC_ARCHITECTURES=arm64` for a faster local build, and `SPECKLE_CODESIGN_IDENTITY` at CMake configuration time for distribution signing.
+
+**Full Windows CI-style build (all versions, Release, zipped installers):**
 ```
 ./build.ps1              # Windows — runs ci-build/build.csproj
-./build.sh               # references Build/Build.csproj (see note below)
 ```
 `build.ps1` is what CI (`.github/workflows/pr.yml`) runs. It invokes the Bullseye target runner in `ci-build/Program.cs`. Targets: `clean`, `restore-tools`, `build-server-version`, `build-cmake`, `build`, `zip` (default target chains through `zip`). The `build` target injects the GitVersion-derived version string into `AddOnResources/RINT/AddOn.grc` before running msbuild.
 
-> Note: `build.sh` points at `Build/Build.csproj` while `build.ps1` points at `ci-build/build.csproj`. The active project is `ci-build/`. Prefer `build.ps1` on Windows.
-
-Requirements: CMake ≥ 3.16, Visual Studio 2022 with v142 **and** v143 toolsets, .NET SDK (for the build orchestrator), Python (Archicad resource build tools). The Archicad API DevKit is resolved from `AC_API_DEVKIT_DIR`; the bundled DevKits live in `Libs/acapi27`, `Libs/acapi28`, `Libs/acapi29`. `CMakeLists.txt` auto-detects the Archicad major version from `ACAPinc.h` and defines `AC27`/`AC28`/`AC29` accordingly — version-specific code branches on these macros.
+Windows requirements: CMake ≥ 3.16, Visual Studio 2022 with v142 **and** v143 toolsets, .NET SDK (for the build orchestrator), and Python 3 (Archicad resource build tools). macOS requires Xcode command-line tools, CMake ≥ 3.16, Python 3, curl, and unzip. `CMakeLists.txt` auto-detects the Archicad major version from `ACAPinc.h` and defines `AC27`/`AC28`/`AC29` accordingly — version-specific code branches on these macros.
 
 ## Testing
 
@@ -58,10 +61,10 @@ This is the core communication mechanism and mirrors Speckle's DUI3 binding mode
 - The `IBrowserAdapter` abstraction (`Browser/`) keeps Archicad's `DG::Browser` dependency out of the binding logic; `ArchiCadBrowserAdapter` is the real impl and `DummyBrowserAdapter` is the no-op.
 
 ### Send flow (Archicad → Speckle)
-`SendBridge::Send` → `RootObjectBuilder` walks selected element IDs and builds a Speckle root object via `HostToSpeckleConverter`, `BaseObjectSerializer` serializes and batches it (batches of 10), and each batch is pushed to the JS UI (`SendBatchViaBrowser`) which performs the actual upload to the Speckle server. The C++ side never talks to the server directly — the embedded frontend does. Layer visibility that the send temporarily changed is restored afterward.
+The current artifact pipeline builds an EAV Parquet bundle with DuckDB and uploads it through the platform HTTP client (WinHTTP on Windows and NSURLSession on macOS). Earlier JSON bridge code remains in the codebase for the legacy send path. Layer visibility that send temporarily changes is restored afterward.
 
 ### Receive flow (Speckle → Archicad)
-`ReceiveBridge` + `HostObjectBuilder` / `RootObjectUnpacker` convert incoming Speckle objects into Archicad geometry using `SpeckleToHostConverter` (see `Converter/SpeckleToHost/`, e.g. `CreateMorph`, `LibpartPlacer`, `CreateMaterial`).
+`ReceiveBridge` downloads the artifact bundle, decodes geometry, generates library-part XML, invokes Archicad's `LP_XMLConverter`, and places the resulting GSM library parts through `LibpartPlacer`. Process launch is implemented with `CreateProcessW` on Windows and `posix_spawn` on macOS.
 
 ### Converters
 `Converter/HostToSpeckle/` and `Converter/SpeckleToHost/` hold one file per conversion concern (e.g. `GetElementBody.cpp`, `GetElementProperties.cpp`, `GetLayers.cpp`, `CreateMorph.cpp`). The `IHostToSpeckleConverter` / `ISpeckleToHostConverter` interfaces are the seam. This is the place for element-type and property mapping work.

@@ -1,11 +1,14 @@
 #include "BundleWriter.h"
 
 #include <cctype>
-#include <charconv>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <iomanip>
+#include <limits>
+#include <locale>
+#include <sstream>
 #include <stdexcept>
 
 #include "duckdb.h"
@@ -20,9 +23,10 @@ namespace
 
     std::string FormatDouble(double d)
     {
-        char buf[64];
-        auto res = std::to_chars(buf, buf + sizeof(buf), d);
-        return std::string(buf, res.ptr);
+        std::ostringstream result;
+        result.imbue(std::locale::classic());
+        result << std::setprecision(std::numeric_limits<double>::max_digits10) << d;
+        return result.str();
     }
 
     // Port of EavExtraction's UUID-like rejection regex ".-.-":

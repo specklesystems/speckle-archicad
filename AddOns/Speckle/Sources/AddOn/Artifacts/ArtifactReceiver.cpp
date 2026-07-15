@@ -1,9 +1,13 @@
 #include "ArtifactReceiver.h"
 
 #include <algorithm>
+#include <array>
+#include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -12,11 +16,19 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <signal.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+extern char** environ;
 #endif
 
 #include "duckdb.h"
@@ -24,6 +36,7 @@
 
 #include "DuckDbRuntime.h"
 #include "GdlLibpartXml.h"
+#include "PlatformPaths.h"
 #include "SgeoDecoder.h"
 #include "UserCancelledException.h"
 
@@ -212,10 +225,13 @@ namespace
 
     // ── external converter processes ─────────────────────────────────────────
 
-#ifdef _WIN32
     struct ConverterProcess
     {
+#ifdef _WIN32
         HANDLE process = nullptr;
+#else
+        pid_t process = -1;
+#endif
     };
 
     ConverterProcess StartConverter(
@@ -223,6 +239,7 @@ namespace
         const std::string& inputDir,
         const std::string& outputDir)
     {
+#ifdef _WIN32
         std::wstring cmd = L"\"" + fs::path(converterPath).wstring() + L"\" x2l \"" +
                            fs::path(inputDir).wstring() + L"\" \"" + fs::path(outputDir).wstring() + L"\"";
 
@@ -242,8 +259,95 @@ namespace
         }
         CloseHandle(pi.hThread);
         return ConverterProcess{ pi.hProcess };
-    }
+#else
+        std::array<char*, 5> arguments{
+            const_cast<char*>(converterPath.c_str()),
+            const_cast<char*>("x2l"),
+            const_cast<char*>(inputDir.c_str()),
+            const_cast<char*>(outputDir.c_str()),
+            nullptr
+        };
+        pid_t process = -1;
+        const int error = posix_spawn(
+            &process, converterPath.c_str(), nullptr, nullptr, arguments.data(), environ);
+        if (error != 0)
+        {
+            throw std::runtime_error(
+                "Failed to start LP_XMLConverter: " + std::string(std::strerror(error)));
+        }
+        return ConverterProcess{ process };
 #endif
+    }
+
+    bool IsConverterActive(const ConverterProcess& converter)
+    {
+#ifdef _WIN32
+        return converter.process != nullptr;
+#else
+        return converter.process > 0;
+#endif
+    }
+
+    bool TryFinishConverter(ConverterProcess& converter, int& exitCode)
+    {
+#ifdef _WIN32
+        const DWORD waitResult = WaitForSingleObject(converter.process, 0);
+        if (waitResult == WAIT_TIMEOUT)
+            return false;
+        if (waitResult != WAIT_OBJECT_0)
+            throw std::runtime_error("Failed while waiting for LP_XMLConverter");
+
+        DWORD nativeExitCode = 0;
+        GetExitCodeProcess(converter.process, &nativeExitCode);
+        CloseHandle(converter.process);
+        converter.process = nullptr;
+        exitCode = static_cast<int>(nativeExitCode);
+#else
+        int status = 0;
+        const pid_t result = waitpid(converter.process, &status, WNOHANG);
+        if (result == 0)
+            return false;
+        if (result < 0)
+            throw std::runtime_error("Failed while waiting for LP_XMLConverter: " + std::string(std::strerror(errno)));
+
+        converter.process = -1;
+        exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+#endif
+        return true;
+    }
+
+    void StopConverter(ConverterProcess& converter)
+    {
+        if (!IsConverterActive(converter))
+            return;
+#ifdef _WIN32
+        TerminateProcess(converter.process, 1);
+        CloseHandle(converter.process);
+        converter.process = nullptr;
+#else
+        if (kill(converter.process, SIGTERM) == 0)
+        {
+            for (int attempt = 0; attempt < 20; attempt++)
+            {
+                const pid_t result = waitpid(converter.process, nullptr, WNOHANG);
+                if (result == converter.process)
+                {
+                    converter.process = -1;
+                    return;
+                }
+                if (result < 0 && errno != EINTR)
+                    break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            }
+            kill(converter.process, SIGKILL);
+        }
+
+        while (waitpid(converter.process, nullptr, 0) < 0 && errno == EINTR)
+        {
+        }
+        converter.process = -1;
+#endif
+    }
 }
 
 ArtifactReceiver::ArtifactReceiver(
@@ -286,16 +390,11 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
     const std::string& xmlConverterPath,
     IProcessWindow& processWindow)
 {
-#ifndef _WIN32
-    throw std::runtime_error("Native artefact receive is Windows-only for now");
-#else
     Result result;
 
     // ── working folders (same layout the desktop service used) ─────────────
-    const char* appData = std::getenv("APPDATA");
-    if (appData == nullptr)
-        throw std::runtime_error("APPDATA is not set");
-    const fs::path rootDir = fs::path(appData) / "Speckle" / "Archicad" / "receive_temp" / RandomDirName(16);
+    const fs::path rootDir = PlatformPaths::GetSpeckleApplicationDataDirectory()
+        / "Archicad" / "receive_temp" / RandomDirName(16);
     const fs::path bundleDir = rootDir / "bundle";
     const fs::path outputDir = rootDir / "_output";
     fs::create_directories(bundleDir);
@@ -706,46 +805,36 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         processes.push_back(StartConverter(xmlConverterPath, folder, outputDir.string()));
 
     int finished = 0;
+    int failed = 0;
     while (finished < static_cast<int>(processes.size()))
     {
-        std::vector<HANDLE> pending;
-        for (const auto& p : processes)
+        for (auto& process : processes)
         {
-            if (p.process != nullptr)
-                pending.push_back(p.process);
-        }
-        if (pending.empty())
-            break; // defensive: bookkeeping says done
-        const DWORD waited = WaitForMultipleObjects(
-            static_cast<DWORD>(pending.size()), pending.data(), FALSE, 500);
-        if (waited >= WAIT_OBJECT_0 && waited < WAIT_OBJECT_0 + pending.size())
-        {
-            HANDLE done = pending[waited - WAIT_OBJECT_0];
-            for (auto& p : processes)
+            if (!IsConverterActive(process))
+                continue;
+
+            int exitCode = 0;
+            if (TryFinishConverter(process, exitCode))
             {
-                if (p.process == done)
-                {
-                    CloseHandle(p.process);
-                    p.process = nullptr;
-                    finished++;
-                    processWindow.SetProcessValue(finished);
-                }
+                finished++;
+                processWindow.SetProcessValue(finished);
+                if (exitCode != 0)
+                    failed++;
             }
         }
         if (processWindow.IsProcessCanceled())
         {
-            for (auto& p : processes)
-            {
-                if (p.process != nullptr)
-                {
-                    TerminateProcess(p.process, 1);
-                    CloseHandle(p.process);
-                    p.process = nullptr;
-                }
-            }
+            for (auto& process : processes)
+                StopConverter(process);
             throw UserCancelledException("The user cancelled the receive operation");
         }
+
+        if (finished < static_cast<int>(processes.size()))
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    if (failed > 0)
+        throw std::runtime_error(std::to_string(failed) + " LP_XMLConverter process(es) failed");
 
     // Sanity: the converter reports success only through its output.
     bool anyGsm = false;
@@ -761,5 +850,4 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         throw std::runtime_error("LP_XMLConverter produced no GSM files (check " + result.rootDir + ")");
 
     return result;
-#endif
 }

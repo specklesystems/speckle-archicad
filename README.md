@@ -1,72 +1,80 @@
-# Speckle Repo Management Templates
+# Speckle for Archicad
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/SpeckleSystems?style=social)](https://twitter.com/SpeckleSystems) [![Community forum users](https://img.shields.io/discourse/users?server=https%3A%2F%2Fdiscourse.speckle.works&style=flat-square&logo=discourse&logoColor=white)](https://discourse.speckle.works) [![website](https://img.shields.io/badge/https://-speckle.systems-royalblue?style=flat-square)](https://speckle.systems) [![docs](https://img.shields.io/badge/docs-speckle.guide-orange?style=flat-square&logo=read-the-docs&logoColor=white)](https://speckle.guide/dev/)
 
-## Introduction
+This repository contains Speckle's native C++ connector for Archicad 27, 28, and 29. It embeds Speckle's web UI in an Archicad palette and converts model geometry and metadata through the Archicad C++ API.
 
-This section should hold a quick intro on what this repo's about. For example:
-
-This repo holds Speckle's:
-
-- Default [Code of Conduct](.github/CODE_OF_CONDUCT.md),
-- Default [Contribution Guidelines](.github/CONTRIBUTING.md),
-- README template (you're reading it now),
-- Default [Issue Template](.github/ISSUE_TEMPLATE/ISSUE_TEMPLATE.md),
-- Default [Pull Request Template](.github/PULL_REQUEST_TEMPLATE/PR_TEMPLATE.md),
-- OSS License (Apache 2.0)
-
-Either copy paste the parts that are useful in existing repos, or use this as a base when creating a new repository.
-
-## Documentation
-
-Comprehensive developer and user documentation can be found in our:
-
-#### 📚 [Speckle Docs website](https://speckle.guide/dev/)
-
-## This Readme Template
-
-Is rather straightforward. It includes several default sections and one section that requires special attention.
-
-Default sections:
-
-- Badges: has several default social badges. Feel free to add more.
-- Developing & Debugging - needs filling in!
-- Community - can be left as is.
-
-**License section**: If this is a pure OSS repo, like Core, remove everything after the first phrase. Otherwise, we need to plan ahead before releasing and make sure we're covered.
+The connector builds on Windows and macOS. macOS builds are universal (`arm64` and `x86_64`) by default and support macOS 12.6 or newer.
 
 ## Developing & Debugging
 
-### Build
-What will you need?
-- [ArchiCad 27](https://graphisoft.com/downloads/archicad/install/AC27/INT/)
-- [CMake](https://cmake.org) – To generate IDE projects (3.16 minimum version is needed)
-- [Python](https://www.python.org) – For some build tools (version 2.7+ or 3.8+).
-- Visual Studio 2019 or 2022 (v142 toolset)
+### Build on macOS
 
-How to build the AddOn on Windows and **Visual Studio 2022**
-- Make sure that your Visual Studio 2022 is installed properly and that you have the v142 toolset installed
-- After modifying the installation, a restart may be necessary
+Requirements:
 
-![VS 2022 Components](images/vs_2022_install.PNG)
-- Open the project root and run ```generate_project.bat```
-- This will create the build folder and you will find the ```archicad-speckle.sln``` in it
-- Open the solution file in Visual Studio 2022 and build the project
+- Xcode command-line tools
+- CMake 3.16 or newer
+- Python 3
+- `curl` and `unzip` (included with macOS)
 
-More Help
+Build a release bundle for the installed Archicad major version:
 
-- [Getting started with ArchiCad AddOns](https://archicadapi.graphisoft.com/getting-started-with-archicad-add-ons)
+```bash
+./build.sh 27 Release
+# or: ./build.sh 28 Release
+# or: ./build.sh 29 Release
+```
+
+The script downloads the matching official Graphisoft macOS DevKit and official universal DuckDB binary on first use. DevKits are cached under `.cache/archicad-devkits`; CMake caches DuckDB in the build tree. The output is:
+
+```text
+build/mac/<version>/INT/<configuration>/Speckle.bundle
+```
+
+Useful overrides:
+
+```bash
+# Use an already downloaded macOS DevKit (the directory containing Support/)
+AC_API_DEVKIT_DIR=/path/to/devkit ./build.sh 27 Debug
+
+# Faster local Apple Silicon-only build
+SPECKLE_MAC_ARCHITECTURES=arm64 ./build.sh 27 Debug
+
+# Use an already downloaded DuckDB directory containing libduckdb.dylib
+SPECKLE_DUCKDB_ROOT=/path/to/duckdb ./build.sh 27 Release
+
+# Sign with an Apple Developer ID instead of the default ad-hoc signature
+SPECKLE_CODESIGN_IDENTITY="Developer ID Application: Example Corp (TEAMID)" ./build.sh 27 Release
+```
+
+The build embeds `libduckdb.dylib` in the bundle and signs the finished bundle. Distribution outside local development still requires an appropriate Developer ID signature and Apple notarization.
+
+### Build on Windows
+
+Requirements are CMake 3.16 or newer, Python 3, the .NET SDK, and Visual Studio 2022 with the v142 and v143 C++ toolsets.
+
+- Run `generate_project_27.bat`, `generate_project_28.bat`, or `generate_project_29.bat` for a local Visual Studio solution.
+- Run `build.ps1` for the full CI-style release build.
+- Toolset v142 is used for Archicad 27/28 and v143 for Archicad 29.
 
 ### Installation
-- Open the Add-On Manager in Archicad (Options menu)
-- Click the "Add..." button under "Edit list of available Add-ons"
-- Browse ```./build/Int/Debug/Speckle.apx```
+
+1. Open **Options → Add-On Manager** in the matching Archicad version.
+2. Add `Speckle.bundle` on macOS or `Speckle.apx` on Windows.
+3. Restart Archicad if it was already running when the add-on was copied or rebuilt.
+
+For local macOS development you can instead copy the bundle to:
+
+```text
+/Applications/Graphisoft/Archicad <version>/Add-Ons/Speckle/Speckle.bundle
+```
 
 ### Debugging
-- Right-click SpeckleAddOn in the Visual Studio solution explorer
-- Click 'Set as Startup Project'
-- Click run (Local Windows Debugger)
-- By default it will start ArchiCAD 27, make sure that it's installed on your machine
+
+- On macOS, attach Xcode or LLDB to the matching running Archicad process after installing a Debug bundle.
+- On Windows, set `SpeckleAddOn` as the Visual Studio startup project and use **Local Windows Debugger**.
+
+For Archicad API help, see [Getting started with Archicad Add-Ons](https://archicadapi.graphisoft.com/getting-started-with-archicad-add-ons) and [ARCHICAD_API_RESOURCES.md](ARCHICAD_API_RESOURCES.md).
 
 ## Contributing
 

@@ -32,7 +32,7 @@ class ArtifactReceiver
 public:
     struct Result
     {
-        std::string rootDir;   // %APPDATA%\Speckle\Archicad\receive_temp\{rand16} — caller cleans up
+        std::string rootDir;   // Speckle application data/Archicad/receive_temp/{rand16} — caller cleans up
         std::string gsmFolder; // rootDir\_output — feed to LibpartPlacer::RegisterLibpartsBatched
         std::vector<ReceiveConversionResult> conversionResults;
         int objectCount = 0;   // objects written to XML

@@ -112,7 +112,6 @@ GSErrCode ACENV Initialize(void)
 	{
 		BrowserPalette::CreateInstance();
 		BROWSERBRIDGE.InitBrowserBridge(BrowserPalette::GetInstance().GetBrowserAdapter());
-		BROWSERBRIDGE.LoadUI();
 	}
 	catch (...)
 	{

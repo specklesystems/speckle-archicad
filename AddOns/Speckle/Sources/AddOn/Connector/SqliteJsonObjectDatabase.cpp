@@ -1,42 +1,15 @@
 #include "SqliteJsonObjectDatabase.h"
+#include "PlatformPaths.h"
 #include "sqlite3.h"
 #include <iostream>
-#include <windows.h>
-#include <shlobj.h>
-
-static const int HASH_COLUMN = 0;
-static const int DATA_COLUMN = 1;
 
 namespace
 {
-    std::string WideStringToString(const std::wstring& wideString)
+    const std::string& GetDUI3ConfigDatabasePath()
     {
-        int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, wideString.c_str(), -1, NULL, 0, NULL, NULL);
-        if (sizeNeeded <= 0)
-        {
-            throw std::runtime_error("WideCharToMultiByte conversion failed");
-        }
-        std::string narrowString(sizeNeeded - 1, 0); // subtract null-terminator
-        WideCharToMultiByte(CP_UTF8, 0, wideString.c_str(), -1, &narrowString[0], sizeNeeded, NULL, NULL);
-        return narrowString;
-    }
-
-    const char* GetDUI3ConfigDatabasePath()
-    {
-        static char resultPath[MAX_PATH];
-        wchar_t appDataPath[MAX_PATH];
-        if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath)))
-        {
-            std::wstring wideDbPath = std::wstring(appDataPath) + L"\\Speckle\\DUI3Config.db";
-            std::string dbPath = WideStringToString(wideDbPath);
-            strncpy_s(resultPath, dbPath.c_str(), MAX_PATH - 1);
-            resultPath[MAX_PATH - 1] = '\0';
-            return resultPath;
-        }
-        else
-        {
-            throw std::runtime_error("Failed to get AppData path");
-        }
+        static const std::string path = PlatformPaths::ToUtf8(
+            PlatformPaths::GetSpeckleApplicationDataDirectory() / "DUI3Config.db");
+        return path;
     }
 }
 
@@ -49,8 +22,8 @@ SqliteJsonObjectDatabase::SqliteJsonObjectDatabase()
 
 void SqliteJsonObjectDatabase::Init()
 {
-    const char* dbPath = GetDUI3ConfigDatabasePath();
-    if (sqlite3_open(dbPath, &db) != SQLITE_OK)
+    const std::string& dbPath = GetDUI3ConfigDatabasePath();
+    if (sqlite3_open(dbPath.c_str(), &db) != SQLITE_OK)
     {
         throw std::runtime_error("Failed to open database");
     }

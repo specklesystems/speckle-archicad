@@ -1,5 +1,7 @@
-﻿#pragma warning(push)           // Save the current warning state
+﻿#ifdef _MSC_VER
+#pragma warning(push)           // Save the current warning state
 #pragma warning(disable : 4996) // Disable warning C4996
+#endif
 
 #include "HostToSpeckleConverter.h"
 #include "ConverterUtils.h"
@@ -9,18 +11,6 @@
 #include "CheckError.h"
 
 #include <iostream>
-#include <codecvt>
-#include <locale>
-
-
-namespace 
-{
-	std::string WstringToString(const std::wstring& wideString) 
-	{
-		std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-		return converter.to_bytes(wideString);
-	}
-}
 
 // TODO cachce level names before sending
 ArchicadLevel HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
@@ -40,8 +30,7 @@ ArchicadLevel HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 			auto storyData = (*storyInfo.data)[i];
 			if (storyData.index == floorInd)
 			{
-				std::wstring fn = storyData.uName;
-				floorName = WstringToString(fn);
+				floorName = GS::UniString(storyData.uName).ToCStr(CC_UTF8).Get();
 				level.elevation = storyData.level;
 				level.floorId = storyData.floorId;
 				break;
@@ -55,4 +44,6 @@ ArchicadLevel HostToSpeckleConverter::GetElementLevel(const std::string& elemId)
 	return level;
 }
 
+#ifdef _MSC_VER
 #pragma warning(pop) // Restore the previous warning state
+#endif

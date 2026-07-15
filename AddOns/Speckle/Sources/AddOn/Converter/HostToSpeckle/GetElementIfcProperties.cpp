@@ -154,7 +154,7 @@ namespace
 		}
 		else
 		{
-			// TODO throw
+			return nullptr;
 		}
 	}
 }
