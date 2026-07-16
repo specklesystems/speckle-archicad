@@ -30,13 +30,4 @@ struct ObjectInstance
 
     // Untransformed definition geometry (ElemLocal coordinate system).
     ElementBody localBody;
-
-    // ── verification: does ElemLocal actually differ from World for objects? ──
-    // (Walls/slabs are authored in world space, so their ElemLocal == World with an
-    // identity transform; objects are expected to differ. These fields let a send
-    // prove which case we are in without a debugger — see ArtefactSessionLog.)
-    bool transformIsIdentity = true;     // true if the local->world matrix is (near) identity
-    double localWorldMaxDelta = 0.0;     // max |world - local| over a sampled vertex
-    std::array<double, 3> worldSample{}; // sampled vertex in World coords
-    std::array<double, 3> localSample{}; // the same vertex in ElemLocal coords
 };

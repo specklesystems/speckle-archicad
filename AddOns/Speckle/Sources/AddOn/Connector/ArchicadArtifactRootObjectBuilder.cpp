@@ -188,20 +188,6 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             {
                 auto archicadObject =
                     CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult, includeProperties);
-
-                // Verification: record whether this object extracted as an instance and whether its
-                // ElemLocal geometry actually differs from World (the premise the whole approach rests on).
-                // Captured before EmitObject so `reused` reflects whether the definition already existed.
-                if (archicadObject.instance.valid)
-                {
-                    const auto& inst = archicadObject.instance;
-                    const bool reused = seenDefinitions.count(inst.definitionId) > 0;
-                    session.RecordInstancing(
-                        archicadObject.applicationId, inst.definitionId, reused,
-                        inst.transformIsIdentity, inst.localWorldMaxDelta,
-                        inst.worldSample, inst.localSample);
-                }
-
                 EmitObject(writer, materialCache, seenDefinitions, archicadObject, true);
 
                 const double ms =

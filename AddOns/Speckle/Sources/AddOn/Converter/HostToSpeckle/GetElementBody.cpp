@@ -17,7 +17,6 @@
 
 #include "picosha2.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <set>
@@ -150,15 +149,6 @@ namespace
 			tr.matrix[2][0], tr.matrix[2][1], tr.matrix[2][2], tr.matrix[2][3],
 			0.0,             0.0,             0.0,             1.0
 		};
-	}
-
-	bool IsIdentity4x4(const std::array<double, 16>& m)
-	{
-		static const double I[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
-		for (int i = 0; i < 16; ++i)
-			if (std::fabs(m[i] - I[i]) > 1e-9)
-				return false;
-		return true;
 	}
 
 	// Stable geometry identity: SHA-256 over the quantized local meshes + material indices.
@@ -308,9 +298,6 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 	ElementBody localBody{};
 	bool haveTransform = false;
 	ModelerAPI::Transformation transform{};
-	bool haveSample = false;
-	ModelerAPI::Vertex worldSample{};
-	ModelerAPI::Vertex localSample{};
 
 	Int32 nElements = acModel.GetElementCount();
 	for (Int32 iElement = 1; iElement <= nElements; ++iElement)
@@ -367,15 +354,6 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 						fVert.y = localVertex.y;
 						fVert.z = localVertex.z;
 						mFace.vertices.push_back(fVert);
-
-						// Verification sample: read the SAME vertex in World space once, so a send
-						// can prove ElemLocal != World for objects (see ObjectInstance / session log).
-						if (!haveSample)
-						{
-							body.GetVertex(fVert.archicadVertexIndex, &worldSample, ModelerAPI::CoordinateSystem::World);
-							localSample = localVertex;
-							haveSample = true;
-						}
 					}
 					materialMeshFaceMap[materialIndex].push_back(mFace);
 				}
@@ -392,16 +370,6 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 		return instance; // nothing instanceable -> caller bakes world geometry
 
 	instance.transform = ToRowMajor4x4(transform);
-	instance.transformIsIdentity = IsIdentity4x4(instance.transform);
-	if (haveSample)
-	{
-		instance.worldSample = { worldSample.x, worldSample.y, worldSample.z };
-		instance.localSample = { localSample.x, localSample.y, localSample.z };
-		instance.localWorldMaxDelta = std::max({
-			std::fabs(worldSample.x - localSample.x),
-			std::fabs(worldSample.y - localSample.y),
-			std::fabs(worldSample.z - localSample.z) });
-	}
 	instance.definitionId = ComputeDefinitionId(localBody);
 	instance.localBody = std::move(localBody);
 	instance.valid = true;

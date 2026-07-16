@@ -93,32 +93,6 @@ void ArtefactSessionLog::RecordObject(const std::string& appId, const std::strin
     AddLine(rec.dump());
 }
 
-void ArtefactSessionLog::RecordInstancing(const std::string& appId, const std::string& definitionId, bool reused,
-                                          bool transformIsIdentity, double localWorldMaxDelta,
-                                          const std::array<double, 3>& worldSample, const std::array<double, 3>& localSample)
-{
-    _instanceObjects++;
-    if (reused)
-        _instanceReused++;
-    else
-        _instanceDefinitions++;
-    if (localWorldMaxDelta > 1e-9)
-        _instanceLocalDiffers++;
-    if (!transformIsIdentity)
-        _instanceNonIdentity++;
-
-    nlohmann::json rec;
-    rec["record"] = "instance";
-    rec["appId"] = appId;
-    rec["definitionId"] = definitionId;
-    rec["reused"] = reused;
-    rec["transformIsIdentity"] = transformIsIdentity;
-    rec["localWorldMaxDelta"] = localWorldMaxDelta;
-    rec["worldSample"] = { worldSample[0], worldSample[1], worldSample[2] };
-    rec["localSample"] = { localSample[0], localSample[1], localSample[2] };
-    AddLine(rec.dump());
-}
-
 void ArtefactSessionLog::SetStat(const std::string& name, long long value)
 {
     _stats[name] = value;
@@ -190,21 +164,6 @@ ArtefactSessionLog::~ArtefactSessionLog()
         summary << "\nstats:\n";
         for (const auto& kv : _stats)
             summary << "  " << kv.first << ": " << kv.second << "\n";
-
-        if (_instanceObjects > 0)
-        {
-            summary << "\ninstancing (object / GDL library parts):\n";
-            summary << "  object instances: " << _instanceObjects << "\n";
-            summary << "  unique definitions: " << _instanceDefinitions << "\n";
-            summary << "  reused placements: " << _instanceReused << "\n";
-            summary << "  ElemLocal != World: " << _instanceLocalDiffers << " of " << _instanceObjects << "\n";
-            summary << "  non-identity transform: " << _instanceNonIdentity << " of " << _instanceObjects << "\n";
-            summary << "  => ElemLocal is "
-                    << (_instanceLocalDiffers > 0 ? "DISTINCT from World for objects (instancing viable)"
-                                                  : "identical to World for every object (instancing NOT viable)")
-                    << "\n";
-        }
-
         if (!_failures.empty())
         {
             summary << "\nfailed objects (max 200):\n";
