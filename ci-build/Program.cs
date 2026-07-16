@@ -51,9 +51,23 @@ Target(
     s =>
     {
         var toolset = s == "29" ? "v143" : "v142";
+        var triplet = $"x64-windows-archicad-{toolset}";
+        // Arrow/Parquet are fetched + built by vcpkg (manifest mode, ../vcpkg.json). Point CMake
+        // at the vcpkg toolchain so find_package(Arrow/Parquet CONFIG) resolves; the overlay port
+        // + triplet are auto-picked from vcpkg-configuration.json. VCPKG_ROOT (local dev) or the
+        // GitHub-hosted VCPKG_INSTALLATION_ROOT locates the vcpkg checkout.
+        var vcpkgRoot =
+            Environment.GetEnvironmentVariable("VCPKG_ROOT")
+            ?? Environment.GetEnvironmentVariable("VCPKG_INSTALLATION_ROOT")
+            ?? throw new InvalidOperationException(
+                "Set VCPKG_ROOT (or VCPKG_INSTALLATION_ROOT) to a vcpkg checkout — Arrow is fetched via vcpkg."
+            );
+        var toolchain = Path.Combine(vcpkgRoot, "scripts", "buildsystems", "vcpkg.cmake");
         Run(
             "cmake",
-            $"-G \"Visual Studio 18 2026\" -T {toolset} -A \"x64\" -DAC_ADDON_LANGUAGE=\"INT\" -DAC_API_DEVKIT_DIR=\"Libs\\acapi{s}\" -B build\\{s} -DCMAKE_BUILD_TYPE=Release"
+            $"-G \"Visual Studio 18 2026\" -T {toolset} -A \"x64\" "
+                + $"-DCMAKE_TOOLCHAIN_FILE=\"{toolchain}\" -DVCPKG_TARGET_TRIPLET={triplet} "
+                + $"-DAC_ADDON_LANGUAGE=\"INT\" -DAC_API_DEVKIT_DIR=\"Libs\\acapi{s}\" -B build\\{s} -DCMAKE_BUILD_TYPE=Release"
         );
     }
 );

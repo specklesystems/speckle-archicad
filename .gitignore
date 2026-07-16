@@ -21,7 +21,6 @@
 **/bin
 **/Thumbs.db
 **/output
-# Vendored Arrow static libs are committed as Libs/arrow/v14x.zip; CMake extracts them
-# here at configure time.
-Libs/arrow/v142/
-Libs/arrow/v143/
+# vcpkg manifest-mode install tree (Arrow/Parquet + deps, built at configure time)
+vcpkg_installed/
+**/vcpkg_installed/

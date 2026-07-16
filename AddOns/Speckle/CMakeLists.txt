@@ -289,14 +289,13 @@ set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\
 target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite)
 if (WIN32)
 	target_link_libraries(${SPECKLE_ADDON_LIB} winhttp)
-	# Vendored static Arrow/Parquet (bundle read+write) — linked INTO the .apx, so the
-	# add-on stays a single file (no DLLs, no delay-load bootstrap). ARROW_STATIC /
-	# PARQUET_STATIC switch the headers off __declspec(dllimport).
-	target_compile_definitions(${SPECKLE_ADDON_LIB} PRIVATE ARROW_STATIC PARQUET_STATIC)
+	# vcpkg static Arrow/Parquet (bundle read+write) — linked INTO the .apx, so the
+	# add-on stays a single file (no DLLs, no delay-load bootstrap). The CONFIG targets carry
+	# their include dirs, the ARROW_STATIC/PARQUET_STATIC __declspec(dllimport)-off defines,
+	# and the full transitive static dep closure (thrift, zstd, ...). Parquet pulls Arrow.
 	target_link_libraries(${SPECKLE_ADDON_LIB}
-		"${ARROW_LIB_DIR}/parquet_static.lib"
-		"${ARROW_LIB_DIR}/arrow_static.lib"
-		"${ARROW_LIB_DIR}/arrow_bundled_dependencies.lib"
+		Parquet::parquet_static
+		Arrow::arrow_static
 		ws2_32)
 endif ()
 

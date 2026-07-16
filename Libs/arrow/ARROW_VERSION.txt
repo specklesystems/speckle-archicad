@@ -1,4 +1,0 @@
-24.0.0 minimal static build (Parquet+ZSTD+IPC; compute/dataset/CSV/JSON/filesystem/Flight off; SIMD off)
-Flags: /Zc:wchar_t- /MD (MultiThreadedDLL) _ITERATOR_DEBUG_LEVEL=0 _HAS_AUTO_PTR_ETC=1
-Toolsets: v142 (AC27/28), v143 (AC29). Built by build_arrow.ps1 (patches parquet decoder.cc for v142 constexpr bug).
-Libs ship zipped (~9:1); CMake extracts v14x.zip to Libs/arrow/v14x/ at configure time.

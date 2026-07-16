@@ -78,27 +78,21 @@ set(BUNDLE_SPEC_EXPECT_VERSION "5.0.0" CACHE STRING "expected bundle-spec pin (e
 set(BUNDLE_SPEC_INCLUDE "${BUNDLE_SPEC}/generated/cpp")
 include("${BUNDLE_SPEC}/cmake/AssertBundleSpecPin.cmake")
 
-# Vendored minimal static Arrow (see Libs/arrow/ARROW_VERSION.txt): libs ship zipped,
-# extracted here at configure time; the toolset picks the matching lib set.
+# Arrow/Parquet — fetched + built by vcpkg (manifest mode, vcpkg.json; overlay port + triplet
+# under vcpkg-overlays/). No Arrow is vendored in-repo: the toolchain installs it at configure
+# time and these CONFIG packages expose the static imported targets (Arrow::arrow_static,
+# Parquet::parquet_static) with their include dirs + the whole static dep closure. Configure
+# with -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake and
+# -DVCPKG_TARGET_TRIPLET=x64-windows-archicad-v142|v143 (wired by ci-build, see build.ps1).
 if (WIN32)
-	if (CMAKE_VS_PLATFORM_TOOLSET MATCHES "v142")
-		set(ARROW_TOOLSET "v142")
-	else ()
-		set(ARROW_TOOLSET "v143")
-	endif ()
-	set(ARROW_LIB_DIR "${CMAKE_SOURCE_DIR}/Libs/arrow/${ARROW_TOOLSET}")
-	if (NOT EXISTS "${ARROW_LIB_DIR}/arrow_static.lib" OR
-	    "${CMAKE_SOURCE_DIR}/Libs/arrow/${ARROW_TOOLSET}.zip" IS_NEWER_THAN "${ARROW_LIB_DIR}/arrow_static.lib")
-		message(STATUS "Extracting vendored Arrow libs (${ARROW_TOOLSET})")
-		file(ARCHIVE_EXTRACT INPUT "${CMAKE_SOURCE_DIR}/Libs/arrow/${ARROW_TOOLSET}.zip" DESTINATION "${ARROW_LIB_DIR}")
-	endif ()
+	find_package(Arrow CONFIG REQUIRED)
+	find_package(Parquet CONFIG REQUIRED)
 endif ()
 
 set(LIB_INCLUDE_DIRS
 		${CMAKE_SOURCE_DIR}/Libs/json/include
 		${CMAKE_SOURCE_DIR}/Libs/spdlog/include
 		${CMAKE_SOURCE_DIR}/Libs/sqlite/include
-		${CMAKE_SOURCE_DIR}/Libs/arrow/include
 		${BUNDLE_SPEC_INCLUDE}
 		${BUNDLE_SPEC}/cpp/core
 		${BUNDLE_SPEC}/cpp/writer
