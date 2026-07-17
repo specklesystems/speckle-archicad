@@ -194,6 +194,15 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 
         NativeSendResult result;
         result.versionId = versionId;
+        try
+        {
+            result.sessionLogBasePath = session.GetBasePath();
+        }
+        catch (...)
+        {
+            // Diagnostics must never fail an otherwise completed upload.
+            result.sessionLogBasePath.clear();
+        }
         result.objectCount = objectCount;
         return result;
     }

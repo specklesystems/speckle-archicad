@@ -5,6 +5,7 @@
 #include "SendSetting.h"
 #include "SendConversionResult.h"
 #include "ArchicadArtifactRootObjectBuilder.h"
+#include "ArtefactSessionLog.h"
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
@@ -153,6 +154,7 @@ void SendBridge::SendViaArtifacts(const RunMethodEventArgs& args, SenderModelCar
         res["modelCardId"] = modelCard.modelCardId;
         res["versionId"] = result.versionId;
         res["sendConversionResults"] = conversionResults;
+        ArtefactSessionLog::WriteSetModelSendResult(result.sessionLogBasePath, res);
         args.eventSource->Send("setModelSendResult", res);
     }
     catch (const UserCancelledException&)

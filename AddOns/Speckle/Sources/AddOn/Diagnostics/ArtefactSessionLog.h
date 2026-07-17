@@ -5,11 +5,14 @@
 #include <string>
 #include <vector>
 
+#include "json.hpp"
+
 // C++ port of the connectors-repo ArtefactSessionLog: per-run offline
 // diagnostics for the 4.0 artefact pipeline. Each run writes a timestamped,
-// never-overwritten file pair under %TEMP%\Speckle\sessions\:
+// never-overwritten files under %TEMP%\Speckle\sessions\:
 //   {yyyyMMdd-HHmmss}-Archicad-send-{versionId}.ndjson   (event stream)
 //   {yyyyMMdd-HHmmss}-Archicad-send-{versionId}.summary.txt
+//   {yyyyMMdd-HHmmss}-Archicad-send-{versionId}.set-model-send-result.json
 // Best-effort by design — logging must never break the send.
 class ArtefactSessionLog
 {
@@ -20,6 +23,8 @@ public:
     void RecordObject(const std::string& appId, const std::string& type, const std::string& status,
                       const std::string& error, double elapsedMs);
     void SetStat(const std::string& name, long long value);
+    const std::string& GetBasePath() const noexcept;
+    static void WriteSetModelSendResult(const std::string& basePath, const nlohmann::json& payload) noexcept;
 
     // Phase timer: BeginPhase, then EndPhase records {phase, elapsedMs}.
     void BeginPhase(const std::string& name);

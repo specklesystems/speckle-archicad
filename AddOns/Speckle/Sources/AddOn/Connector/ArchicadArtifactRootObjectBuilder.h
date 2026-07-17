@@ -9,6 +9,7 @@
 struct NativeSendResult
 {
     std::string versionId;
+    std::string sessionLogBasePath;
     int objectCount = 0;
 };
 

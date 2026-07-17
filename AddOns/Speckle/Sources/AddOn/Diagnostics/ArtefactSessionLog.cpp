@@ -98,6 +98,28 @@ void ArtefactSessionLog::SetStat(const std::string& name, long long value)
     _stats[name] = value;
 }
 
+const std::string& ArtefactSessionLog::GetBasePath() const noexcept
+{
+    return _basePath;
+}
+
+void ArtefactSessionLog::WriteSetModelSendResult(
+    const std::string& basePath,
+    const nlohmann::json& payload) noexcept
+{
+    try
+    {
+        if (basePath.empty())
+            return;
+        std::ofstream output(basePath + ".set-model-send-result.json", std::ios::binary);
+        output << payload.dump() << "\n";
+    }
+    catch (...)
+    {
+        // Diagnostics must never affect the send or UI notification.
+    }
+}
+
 void ArtefactSessionLog::BeginPhase(const std::string& name)
 {
     _currentPhase = name;
