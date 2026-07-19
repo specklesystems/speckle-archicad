@@ -36,7 +36,7 @@ ArchicadObject HostToSpeckleConverter::GetArchicadObject(const std::string& elem
             archicadObject.displayValue = GetElementBody(elemId);
     }
 
-    archicadObject.properties = includeProperties ? GetElementProperties(elemId) : nlohmann::json::object();
+    archicadObject.properties = includeProperties ? GetElementProperties(elemId) : EavLeaves{};
 
     conversionResult.resultId = "";
     conversionResult.resultType = "ArchicadObject";

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "json.hpp"
+#include "EavLeaf.h"
 #include "envelope_spec.h"
 
 struct BundleTables;
@@ -46,12 +47,12 @@ public:
     // ── object namespace ──────────────────────────────────────────────
     int InternObject(const std::string& applicationId);
 
-    // Flattens rootScalars + the nested properties dict into EAV rows
-    // (ports EavExtraction.FlattenProperties: "properties." path prefix,
-    // parameter {name,value} pattern, max depth 10, arrays skipped).
+    // Writes rootScalars + the pre-flattened property leaves as EAV rows.
+    // The flattening itself (paths, {name,value} collapse, depth cap) happens
+    // in the converter (GetElementProperties) — no nested tree reaches here.
     void AddProperties(
         const std::string& applicationId,
-        const nlohmann::json& properties,
+        const EavLeaves& properties,
         const std::vector<std::pair<std::string, nlohmann::json>>& rootScalars);
 
     // ── geometry namespace ────────────────────────────────────────────
@@ -100,7 +101,6 @@ private:
     int InternNode(const std::string& key, bool& isNew);
     void AddEavRow(int objectK, const std::string& path, const nlohmann::json& value,
                    const std::string* units, const std::string* internalDefinitionName);
-    void WalkProperties(int objectK, const nlohmann::json& obj, const std::string& prefix, int depth);
     void WriteVocabTables();
 
     std::string _outputDir;

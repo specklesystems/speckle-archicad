@@ -36,7 +36,9 @@ public:
 	virtual nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyTypeFilter propertyType) = 0;
 	virtual nlohmann::json GetElementBuiltInProperties(const std::string& elemId) = 0;
 	virtual nlohmann::json GetElementIfcProperties(const std::string& elemId) = 0;
-	virtual nlohmann::json GetElementProperties(const std::string& elemId) = 0;
+	// Pre-flattened EAV leaves (see EavLeaf.h) — the nested-json intermediate
+	// tree was removed from the send path.
+	virtual EavLeaves GetElementProperties(const std::string& elemId) = 0;
 	virtual WorkingUnits GetWorkingUnits() = 0;
 	virtual ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult, bool includeProperties) = 0;
 	virtual std::vector<ArchicadObject> GetElementChildren(const std::string& elemId, bool includeProperties) = 0;

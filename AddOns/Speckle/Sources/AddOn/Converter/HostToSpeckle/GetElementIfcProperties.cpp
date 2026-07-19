@@ -152,10 +152,9 @@ namespace
 		{
 			return GetIfcTablePropertyValue(std::get<IFCAPI::PropertyTableValue>(propertyVariant));
 		}
-		else
-		{
-			// TODO throw
-		}
+		// Unknown property type: json null — the flattener skips null leaves.
+		// (Was: fell off the end, i.e. undefined behavior.)
+		return nullptr;
 	}
 }
 

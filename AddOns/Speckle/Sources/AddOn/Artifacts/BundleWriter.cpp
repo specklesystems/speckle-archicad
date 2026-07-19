@@ -15,8 +15,6 @@
 
 namespace
 {
-    constexpr int MAX_DEPTH = 10;
-
     std::string FormatDouble(double d)
     {
         char buf[64];
@@ -383,75 +381,9 @@ void BundleWriter::AddEavRow(
     eav.endRow();
 }
 
-void BundleWriter::WalkProperties(int objectK, const nlohmann::json& obj, const std::string& prefix, int depth)
-{
-    if (depth >= MAX_DEPTH || !obj.is_object())
-        return;
-
-    for (auto it = obj.begin(); it != obj.end(); ++it)
-    {
-        const std::string& key = it.key();
-        const nlohmann::json& val = it.value();
-        if (val.is_null())
-            continue;
-
-        const std::string path = prefix + "." + key;
-
-        if (val.is_object())
-        {
-            // Parameter pattern { name, value } -> a single row at this path.
-            if (val.contains("name") && val.contains("value"))
-            {
-                const nlohmann::json& paramVal = val["value"];
-                if (!IsScalar(paramVal))
-                    continue;
-                std::string unitsStorage, idnStorage;
-                const std::string* units = nullptr;
-                const std::string* idn = nullptr;
-                if (val.contains("units") && val["units"].is_string())
-                {
-                    unitsStorage = val["units"].get<std::string>();
-                    units = &unitsStorage;
-                }
-                if (val.contains("internalDefinitionName") && val["internalDefinitionName"].is_string())
-                {
-                    idnStorage = val["internalDefinitionName"].get<std::string>();
-                    idn = &idnStorage;
-                }
-                AddEavRow(objectK, path, paramVal, units, idn);
-                continue;
-            }
-            WalkProperties(objectK, val, path, depth + 1);
-            continue;
-        }
-
-        if (IsScalar(val))
-        {
-            AddEavRow(objectK, path, val, nullptr, nullptr);
-            continue;
-        }
-
-        if (val.is_array())
-        {
-            // Archicad — unlike Revit, which the SDK's array-skipping walk was shaped
-            // around — emits genuinely multi-valued properties as JSON arrays (native
-            // List / Multiple-Choice Enumeration collection types, and IFC List /
-            // Enumerated properties). The EAV model is one value per row, so we collapse
-            // the elements into a single comma-separated string to preserve them rather
-            // than drop the whole property. (IFC bounded ranges are split into lower/upper
-            // rows upstream, so they never reach here as an array.)
-            const std::string joined = JoinArrayScalars(val);
-            if (!joined.empty())
-                AddEavRow(objectK, path, nlohmann::json(joined), nullptr, nullptr);
-            continue;
-        }
-        // remaining non-scalars (nested arrays, objects without name/value) are skipped
-    }
-}
-
 void BundleWriter::AddProperties(
     const std::string& applicationId,
-    const nlohmann::json& properties,
+    const EavLeaves& properties,
     const std::vector<std::pair<std::string, nlohmann::json>>& rootScalars)
 {
     const int objectK = InternObject(applicationId);
@@ -462,8 +394,30 @@ void BundleWriter::AddProperties(
             AddEavRow(objectK, kv.first, kv.second, nullptr, nullptr);
     }
 
-    if (properties.is_object() && !properties.empty())
-        WalkProperties(objectK, properties, "properties", 0);
+    for (const EavLeaf& leaf : properties)
+    {
+        const std::string* units = leaf.units ? &*leaf.units : nullptr;
+        const std::string* idn = leaf.internalDefinitionName ? &*leaf.internalDefinitionName : nullptr;
+
+        if (leaf.value.is_array())
+        {
+            // Archicad — unlike Revit, which the SDK's array-skipping walk was shaped
+            // around — emits genuinely multi-valued properties as JSON arrays (native
+            // List / Multiple-Choice Enumeration collection types, and IFC List /
+            // Enumerated properties). The EAV model is one value per row, so we collapse
+            // the elements into a single comma-separated string to preserve them rather
+            // than drop the whole property. (IFC bounded ranges are split into lower/upper
+            // rows upstream, so they never reach here as an array.)
+            const std::string joined = JoinArrayScalars(leaf.value);
+            if (!joined.empty())
+                AddEavRow(objectK, leaf.path, nlohmann::json(joined), units, idn);
+            continue;
+        }
+
+        if (IsScalar(leaf.value))
+            AddEavRow(objectK, leaf.path, leaf.value, units, idn);
+        // non-scalars never reach here (the converter-side flatten filters them)
+    }
 }
 
 int BundleWriter::AddGeometrySgeo(

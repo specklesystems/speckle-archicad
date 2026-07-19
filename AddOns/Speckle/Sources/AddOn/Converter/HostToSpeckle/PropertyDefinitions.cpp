@@ -94,7 +94,7 @@ std::vector<std::string> PropertyDefinitions::GetDefinitionIds(API_ElemTypeID el
     return {};
 }
 
-const std::vector<API_PropertyDefinition>& PropertyDefinitions::GetDefinitions(API_ElemTypeID elemType)
+const GS::Array<API_PropertyDefinition>& PropertyDefinitions::GetDefinitions(API_ElemTypeID elemType)
 {
     auto cached = cache.find(elemType);
     if (cached != cache.end())
@@ -102,7 +102,7 @@ const std::vector<API_PropertyDefinition>& PropertyDefinitions::GetDefinitions(A
         return cached->second;
     }
 
-    std::vector<API_PropertyDefinition> definitions;
+    GS::Array<API_PropertyDefinition> definitions;
 
     for (const auto& propertyId : GetDefinitionIds(elemType))
     {
@@ -112,7 +112,7 @@ const std::vector<API_PropertyDefinition>& PropertyDefinitions::GetDefinitions(A
 
         if (ACAPI_Property_GetPropertyDefinition(propertyDefinition) == NoError)
         {
-            definitions.push_back(propertyDefinition);
+            definitions.Push(propertyDefinition);
         }
     }
 

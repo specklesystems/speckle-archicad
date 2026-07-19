@@ -1,6 +1,7 @@
 #pragma once
 
 #include "json.hpp"
+#include "EavLeaf.h"
 #include "ElementBody.h"
 #include "ArchicadLevel.h"
 #include "ObjectInstance.h"
@@ -13,7 +14,7 @@ struct ArchicadObject
     std::string speckle_type = "Objects.Data.DataObject:Objects.Data.ArchicadObject";
     std::string applicationId = "";
     ElementBody displayValue;
-    nlohmann::json properties;
+    EavLeaves properties; // pre-flattened EAV rows (no nested json tree)
     std::vector<ArchicadObject> elements;
     ArchicadLevel levelInfo;
 
