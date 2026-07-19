@@ -7,6 +7,7 @@
 #include "PropertyDefinitions.h"
 
 #include <iostream>
+#include <unordered_map>
 
 namespace
 {
@@ -130,10 +131,30 @@ namespace
 
 	std::string GetPropertyGroupName(const API_PropertyDefinition& propertyDefinition)
 	{
+		// Group names repeat across every element's properties — cache per send.
+		static std::unordered_map<std::string, std::string> cache;
+		static unsigned cachedGeneration = 0;
+		const unsigned generation = ConverterUtils::SendCacheGeneration();
+		if (generation != 0 && generation != cachedGeneration)
+		{
+			cache.clear();
+			cachedGeneration = generation;
+		}
+		const std::string key(reinterpret_cast<const char*>(&propertyDefinition.groupGuid), sizeof(API_Guid));
+		if (generation != 0)
+		{
+			const auto it = cache.find(key);
+			if (it != cache.end())
+				return it->second;
+		}
+
 		API_PropertyGroup group;
 		group.guid = propertyDefinition.groupGuid;
 		CHECK_ERROR(ACAPI_Property_GetPropertyGroup(group));
-		return group.name.ToCStr().Get();
+		std::string name = group.name.ToCStr().Get();
+		if (generation != 0)
+			cache.emplace(key, name);
+		return name;
 	}
 
 	nlohmann::json GetElementPropertyValueAsJson(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
@@ -231,7 +252,7 @@ nlohmann::json HostToSpeckleConverter::GetElementPropertiesByPropertyType(const 
 nlohmann::json HostToSpeckleConverter::GetElementBuiltInProperties(const std::string& elemId)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
-	auto definitions = PropertyDefinitions::Instance().GetDefinitions(apiElem.header.type.typeID);
+	const auto& definitions = PropertyDefinitions::Instance().GetDefinitions(apiElem.header.type.typeID);
 
 	return GetElementPropertiesAsJson(apiElem.header.guid, definitions);
 }

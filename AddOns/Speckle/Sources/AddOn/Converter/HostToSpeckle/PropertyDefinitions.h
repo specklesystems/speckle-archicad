@@ -13,7 +13,10 @@ public:
     static PropertyDefinitions& Instance();
 
     std::vector<std::string> GetDefinitionIds(API_ElemTypeID elemType) const;
-    std::vector<API_PropertyDefinition> GetDefinitions(API_ElemTypeID elemType);
+    // Returned by reference — API_PropertyDefinition vectors are heavy and this
+    // is called once per element (the reference stays valid; entries are only
+    // ever added to the cache, never removed).
+    const std::vector<API_PropertyDefinition>& GetDefinitions(API_ElemTypeID elemType);
 
 private:
     PropertyDefinitions() = default;

@@ -2,9 +2,9 @@
 
 #include <chrono>
 #include <filesystem>
-#include <map>
 #include <memory>
-#include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "ArchiCadApiException.h"
 #include "ArchicadObject.h"
@@ -12,6 +12,7 @@
 #include "ArtifactUploader.h"
 #include "BundleWriter.h"
 #include "Connector.h"
+#include "ConverterUtils.h"
 #include "SgeoEncoder.h"
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
@@ -21,7 +22,7 @@
 namespace
 {
     // Resolves (and caches) the MATERIAL node for a Modeler material index.
-    int GetOrAddMaterialNode(BundleWriter& writer, std::map<int, int>& cache, int materialIndex)
+    int GetOrAddMaterialNode(BundleWriter& writer, std::unordered_map<int, int>& cache, int materialIndex)
     {
         auto it = cache.find(materialIndex);
         if (it != cache.end())
@@ -40,8 +41,8 @@ namespace
     // definitionId; every placement adds only its own INSTANCE node + DISPLAY_INSTANCE edge.
     void EmitInstance(
         BundleWriter& writer,
-        std::map<int, int>& materialCache,
-        std::set<std::string>& seenDefinitions,
+        std::unordered_map<int, int>& materialCache,
+        std::unordered_set<std::string>& seenDefinitions,
         int objK,
         const ArchicadObject& obj)
     {
@@ -75,8 +76,8 @@ namespace
     // Returns the object's dense K.
     int EmitObject(
         BundleWriter& writer,
-        std::map<int, int>& materialCache,
-        std::set<std::string>& seenDefinitions,
+        std::unordered_map<int, int>& materialCache,
+        std::unordered_set<std::string>& seenDefinitions,
         const ArchicadObject& obj,
         bool isTopLevel)
     {
@@ -172,11 +173,14 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
         BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId);
 
-        // 2. Collect + emit in one pass (ACAPI main thread).
+        // 2. Collect + emit in one pass (ACAPI main thread). The SendCacheScope
+        //    keeps per-send invariants (3D model + GUID index, stories, attribute
+        //    names, ...) cached across elements for the duration of the loop.
         session.BeginPhase("CollectAndWrite");
+        ConverterUtils::SendCacheScope sendCacheScope;
         CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(elementIds.size()));
-        std::map<int, int> materialCache;
-        std::set<std::string> seenDefinitions;
+        std::unordered_map<int, int> materialCache;
+        std::unordered_set<std::string> seenDefinitions;
         int elemCount = 0;
         for (const auto& elemId : elementIds)
         {

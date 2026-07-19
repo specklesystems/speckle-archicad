@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "json.hpp"
@@ -108,10 +109,12 @@ private:
     // One minipq::Table per bundle file (opaque here so minipq.h stays out of this header).
     std::unique_ptr<BundleTables> _tables;
 
-    std::map<std::string, int> _objectIndex;
-    std::map<std::string, int> _pathIndex;
-    std::map<std::string, int> _geometryIndex;
-    std::map<std::string, int> _nodeIndex;
+    // Intern tables (hot per-row lookups; K assignment order is insertion order,
+    // so the container's own ordering is irrelevant).
+    std::unordered_map<std::string, int> _objectIndex;
+    std::unordered_map<std::string, int> _pathIndex;
+    std::unordered_map<std::string, int> _geometryIndex;
+    std::unordered_map<std::string, int> _nodeIndex;
 
     bool _completed = false;
 };

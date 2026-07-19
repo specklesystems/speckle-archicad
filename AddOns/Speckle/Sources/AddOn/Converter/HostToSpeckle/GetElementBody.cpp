@@ -20,6 +20,7 @@
 #include <array>
 #include <cmath>
 #include <set>
+#include <unordered_map>
 
 namespace
 {
@@ -31,13 +32,45 @@ namespace
 			partIDs.insert(parts[idx].head.guid);
 	}
 
+	// Memo mask covering exactly the sub-part arrays read below — pulling
+	// APIMemoMask_All per element (polygons, parameters, ...) was a hot spot.
+	// 0 = the type has no sub-parts and the memo fetch is skipped entirely.
+	UInt64 PartMemoMask(API_ElemTypeID typeID)
+	{
+		switch (typeID) {
+		case API_StairID:
+			return APIMemoMask_StairRiser | APIMemoMask_StairTread | APIMemoMask_StairStructure;
+		case API_RailingID:
+			return APIMemoMask_RailingSegment | APIMemoMask_RailingPattern |
+				APIMemoMask_RailingRail | APIMemoMask_RailingHandrail | APIMemoMask_RailingToprail |
+				APIMemoMask_RailingBalusterSet | APIMemoMask_RailingBaluster | APIMemoMask_RailingPanel |
+				APIMemoMask_RailingInnerPost | APIMemoMask_RailingNode |
+				APIMemoMask_RailingRailConnection | APIMemoMask_RailingHandrailConnection |
+				APIMemoMask_RailingToprailConnection | APIMemoMask_RailingPost |
+				APIMemoMask_RailingRailEnd | APIMemoMask_RailingHandrailEnd | APIMemoMask_RailingToprailEnd;
+		case API_CurtainWallID:
+			return APIMemoMask_CWallSegments | APIMemoMask_CWallFrames | APIMemoMask_CWallPanels |
+				APIMemoMask_CWallJunctions | APIMemoMask_CWallAccessories;
+		case API_ColumnID:
+			return APIMemoMask_ColumnSegment;
+		case API_BeamID:
+			return APIMemoMask_BeamSegment;
+		default:
+			return 0;
+		}
+	}
+
 	std::set<API_Guid> CollectPartIDs(const API_Guid& elemId, API_ElemTypeID typeID)
 	{
-		API_ElementMemo memo{};
-		ACAPI_Element_GetMemo(elemId, &memo, APIMemoMask_All);
-
 		std::set<API_Guid> partIDs{};
 		partIDs.insert(elemId);
+
+		const UInt64 memoMask = PartMemoMask(typeID);
+		if (memoMask == 0)
+			return partIDs; // no sub-parts for this type
+
+		API_ElementMemo memo{};
+		ACAPI_Element_GetMemo(elemId, &memo, memoMask);
 
 		switch (typeID) {
 		case API_StairID:
@@ -81,6 +114,7 @@ namespace
 		default:
 			break;
 		}
+		ACAPI_DisposeElemMemoHdls(&memo); // the masked arrays were copied into partIDs above
 		return partIDs;
 	}
 
@@ -104,7 +138,7 @@ namespace
 					mesh.vertices.push_back(v.z);
 				}
 			}
-			elementBody.meshes.push_back(mesh);
+			elementBody.meshes.push_back(std::move(mesh));
 		}
 	}
 
@@ -114,7 +148,8 @@ namespace
 		{
 			Mesh mesh{};
 			int vertexIndexCount = 0;
-			std::map<int, int> vertexIndexMap;
+			std::unordered_map<int, int> vertexIndexMap;
+			vertexIndexMap.reserve(item.second.size() * 4);
 
 			mesh.materialIndex = item.first;
 			for (const auto& face : item.second)
@@ -122,20 +157,19 @@ namespace
 				mesh.faces.push_back(face.size);
 				for (const auto& v : face.vertices)
 				{
-					bool newIndex = (vertexIndexMap.count(v.archicadVertexIndex) == 0);
-					if (newIndex)
+					const auto [it, isNew] = vertexIndexMap.try_emplace(v.archicadVertexIndex, vertexIndexCount);
+					if (isNew)
 					{
-						vertexIndexMap[v.archicadVertexIndex] = vertexIndexCount;
 						vertexIndexCount++;
 						mesh.vertices.push_back(v.x);
 						mesh.vertices.push_back(v.y);
 						mesh.vertices.push_back(v.z);
 					}
 
-					mesh.faces.push_back(vertexIndexMap[v.archicadVertexIndex]);
+					mesh.faces.push_back(it->second);
 				}
 			}
-			elementBody.meshes.push_back(mesh);
+			elementBody.meshes.push_back(std::move(mesh));
 		}
 	}
 
@@ -196,15 +230,11 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 	if (elemType == API_ObjectID && apiElem.header.type.variationID == APIVarId_GridElement)
 		throw SpeckleConversionException("Converting Grid elements in ArchiCAD is not supported yet.");
 
-	//Get elements
-	Int32 nElements = acModel.GetElementCount();
-	for (Int32 iElement = 1; iElement <= nElements; iElement++)
+	//Get elements — index lookup per part GUID instead of a full model scan per element
+	for (Int32 iElement : ConverterUtils::GetModelElementIndices(acModel, partIDs))
 	{
 		ModelerAPI::Element elem{};
 		acModel.GetElement(iElement, &elem);
-		API_Guid apiGuid{ GSGuid2APIGuid(elem.GetElemGuid()) };
-		if (partIDs.find(apiGuid) == partIDs.end())
-			continue;
 
 		// Get bodies
 		Int32 nBodies = elem.GetTessellatedBodyCount();
@@ -238,6 +268,7 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 					MeshFace mFace{};
 					Int32 vertexCount = convexPolygon.GetVertexCount();
 					mFace.size = vertexCount;
+					mFace.vertices.reserve(vertexCount);
 					for (Int32 vertexIndex = 1; vertexIndex <= vertexCount; ++vertexIndex)
 					{
 						ModelerAPI::Vertex vertex{};
@@ -299,14 +330,10 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 	bool haveTransform = false;
 	ModelerAPI::Transformation transform{};
 
-	Int32 nElements = acModel.GetElementCount();
-	for (Int32 iElement = 1; iElement <= nElements; ++iElement)
+	for (Int32 iElement : ConverterUtils::GetModelElementIndices(acModel, partIDs))
 	{
 		ModelerAPI::Element elem{};
 		acModel.GetElement(iElement, &elem);
-		API_Guid apiGuid{ GSGuid2APIGuid(elem.GetElemGuid()) };
-		if (partIDs.find(apiGuid) == partIDs.end())
-			continue;
 
 		if (!haveTransform)
 		{
@@ -342,6 +369,7 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 					MeshFace mFace{};
 					Int32 vertexCount = convexPolygon.GetVertexCount();
 					mFace.size = vertexCount;
+					mFace.vertices.reserve(vertexCount);
 					for (Int32 vertexIndex = 1; vertexIndex <= vertexCount; ++vertexIndex)
 					{
 						FaceVertex fVert{};
