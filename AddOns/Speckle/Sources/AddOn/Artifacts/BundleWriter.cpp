@@ -128,6 +128,20 @@ namespace
         return out;
     }
 
+    // nodes.transform is a CSV of 16 row-major doubles (M11..M44), invariant-culture
+    // shortest round-trip — the exact format ObjectsArtifactReader.ParseTransform expects.
+    std::string FormatTransform(const std::array<double, 16>& t)
+    {
+        std::string out;
+        for (size_t i = 0; i < t.size(); ++i)
+        {
+            if (i != 0)
+                out.push_back(',');
+            out += FormatDouble(t[i]);
+        }
+        return out;
+    }
+
     std::string EscapeSqlLiteral(const std::string& s)
     {
         std::string out;
@@ -546,6 +560,33 @@ int BundleWriter::AddContainer(const std::string& containerKey, const std::strin
     return k;
 }
 
+int BundleWriter::AddDefinition(const std::string& definitionKey, const std::string& name)
+{
+    bool isNew;
+    const int k = InternNode("def:" + definitionKey, isNew);
+    if (isNew)
+    {
+        AppendNodeRow(
+            Appender(_appenders["nodes"]), k, static_cast<int>(bundlespec::NodeKind::DEFINITION),
+            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    }
+    return k;
+}
+
+int BundleWriter::AddInstance(const std::string& placementKey, int defK, const std::array<double, 16>& transform, const std::string& units)
+{
+    bool isNew;
+    const int k = InternNode("inst:" + placementKey, isNew);
+    if (isNew)
+    {
+        const std::string tf = FormatTransform(transform);
+        AppendNodeRow(
+            Appender(_appenders["nodes"]), k, static_cast<int>(bundlespec::NodeKind::INSTANCE),
+            nullptr, &defK, &tf, &units, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    }
+    return k;
+}
+
 void BundleWriter::AddRelation(bundlespec::Rel rel, int src, int dst, int ord)
 {
     auto appender = Appender(_appenders["relations"]);
@@ -558,6 +599,8 @@ void BundleWriter::AddRelation(bundlespec::Rel rel, int src, int dst, int ord)
 
 void BundleWriter::Display(int objectK, int geometryK, int ord) { AddRelation(bundlespec::Rel::DISPLAY, objectK, geometryK, ord); }
 void BundleWriter::Subelement(int parentObjectK, int childObjectK, int ord) { AddRelation(bundlespec::Rel::SUBELEMENT, parentObjectK, childObjectK, ord); }
+void BundleWriter::Defines(int definitionK, int geometryK, int ord) { AddRelation(bundlespec::Rel::DEFINES, definitionK, geometryK, ord); }
+void BundleWriter::DisplayInstance(int objectK, int instanceK, int ord) { AddRelation(bundlespec::Rel::DISPLAY_INSTANCE, objectK, instanceK, ord); }
 void BundleWriter::HasMaterial(int geometryK, int materialK) { AddRelation(bundlespec::Rel::HAS_MATERIAL, geometryK, materialK, 0); }
 void BundleWriter::HasColor(int srcK, int colorK) { AddRelation(bundlespec::Rel::HAS_COLOR, srcK, colorK, 0); }
 void BundleWriter::OnLevel(int objectK, int levelK) { AddRelation(bundlespec::Rel::ON_LEVEL, objectK, levelK, 0); }

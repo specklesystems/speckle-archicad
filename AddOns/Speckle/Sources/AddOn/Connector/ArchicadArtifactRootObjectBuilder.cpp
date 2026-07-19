@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <set>
 
 #include "ArchiCadApiException.h"
 #include "ArchicadObject.h"
@@ -33,11 +34,48 @@ namespace
         return k;
     }
 
+    // Emits the display geometry for an object as an INSTANCE of a shared DEFINITION.
+    // The definition (its local-space geometry + material edges) is written once per
+    // definitionId; every placement adds only its own INSTANCE node + DISPLAY_INSTANCE edge.
+    void EmitInstance(
+        BundleWriter& writer,
+        std::map<int, int>& materialCache,
+        std::set<std::string>& seenDefinitions,
+        int objK,
+        const ArchicadObject& obj)
+    {
+        const std::string& definitionId = obj.instance.definitionId;
+        const int defK = writer.AddDefinition(definitionId, obj.name.empty() ? definitionId : obj.name);
+
+        // Definition geometry is emitted exactly once. Geometry ids are deterministic per
+        // definition ("def:{id}:{i}") so AddGeometrySgeo interns them stably across placements.
+        if (seenDefinitions.insert(definitionId).second)
+        {
+            int ord = 0;
+            for (const auto& mesh : obj.instance.localBody.meshes)
+            {
+                const std::string geometryAppId = "def:" + definitionId + ":" + std::to_string(ord);
+                const auto sgeo = SgeoEncoder::EncodeMesh(mesh.vertices, mesh.faces, mesh.colors, mesh.units);
+                const int geometryK = writer.AddGeometrySgeo(geometryAppId, sgeo);
+                writer.Defines(defK, geometryK, ord);
+
+                const int materialK = GetOrAddMaterialNode(writer, materialCache, mesh.materialIndex);
+                writer.HasMaterial(geometryK, materialK);
+                ord++;
+            }
+        }
+
+        // One INSTANCE per placement, keyed by the element's own applicationId.
+        const int instK = writer.AddInstance(obj.applicationId, defK, obj.instance.transform, "m");
+        writer.DisplayInstance(objK, instK, 0);
+    }
+
     // Emits one ArchicadObject (and recursively its children) into the bundle.
     // Returns the object's dense K.
     int EmitObject(
         BundleWriter& writer,
         std::map<int, int>& materialCache,
+        std::set<std::string>& seenDefinitions,
         const ArchicadObject& obj,
         bool isTopLevel)
     {
@@ -63,26 +101,34 @@ namespace
             writer.OnLevel(objK, levelK);
         }
 
-        // Display geometry: deterministic per-mesh ids "{elementGuid}:{i}" (the v1 path used a
-        // random GUID per mesh, which made material bindings fragile — fixed here for good).
-        int ord = 0;
-        for (const auto& mesh : obj.displayValue.meshes)
+        if (obj.instance.valid)
         {
-            const std::string geometryAppId = obj.applicationId + ":" + std::to_string(ord);
-            const auto sgeo = SgeoEncoder::EncodeMesh(mesh.vertices, mesh.faces, mesh.colors, mesh.units);
-            const int geometryK = writer.AddGeometrySgeo(geometryAppId, sgeo);
-            writer.Display(objK, geometryK, ord);
+            // Instanced GDL/library-part object: shared DEFINITION + per-placement INSTANCE.
+            EmitInstance(writer, materialCache, seenDefinitions, objK, obj);
+        }
+        else
+        {
+            // Display geometry: deterministic per-mesh ids "{elementGuid}:{i}" (the v1 path used a
+            // random GUID per mesh, which made material bindings fragile — fixed here for good).
+            int ord = 0;
+            for (const auto& mesh : obj.displayValue.meshes)
+            {
+                const std::string geometryAppId = obj.applicationId + ":" + std::to_string(ord);
+                const auto sgeo = SgeoEncoder::EncodeMesh(mesh.vertices, mesh.faces, mesh.colors, mesh.units);
+                const int geometryK = writer.AddGeometrySgeo(geometryAppId, sgeo);
+                writer.Display(objK, geometryK, ord);
 
-            const int materialK = GetOrAddMaterialNode(writer, materialCache, mesh.materialIndex);
-            writer.HasMaterial(geometryK, materialK);
-            ord++;
+                const int materialK = GetOrAddMaterialNode(writer, materialCache, mesh.materialIndex);
+                writer.HasMaterial(geometryK, materialK);
+                ord++;
+            }
         }
 
         // Hosted/nested children (beam & column segments today) -> SUBELEMENT edges.
         int subOrd = 0;
         for (const auto& child : obj.elements)
         {
-            const int childK = EmitObject(writer, materialCache, child, false);
+            const int childK = EmitObject(writer, materialCache, seenDefinitions, child, false);
             writer.Subelement(objK, childK, subOrd++);
         }
 
@@ -129,6 +175,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.BeginPhase("CollectAndWrite");
         CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(elementIds.size()));
         std::map<int, int> materialCache;
+        std::set<std::string> seenDefinitions;
         int elemCount = 0;
         for (const auto& elemId : elementIds)
         {
@@ -141,7 +188,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             {
                 auto archicadObject =
                     CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult, includeProperties);
-                EmitObject(writer, materialCache, archicadObject, true);
+                EmitObject(writer, materialCache, seenDefinitions, archicadObject, true);
 
                 const double ms =
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - objStart).count();

@@ -9,10 +9,16 @@
 
 #include <AttributeIndex.hpp>
 #include <ConvexPolygon.hpp>
+#include <CoordinateSystem.hpp>
 #include <Model.hpp>
 #include <ModelElement.hpp>
 #include <ModelMeshBody.hpp>
+#include <Transformation.hpp>
 
+#include "picosha2.h"
+
+#include <array>
+#include <cmath>
 #include <set>
 
 namespace
@@ -126,11 +132,53 @@ namespace
 						mesh.vertices.push_back(v.z);
 					}
 
-					mesh.faces.push_back(vertexIndexMap[v.archicadVertexIndex]);				
+					mesh.faces.push_back(vertexIndexMap[v.archicadVertexIndex]);
 				}
 			}
 			elementBody.meshes.push_back(mesh);
 		}
+	}
+
+	// Modeler's 3x4 local->world matrix -> the bundle's row-major 4x4 (last row 0 0 0 1).
+	// Column 3 of each row is the translation, matching Speckle's Matrix4x4 (M14/M24/M34).
+	std::array<double, 16> ToRowMajor4x4(const ModelerAPI::Transformation& tr)
+	{
+		return {
+			tr.matrix[0][0], tr.matrix[0][1], tr.matrix[0][2], tr.matrix[0][3],
+			tr.matrix[1][0], tr.matrix[1][1], tr.matrix[1][2], tr.matrix[1][3],
+			tr.matrix[2][0], tr.matrix[2][1], tr.matrix[2][2], tr.matrix[2][3],
+			0.0,             0.0,             0.0,             1.0
+		};
+	}
+
+	// Stable geometry identity: SHA-256 over the quantized local meshes + material indices.
+	// Vertices are quantized to 1e-6 m so float noise cannot split two identical definitions;
+	// material index is folded in so shape-identical objects with different surfaces stay distinct
+	// (material lives on the shared definition geometry).
+	std::string ComputeDefinitionId(const ElementBody& body)
+	{
+		std::vector<unsigned char> buf;
+		auto push = [&](const void* p, size_t n) {
+			const auto* b = static_cast<const unsigned char*>(p);
+			buf.insert(buf.end(), b, b + n);
+		};
+		for (const auto& m : body.meshes)
+		{
+			const int materialIndex = m.materialIndex;
+			push(&materialIndex, sizeof(materialIndex));
+			const int faceCount = static_cast<int>(m.faces.size());
+			push(&faceCount, sizeof(faceCount));
+			for (const int f : m.faces)
+				push(&f, sizeof(f));
+			const int vertCount = static_cast<int>(m.vertices.size());
+			push(&vertCount, sizeof(vertCount));
+			for (const double d : m.vertices)
+			{
+				const long long q = std::llround(d / 1e-6);
+				push(&q, sizeof(q));
+			}
+		}
+		return picosha2::hash256_hex_string(buf.begin(), buf.end());
 	}
 }
 
@@ -228,4 +276,102 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 	}
 
 	return elementBody;
+}
+
+// Extracts a GDL/library-part "Object" as an instance: untransformed (ElemLocal) geometry
+// plus the Modeler's local->world transform, read straight from the API — no reconstruction
+// and no matrix inversion. Returns an invalid ObjectInstance (valid == false) for anything
+// that is not an instanceable object, so the caller can fall back to baked world geometry.
+ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elemId)
+{
+	ObjectInstance instance{};
+
+	auto apiElem = ConverterUtils::GetElement(elemId);
+	if (apiElem.header.type.typeID != API_ObjectID)
+		return instance; // only library-part objects are instanced
+	if (apiElem.header.type.variationID == APIVarId_GridElement)
+		return instance; // grid elements are not converted (mirrors GetElementBody)
+
+	auto acModel = ConverterUtils::GetArchiCadModel();
+	auto partIDs = CollectPartIDs(apiElem.header.guid, API_ObjectID);
+
+	ElementBody localBody{};
+	bool haveTransform = false;
+	ModelerAPI::Transformation transform{};
+
+	Int32 nElements = acModel.GetElementCount();
+	for (Int32 iElement = 1; iElement <= nElements; ++iElement)
+	{
+		ModelerAPI::Element elem{};
+		acModel.GetElement(iElement, &elem);
+		API_Guid apiGuid{ GSGuid2APIGuid(elem.GetElemGuid()) };
+		if (partIDs.find(apiGuid) == partIDs.end())
+			continue;
+
+		if (!haveTransform)
+		{
+			transform = elem.GetElemLocalToWorldTransformation();
+			haveTransform = true;
+		}
+
+		Int32 nBodies = elem.GetTessellatedBodyCount();
+		for (Int32 bodyIndex = 1; bodyIndex <= nBodies; ++bodyIndex)
+		{
+			ModelerAPI::MeshBody body{};
+			elem.GetTessellatedBody(bodyIndex, &body);
+			const bool isHardBody = body.HasSharpEdge();
+
+			std::map<int, std::vector<MeshFace>> materialMeshFaceMap;
+
+			Int32 polyCount = body.GetPolygonCount();
+			for (Int32 polyIndex = 1; polyIndex <= polyCount; ++polyIndex)
+			{
+				ModelerAPI::Polygon polygon{};
+				body.GetPolygon(polyIndex, &polygon);
+
+				ModelerAPI::AttributeIndex matIdx{};
+				polygon.GetMaterialIndex(matIdx);
+				const int materialIndex = matIdx.GetIndex();
+
+				Int32 convexPolyCount = polygon.GetConvexPolygonCount();
+				for (Int32 convPolyIndex = 1; convPolyIndex <= convexPolyCount; ++convPolyIndex)
+				{
+					ModelerAPI::ConvexPolygon convexPolygon{};
+					polygon.GetConvexPolygon(convPolyIndex, &convexPolygon);
+
+					MeshFace mFace{};
+					Int32 vertexCount = convexPolygon.GetVertexCount();
+					mFace.size = vertexCount;
+					for (Int32 vertexIndex = 1; vertexIndex <= vertexCount; ++vertexIndex)
+					{
+						FaceVertex fVert{};
+						fVert.archicadVertexIndex = convexPolygon.GetVertexIndex(vertexIndex);
+
+						// Untransformed geometry, straight from the Modeler.
+						ModelerAPI::Vertex localVertex{};
+						body.GetVertex(fVert.archicadVertexIndex, &localVertex, ModelerAPI::CoordinateSystem::ElemLocal);
+						fVert.x = localVertex.x;
+						fVert.y = localVertex.y;
+						fVert.z = localVertex.z;
+						mFace.vertices.push_back(fVert);
+					}
+					materialMeshFaceMap[materialIndex].push_back(mFace);
+				}
+			}
+
+			if (isHardBody)
+				AddHardMeshesToElementBody(materialMeshFaceMap, localBody);
+			else
+				AddSoftMeshesToElementBody(materialMeshFaceMap, localBody);
+		}
+	}
+
+	if (!haveTransform || localBody.meshes.empty())
+		return instance; // nothing instanceable -> caller bakes world geometry
+
+	instance.transform = ToRowMajor4x4(transform);
+	instance.definitionId = ComputeDefinitionId(localBody);
+	instance.localBody = std::move(localBody);
+	instance.valid = true;
+	return instance;
 }

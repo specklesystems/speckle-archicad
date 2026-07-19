@@ -13,6 +13,7 @@ public:
 	std::vector<std::string> GetElementListAllVisibleIn3D() override;
 	std::vector<std::string> GetElementTypeList() override;
 	ElementBody GetElementBody(const std::string& elemId) override;
+	ObjectInstance GetObjectInstance(const std::string& elemId) override;
 	Material GetModelMaterial(int materialIndex) override;
 	std::string GetElementName(const std::string& elemId) override;
 	ArchicadLevel GetElementLevel(const std::string& elemId) override;
