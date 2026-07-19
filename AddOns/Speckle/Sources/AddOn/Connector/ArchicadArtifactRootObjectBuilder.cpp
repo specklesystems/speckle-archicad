@@ -15,6 +15,7 @@
 #include "SgeoEncoder.h"
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
+#include "Utf8Path.h"
 #include "WinHttpClient.h"
 
 namespace
@@ -169,7 +170,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     {
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
-        BundleWriter writer(outputDir.string(), ingestion.versionId);
+        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId);
 
         // 2. Collect + emit in one pass (ACAPI main thread).
         session.BeginPhase("CollectAndWrite");

@@ -3,14 +3,14 @@
 #include <array>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "json.hpp"
 #include "envelope_spec.h"
 
-struct duckdb_database_wrapper;
-struct duckdb_connection_wrapper;
+struct BundleTables;
 
 // One ordered grouping tier of a scene-view projection.
 // source "rel": ref is a RelKind id as text (e.g. "7" = ON_LEVEL).
@@ -24,13 +24,14 @@ struct SceneViewTier
 // The Speckle 4.0 artefact-bundle producer — the C++ mirror of the SDK's
 // ObjectsArtifactPipeline (speckle-sharp-sdk, Speckle.Objects/Utils). Interns
 // string identities into the three dense int32 namespaces (object / geometry /
-// node), buffers rows into an in-memory DuckDB, and Complete() COPYs every
-// table out as {baseName}.<group>.<table>.parquet with Zstd compression —
-// the bundle-spec (schema_version 5) wire format.
+// node) and appends rows straight into one minipq parquet writer per table,
+// each already open at its final {baseName}.<group>.<table>.parquet path with
+// Zstd compression — the bundle-spec (schema_version 5) wire format.
 //
-// DuckDB is the parquet engine on purpose: the spec itself is executable
-// DuckDB SQL, the spec validator reads bundles with DuckDB, and the
-// amalgamation ships parquet+zstd with zero extra dependencies.
+// minipq (Libs/minipq) is the parquet engine: an in-tree, dependency-free
+// writer sized to exactly the bundle subset, statically compiled into the
+// .apx (it replaced the delay-loaded duckdb.dll). Rows stream to disk in
+// bounded row groups instead of accumulating in an in-memory database.
 class BundleWriter
 {
 public:
@@ -94,7 +95,6 @@ public:
     int ObjectCount() const { return static_cast<int>(_objectIndex.size()); }
 
 private:
-    void Execute(const std::string& sql);
     void AddRelation(bundlespec::Rel rel, int src, int dst, int ord);
     int InternNode(const std::string& key, bool& isNew);
     void AddEavRow(int objectK, const std::string& path, const nlohmann::json& value,
@@ -105,10 +105,8 @@ private:
     std::string _outputDir;
     std::string _baseName;
 
-    // DuckDB C-API handles (opaque pointers; kept void* so duckdb.h stays out of this header).
-    void* _db = nullptr;
-    void* _con = nullptr;
-    std::map<std::string, void*> _appenders; // table name -> duckdb_appender
+    // One minipq::Table per bundle file (opaque here so minipq.h stays out of this header).
+    std::unique_ptr<BundleTables> _tables;
 
     std::map<std::string, int> _objectIndex;
     std::map<std::string, int> _pathIndex;
