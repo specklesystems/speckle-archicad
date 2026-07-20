@@ -6,6 +6,8 @@
 
 #include "IHttpClient.h"
 
+class IProcessWindow;
+
 struct IngestionInfo
 {
     std::string ingestionId;
@@ -35,12 +37,17 @@ public:
 
     // sign -> PUT each file (collecting ETags) -> complete. files maps basename -> local path.
     // rootId is the synthetic "binary-{versionId}". Returns the (authoritative) versionId.
+    // processWindow (optional) drives two phases: "Uploading" with continuous
+    // KiB-level progress fed from inside the streamed PUTs (cancellable between
+    // chunks — throws UserCancelledException), then "Creating version" while the
+    // server-side complete call runs.
     std::string UploadFiles(
         const std::string& ingestionId,
         const std::string& versionId,
         const std::map<std::string, std::string>& files,
         const std::string& rootId,
-        int totalChildrenCount);
+        int totalChildrenCount,
+        IProcessWindow* processWindow = nullptr);
 
     void FailWithError(const std::string& ingestionId, const std::string& errorReason);
     void FailWithCancel(const std::string& ingestionId, const std::string& cancellationMessage);

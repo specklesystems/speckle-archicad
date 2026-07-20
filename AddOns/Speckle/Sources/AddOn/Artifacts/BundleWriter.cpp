@@ -604,7 +604,13 @@ void BundleWriter::AddSceneView(int view, const std::string& name, bool isDefaul
     }
 }
 
-std::map<std::string, std::string> BundleWriter::Complete()
+int BundleWriter::TableCount()
+{
+    return 13; // the fixed bundle table set (BundleTables::All)
+}
+
+std::map<std::string, std::string> BundleWriter::Complete(
+    const std::function<void(int done, int total)>& progress)
 {
     if (_completed)
         throw std::runtime_error("BundleWriter::Complete called twice");
@@ -612,7 +618,9 @@ std::map<std::string, std::string> BundleWriter::Complete()
 
     const std::filesystem::path dir = Utf8Path::FromUtf8(_outputDir);
     std::map<std::string, std::string> files;
-    for (const auto& t : _tables->All())
+    const auto all = _tables->All();
+    int done = 0;
+    for (const auto& t : all)
     {
         t.second->complete();
         const std::string fileName = BundleTables::FileName(_baseName, t.first);
@@ -621,6 +629,9 @@ std::map<std::string, std::string> BundleWriter::Complete()
         if (!t.second->ok())
             throw std::runtime_error("BundleWriter: failed to write " + fileName);
         files[fileName] = BundleTables::File(dir, _baseName, t.first);
+        ++done;
+        if (progress)
+            progress(done, static_cast<int>(all.size()));
     }
     return files;
 }

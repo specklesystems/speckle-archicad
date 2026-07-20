@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -91,8 +92,13 @@ public:
     void AddSceneView(int view, const std::string& name, bool isDefault, const std::vector<SceneViewTier>& tiers);
 
     // Flushes everything and writes the parquet files. Returns basename -> full path
-    // for the uploader. Must be called exactly once.
-    std::map<std::string, std::string> Complete();
+    // for the uploader. Must be called exactly once. progress (optional) is
+    // invoked after each finalized table with (tablesDone, tableCount).
+    std::map<std::string, std::string> Complete(
+        const std::function<void(int done, int total)>& progress = nullptr);
+
+    // Number of parquet files a bundle consists of (progress phase sizing).
+    static int TableCount();
 
     int ObjectCount() const { return static_cast<int>(_objectIndex.size()); }
 

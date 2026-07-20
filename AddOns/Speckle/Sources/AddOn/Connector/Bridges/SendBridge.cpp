@@ -103,7 +103,15 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     std::string modelCardId = args.data[0].get<std::string>();
     SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
 
-    CONNECTOR.GetProcessWindow().Init("Sending...", 1);
+    // Phase plan for the whole send (titles shown in the process window):
+    //   1. Preparing 3D view      (here — ShowIn3D can trigger a long 3D regeneration)
+    //   2. Preparing upload       (builder — ingestion create)
+    //   3. Converting elements    (builder — one tick per element)
+    //   4. Writing bundle         (builder — one tick per parquet table)
+    //   5. Uploading              (uploader — KiB-granular, fed per streamed chunk)
+    //   6. Creating version       (uploader — server-side complete)
+    CONNECTOR.GetProcessWindow().Init("Sending to Speckle", 6);
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Preparing 3D view", 1);
 
     CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();
     auto layerStatesStart = CONNECTOR.GetHostToSpeckleConverter().GetLayers();

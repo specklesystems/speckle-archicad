@@ -149,10 +149,13 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 {
     auto http = std::make_shared<WinHttpClient>();
     ArtifactUploader uploader(http, serverUrl, token, projectId);
+    IProcessWindow& processWindow = CONNECTOR.GetProcessWindow();
 
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked
     //    into the parquet filenames and used as the commit PK at complete. Failures
     //    propagate as-is (auth, network, old server) — there is no legacy fallback.
+    //    The process window was Init'd by SendBridge (phase plan documented there).
+    processWindow.SetNextProcessPhase("Preparing upload", 1);
     IngestionInfo ingestion = uploader.CreateIngestion(
         modelId,
         "Sending from Archicad",
@@ -178,14 +181,14 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         //    names, ...) cached across elements for the duration of the loop.
         session.BeginPhase("CollectAndWrite");
         ConverterUtils::SendCacheScope sendCacheScope;
-        CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(elementIds.size()));
+        processWindow.SetNextProcessPhase("Converting elements", static_cast<int>(elementIds.size()));
         std::unordered_map<int, int> materialCache;
         std::unordered_set<std::string> seenDefinitions;
         int elemCount = 0;
         for (const auto& elemId : elementIds)
         {
             elemCount++;
-            CONNECTOR.GetProcessWindow().SetProcessValue(elemCount);
+            processWindow.SetProcessValue(elemCount);
             SendConversionResult conversionResult{};
             const auto objStart = std::chrono::steady_clock::now();
 
@@ -214,7 +217,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 
             conversionResults.push_back(conversionResult);
 
-            if (CONNECTOR.GetProcessWindow().IsProcessCanceled())
+            if (processWindow.IsProcessCanceled())
                 throw UserCancelledException("The user cancelled the send operation");
         }
 
@@ -229,19 +232,25 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.SetStat("objects", objectCount);
         session.EndPhase();
 
-        // 4. Flush the parquet bundle.
+        // 4. Flush the parquet bundle (one tick per finalized table).
         session.BeginPhase("WriteParquet");
-        CONNECTOR.GetProcessWindow().SetNextProcessPhase("Writing bundle", 1);
-        auto files = writer.Complete();
+        processWindow.SetNextProcessPhase("Writing bundle", BundleWriter::TableCount());
+        auto files = writer.Complete([&](int done, int)
+        {
+            processWindow.SetProcessValue(done);
+            if (processWindow.IsProcessCanceled())
+                throw UserCancelledException("The user cancelled the send operation");
+        });
         session.SetStat("files", static_cast<long long>(files.size()));
         session.EndPhase();
 
         // 5. Upload: sign -> presigned PUT per file -> complete (creates the version).
+        //    UploadFiles drives the "Uploading" (KiB-granular, cancellable) and
+        //    "Creating version" phases itself.
         session.BeginPhase("Upload");
-        CONNECTOR.GetProcessWindow().SetNextProcessPhase("Uploading", static_cast<int>(files.size()));
         const std::string rootId = "binary-" + ingestion.versionId;
-        const std::string versionId =
-            uploader.UploadFiles(ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount);
+        const std::string versionId = uploader.UploadFiles(
+            ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow);
         session.EndPhase();
 
         NativeSendResult result;

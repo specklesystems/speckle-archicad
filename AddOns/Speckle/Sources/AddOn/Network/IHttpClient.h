@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 
@@ -17,6 +19,11 @@ struct HttpResponse
     bool IsSuccess() const { return statusCode >= 200 && statusCode < 300; }
 };
 
+// Invoked with the cumulative bytes sent of the current file after every
+// transmitted chunk (~1MB). May throw to abort the transfer — the exception
+// propagates out of PutFile (used for user cancellation).
+using UploadProgress = std::function<void(std::int64_t bytesSent)>;
+
 class IHttpClient
 {
 public:
@@ -33,7 +40,8 @@ public:
     virtual HttpResponse PutFile(
         const std::string& url,
         const std::string& filePath,
-        const std::map<std::string, std::string>& extraHeaders) = 0;
+        const std::map<std::string, std::string>& extraHeaders,
+        const UploadProgress& progress = nullptr) = 0;
 
     // GET an absolute https URL, response body in memory. bearerToken may be empty.
     virtual HttpResponse Get(
