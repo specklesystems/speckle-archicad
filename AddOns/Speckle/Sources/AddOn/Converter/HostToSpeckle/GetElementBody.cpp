@@ -5,7 +5,6 @@
 #include "CheckError.h"
 #include "ConverterUtils.h"
 #include "SpeckleConversionException.h"
-#include "MeshFace.h"
 
 #include <AttributeIndex.hpp>
 #include <ConvexPolygon.hpp>
@@ -19,7 +18,9 @@
 
 #include <array>
 #include <cmath>
+#include <map>
 #include <set>
+#include <unordered_map>
 
 namespace
 {
@@ -31,13 +32,45 @@ namespace
 			partIDs.insert(parts[idx].head.guid);
 	}
 
+	// Memo mask covering exactly the sub-part arrays read below — pulling
+	// APIMemoMask_All per element (polygons, parameters, ...) was a hot spot.
+	// 0 = the type has no sub-parts and the memo fetch is skipped entirely.
+	UInt64 PartMemoMask(API_ElemTypeID typeID)
+	{
+		switch (typeID) {
+		case API_StairID:
+			return APIMemoMask_StairRiser | APIMemoMask_StairTread | APIMemoMask_StairStructure;
+		case API_RailingID:
+			return APIMemoMask_RailingSegment | APIMemoMask_RailingPattern |
+				APIMemoMask_RailingRail | APIMemoMask_RailingHandrail | APIMemoMask_RailingToprail |
+				APIMemoMask_RailingBalusterSet | APIMemoMask_RailingBaluster | APIMemoMask_RailingPanel |
+				APIMemoMask_RailingInnerPost | APIMemoMask_RailingNode |
+				APIMemoMask_RailingRailConnection | APIMemoMask_RailingHandrailConnection |
+				APIMemoMask_RailingToprailConnection | APIMemoMask_RailingPost |
+				APIMemoMask_RailingRailEnd | APIMemoMask_RailingHandrailEnd | APIMemoMask_RailingToprailEnd;
+		case API_CurtainWallID:
+			return APIMemoMask_CWallSegments | APIMemoMask_CWallFrames | APIMemoMask_CWallPanels |
+				APIMemoMask_CWallJunctions | APIMemoMask_CWallAccessories;
+		case API_ColumnID:
+			return APIMemoMask_ColumnSegment;
+		case API_BeamID:
+			return APIMemoMask_BeamSegment;
+		default:
+			return 0;
+		}
+	}
+
 	std::set<API_Guid> CollectPartIDs(const API_Guid& elemId, API_ElemTypeID typeID)
 	{
-		API_ElementMemo memo{};
-		ACAPI_Element_GetMemo(elemId, &memo, APIMemoMask_All);
-
 		std::set<API_Guid> partIDs{};
 		partIDs.insert(elemId);
+
+		const UInt64 memoMask = PartMemoMask(typeID);
+		if (memoMask == 0)
+			return partIDs; // no sub-parts for this type
+
+		API_ElementMemo memo{};
+		ACAPI_Element_GetMemo(elemId, &memo, memoMask);
 
 		switch (typeID) {
 		case API_StairID:
@@ -81,61 +114,94 @@ namespace
 		default:
 			break;
 		}
+		ACAPI_DisposeElemMemoHdls(&memo); // the masked arrays were copied into partIDs above
 		return partIDs;
 	}
 
-	void AddHardMeshesToElementBody(const std::map<int, std::vector<MeshFace>>& materialMeshFaceMap, ElementBody& elementBody)
+	// Appends one tessellated body's polygons straight into per-material flat
+	// meshes — single copy, ACAPI vertex -> Mesh arrays (the old path built
+	// per-vertex FaceVertex objects grouped into MeshFace lists, then copied
+	// them into the flat arrays in a second pass).
+	//
+	// softEdges: shared vertices dedup'd by their body vertex index (smooth
+	// shading); otherwise every face gets its own copy of each corner (faceted
+	// shading) — identical to the old AddSoftMeshes/AddHardMeshes outputs,
+	// including mesh emission order (ascending material index) and local
+	// vertex numbering.
+	void AppendBodyMeshes(
+		ModelerAPI::MeshBody& body,
+		bool softEdges,
+		ModelerAPI::CoordinateSystem coordinateSystem,
+		ElementBody& elementBody)
 	{
-		for (const auto& item : materialMeshFaceMap)
+		struct MeshAccum
 		{
-			Mesh mesh{};
-			int currVertex = 0;
-			mesh.materialIndex = item.first;
-			for (const auto& face : item.second)
-			{
-				mesh.faces.push_back(face.size);
-				for (const auto& v : face.vertices)
-				{
-					mesh.faces.push_back(currVertex);
-					currVertex++;
+			Mesh mesh;
+			std::unordered_map<Int32, int> vertexIndexMap; // body vertex index -> local index (soft only)
+		};
+		std::map<int, MeshAccum> byMaterial;                       // ordered: meshes emit per material index
+		std::unordered_map<Int32, ModelerAPI::Vertex> vertexCache; // one GetVertex per unique body vertex
 
-					mesh.vertices.push_back(v.x);
-					mesh.vertices.push_back(v.y);
-					mesh.vertices.push_back(v.z);
-				}
-			}
-			elementBody.meshes.push_back(mesh);
-		}
-	}
-
-	void AddSoftMeshesToElementBody(const std::map<int, std::vector<MeshFace>>& materialMeshFaceMap, ElementBody& elementBody)
-	{
-		for (const auto& item : materialMeshFaceMap)
+		auto getVertex = [&](Int32 bodyVertexIndex) -> const ModelerAPI::Vertex&
 		{
-			Mesh mesh{};
-			int vertexIndexCount = 0;
-			std::map<int, int> vertexIndexMap;
+			auto [it, isNew] = vertexCache.try_emplace(bodyVertexIndex);
+			if (isNew)
+				body.GetVertex(bodyVertexIndex, &it->second, coordinateSystem);
+			return it->second;
+		};
 
-			mesh.materialIndex = item.first;
-			for (const auto& face : item.second)
+		Int32 polyCount = body.GetPolygonCount();
+		for (Int32 polyIndex = 1; polyIndex <= polyCount; ++polyIndex)
+		{
+			ModelerAPI::Polygon polygon{};
+			body.GetPolygon(polyIndex, &polygon);
+
+			ModelerAPI::AttributeIndex matIdx{};
+			polygon.GetMaterialIndex(matIdx);
+			MeshAccum& accum = byMaterial[matIdx.GetIndex()];
+			Mesh& mesh = accum.mesh;
+
+			Int32 convexPolyCount = polygon.GetConvexPolygonCount();
+			for (Int32 convPolyIndex = 1; convPolyIndex <= convexPolyCount; ++convPolyIndex)
 			{
-				mesh.faces.push_back(face.size);
-				for (const auto& v : face.vertices)
+				ModelerAPI::ConvexPolygon convexPolygon{};
+				polygon.GetConvexPolygon(convPolyIndex, &convexPolygon);
+
+				Int32 vertexCount = convexPolygon.GetVertexCount();
+				mesh.faces.push_back(vertexCount);
+				for (Int32 vertexIndex = 1; vertexIndex <= vertexCount; ++vertexIndex)
 				{
-					bool newIndex = (vertexIndexMap.count(v.archicadVertexIndex) == 0);
-					if (newIndex)
+					const Int32 bodyVertexIndex = convexPolygon.GetVertexIndex(vertexIndex);
+
+					if (softEdges)
 					{
-						vertexIndexMap[v.archicadVertexIndex] = vertexIndexCount;
-						vertexIndexCount++;
-						mesh.vertices.push_back(v.x);
-						mesh.vertices.push_back(v.y);
-						mesh.vertices.push_back(v.z);
+						const auto [it, isNew] = accum.vertexIndexMap.try_emplace(
+							bodyVertexIndex, static_cast<int>(mesh.vertices.size() / 3));
+						if (isNew)
+						{
+							const ModelerAPI::Vertex& vertex = getVertex(bodyVertexIndex);
+							mesh.vertices.push_back(vertex.x);
+							mesh.vertices.push_back(vertex.y);
+							mesh.vertices.push_back(vertex.z);
+						}
+						mesh.faces.push_back(it->second);
 					}
-
-					mesh.faces.push_back(vertexIndexMap[v.archicadVertexIndex]);
+					else
+					{
+						const ModelerAPI::Vertex& vertex = getVertex(bodyVertexIndex);
+						mesh.faces.push_back(static_cast<int>(mesh.vertices.size() / 3));
+						mesh.vertices.push_back(vertex.x);
+						mesh.vertices.push_back(vertex.y);
+						mesh.vertices.push_back(vertex.z);
+					}
 				}
 			}
-			elementBody.meshes.push_back(mesh);
+		}
+
+		for (auto& item : byMaterial)
+		{
+			item.second.mesh.materialIndex = item.first;
+			elementBody.meshes.push_back(std::move(item.second.mesh));
 		}
 	}
 
@@ -157,7 +223,12 @@ namespace
 	// (material lives on the shared definition geometry).
 	std::string ComputeDefinitionId(const ElementBody& body)
 	{
+		size_t total = 0;
+		for (const auto& m : body.meshes)
+			total += 2 * sizeof(int) + m.faces.size() * sizeof(int) + sizeof(int) + m.vertices.size() * sizeof(long long);
+
 		std::vector<unsigned char> buf;
+		buf.reserve(total); // one allocation (the incremental inserts used to realloc-churn)
 		auto push = [&](const void* p, size_t n) {
 			const auto* b = static_cast<const unsigned char*>(p);
 			buf.insert(buf.end(), b, b + n);
@@ -196,15 +267,11 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 	if (elemType == API_ObjectID && apiElem.header.type.variationID == APIVarId_GridElement)
 		throw SpeckleConversionException("Converting Grid elements in ArchiCAD is not supported yet.");
 
-	//Get elements
-	Int32 nElements = acModel.GetElementCount();
-	for (Int32 iElement = 1; iElement <= nElements; iElement++)
+	//Get elements — index lookup per part GUID instead of a full model scan per element
+	for (Int32 iElement : ConverterUtils::GetModelElementIndices(acModel, partIDs))
 	{
 		ModelerAPI::Element elem{};
 		acModel.GetElement(iElement, &elem);
-		API_Guid apiGuid{ GSGuid2APIGuid(elem.GetElemGuid()) };
-		if (partIDs.find(apiGuid) == partIDs.end())
-			continue;
 
 		// Get bodies
 		Int32 nBodies = elem.GetTessellatedBodyCount();
@@ -212,66 +279,11 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 		{
 			ModelerAPI::MeshBody body{};
 			elem.GetTessellatedBody(bodyIndex, &body);
-			bool isHardBody = body.HasSharpEdge();
 
-			std::map<int, std::vector<MeshFace>> materialMeshFaceMap;
-
-			// Get polygons
-			Int32 polyCount = body.GetPolygonCount();
-			for (Int32 polyIndex = 1; polyIndex <= polyCount; ++polyIndex)
-			{
-				ModelerAPI::Polygon polygon{};
-				body.GetPolygon(polyIndex, &polygon);
-
-				ModelerAPI::AttributeIndex matIdx{};
-				polygon.GetMaterialIndex(matIdx);
-				int materialIndex = matIdx.GetIndex();
-
-				// Get convex polygons
-				Int32 convexPolyCount = polygon.GetConvexPolygonCount();
-				for (Int32 convPolyIndex = 1; convPolyIndex <= convexPolyCount; ++convPolyIndex)
-				{
-					ModelerAPI::ConvexPolygon convexPolygon{};
-					polygon.GetConvexPolygon(convPolyIndex, &convexPolygon);
-
-					// Get vertices
-					MeshFace mFace{};
-					Int32 vertexCount = convexPolygon.GetVertexCount();
-					mFace.size = vertexCount;
-					for (Int32 vertexIndex = 1; vertexIndex <= vertexCount; ++vertexIndex)
-					{
-						ModelerAPI::Vertex vertex{};
-						FaceVertex fVert{};
-						fVert.archicadVertexIndex = convexPolygon.GetVertexIndex(vertexIndex);
-						body.GetVertex(fVert.archicadVertexIndex, &vertex);
-						fVert.x = vertex.x;
-						fVert.y = vertex.y;
-						fVert.z = vertex.z;
-						mFace.vertices.push_back(fVert);
-					}
-					materialMeshFaceMap[materialIndex].push_back(mFace);
-				}
-			}
-
-			// Add Meshes to elementBody
 			// This logic is potentially buggy
 			// We need to find a better way to decide if an edge is soft or hard
-			if (apiElem.header.type.typeID == API_ObjectID)
-			{
-				if (isHardBody)
-				{
-					AddHardMeshesToElementBody(materialMeshFaceMap, elementBody);
-				}
-				else
-				{
-					AddSoftMeshesToElementBody(materialMeshFaceMap, elementBody);
-				}
-			}
-			else
-			{
-				AddHardMeshesToElementBody(materialMeshFaceMap, elementBody);
-			}
-
+			const bool softEdges = (elemType == API_ObjectID) && !body.HasSharpEdge();
+			AppendBodyMeshes(body, softEdges, ModelerAPI::CoordinateSystem::World, elementBody);
 		}
 	}
 
@@ -299,14 +311,10 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 	bool haveTransform = false;
 	ModelerAPI::Transformation transform{};
 
-	Int32 nElements = acModel.GetElementCount();
-	for (Int32 iElement = 1; iElement <= nElements; ++iElement)
+	for (Int32 iElement : ConverterUtils::GetModelElementIndices(acModel, partIDs))
 	{
 		ModelerAPI::Element elem{};
 		acModel.GetElement(iElement, &elem);
-		API_Guid apiGuid{ GSGuid2APIGuid(elem.GetElemGuid()) };
-		if (partIDs.find(apiGuid) == partIDs.end())
-			continue;
 
 		if (!haveTransform)
 		{
@@ -319,50 +327,10 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 		{
 			ModelerAPI::MeshBody body{};
 			elem.GetTessellatedBody(bodyIndex, &body);
-			const bool isHardBody = body.HasSharpEdge();
 
-			std::map<int, std::vector<MeshFace>> materialMeshFaceMap;
-
-			Int32 polyCount = body.GetPolygonCount();
-			for (Int32 polyIndex = 1; polyIndex <= polyCount; ++polyIndex)
-			{
-				ModelerAPI::Polygon polygon{};
-				body.GetPolygon(polyIndex, &polygon);
-
-				ModelerAPI::AttributeIndex matIdx{};
-				polygon.GetMaterialIndex(matIdx);
-				const int materialIndex = matIdx.GetIndex();
-
-				Int32 convexPolyCount = polygon.GetConvexPolygonCount();
-				for (Int32 convPolyIndex = 1; convPolyIndex <= convexPolyCount; ++convPolyIndex)
-				{
-					ModelerAPI::ConvexPolygon convexPolygon{};
-					polygon.GetConvexPolygon(convPolyIndex, &convexPolygon);
-
-					MeshFace mFace{};
-					Int32 vertexCount = convexPolygon.GetVertexCount();
-					mFace.size = vertexCount;
-					for (Int32 vertexIndex = 1; vertexIndex <= vertexCount; ++vertexIndex)
-					{
-						FaceVertex fVert{};
-						fVert.archicadVertexIndex = convexPolygon.GetVertexIndex(vertexIndex);
-
-						// Untransformed geometry, straight from the Modeler.
-						ModelerAPI::Vertex localVertex{};
-						body.GetVertex(fVert.archicadVertexIndex, &localVertex, ModelerAPI::CoordinateSystem::ElemLocal);
-						fVert.x = localVertex.x;
-						fVert.y = localVertex.y;
-						fVert.z = localVertex.z;
-						mFace.vertices.push_back(fVert);
-					}
-					materialMeshFaceMap[materialIndex].push_back(mFace);
-				}
-			}
-
-			if (isHardBody)
-				AddHardMeshesToElementBody(materialMeshFaceMap, localBody);
-			else
-				AddSoftMeshesToElementBody(materialMeshFaceMap, localBody);
+			// Untransformed geometry, straight from the Modeler.
+			const bool softEdges = !body.HasSharpEdge();
+			AppendBodyMeshes(body, softEdges, ModelerAPI::CoordinateSystem::ElemLocal, localBody);
 		}
 	}
 

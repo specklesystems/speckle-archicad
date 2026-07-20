@@ -2,9 +2,9 @@
 
 #include <chrono>
 #include <filesystem>
-#include <map>
 #include <memory>
-#include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "ArchiCadApiException.h"
 #include "ArchicadObject.h"
@@ -12,15 +12,17 @@
 #include "ArtifactUploader.h"
 #include "BundleWriter.h"
 #include "Connector.h"
+#include "ConverterUtils.h"
 #include "SgeoEncoder.h"
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
+#include "Utf8Path.h"
 #include "WinHttpClient.h"
 
 namespace
 {
     // Resolves (and caches) the MATERIAL node for a Modeler material index.
-    int GetOrAddMaterialNode(BundleWriter& writer, std::map<int, int>& cache, int materialIndex)
+    int GetOrAddMaterialNode(BundleWriter& writer, std::unordered_map<int, int>& cache, int materialIndex)
     {
         auto it = cache.find(materialIndex);
         if (it != cache.end())
@@ -39,8 +41,8 @@ namespace
     // definitionId; every placement adds only its own INSTANCE node + DISPLAY_INSTANCE edge.
     void EmitInstance(
         BundleWriter& writer,
-        std::map<int, int>& materialCache,
-        std::set<std::string>& seenDefinitions,
+        std::unordered_map<int, int>& materialCache,
+        std::unordered_set<std::string>& seenDefinitions,
         int objK,
         const ArchicadObject& obj)
     {
@@ -74,8 +76,8 @@ namespace
     // Returns the object's dense K.
     int EmitObject(
         BundleWriter& writer,
-        std::map<int, int>& materialCache,
-        std::set<std::string>& seenDefinitions,
+        std::unordered_map<int, int>& materialCache,
+        std::unordered_set<std::string>& seenDefinitions,
         const ArchicadObject& obj,
         bool isTopLevel)
     {
@@ -147,10 +149,13 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 {
     auto http = std::make_shared<WinHttpClient>();
     ArtifactUploader uploader(http, serverUrl, token, projectId);
+    IProcessWindow& processWindow = CONNECTOR.GetProcessWindow();
 
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked
     //    into the parquet filenames and used as the commit PK at complete. Failures
     //    propagate as-is (auth, network, old server) — there is no legacy fallback.
+    //    The process window was Init'd by SendBridge (phase plan documented there).
+    processWindow.SetNextProcessPhase("Preparing upload", 1);
     IngestionInfo ingestion = uploader.CreateIngestion(
         modelId,
         "Sending from Archicad",
@@ -169,18 +174,21 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     {
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
-        BundleWriter writer(outputDir.string(), ingestion.versionId);
+        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId);
 
-        // 2. Collect + emit in one pass (ACAPI main thread).
+        // 2. Collect + emit in one pass (ACAPI main thread). The SendCacheScope
+        //    keeps per-send invariants (3D model + GUID index, stories, attribute
+        //    names, ...) cached across elements for the duration of the loop.
         session.BeginPhase("CollectAndWrite");
-        CONNECTOR.GetProcessWindow().Init("Converting elements", static_cast<int>(elementIds.size()));
-        std::map<int, int> materialCache;
-        std::set<std::string> seenDefinitions;
+        ConverterUtils::SendCacheScope sendCacheScope;
+        processWindow.SetNextProcessPhase("Converting elements", static_cast<int>(elementIds.size()));
+        std::unordered_map<int, int> materialCache;
+        std::unordered_set<std::string> seenDefinitions;
         int elemCount = 0;
         for (const auto& elemId : elementIds)
         {
             elemCount++;
-            CONNECTOR.GetProcessWindow().SetProcessValue(elemCount);
+            processWindow.SetProcessValue(elemCount);
             SendConversionResult conversionResult{};
             const auto objStart = std::chrono::steady_clock::now();
 
@@ -209,7 +217,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 
             conversionResults.push_back(conversionResult);
 
-            if (CONNECTOR.GetProcessWindow().IsProcessCanceled())
+            if (processWindow.IsProcessCanceled())
                 throw UserCancelledException("The user cancelled the send operation");
         }
 
@@ -224,19 +232,25 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.SetStat("objects", objectCount);
         session.EndPhase();
 
-        // 4. Flush the parquet bundle.
+        // 4. Flush the parquet bundle (one tick per finalized table).
         session.BeginPhase("WriteParquet");
-        CONNECTOR.GetProcessWindow().SetNextProcessPhase("Writing bundle", 1);
-        auto files = writer.Complete();
+        processWindow.SetNextProcessPhase("Writing bundle", BundleWriter::TableCount());
+        auto files = writer.Complete([&](int done, int)
+        {
+            processWindow.SetProcessValue(done);
+            if (processWindow.IsProcessCanceled())
+                throw UserCancelledException("The user cancelled the send operation");
+        });
         session.SetStat("files", static_cast<long long>(files.size()));
         session.EndPhase();
 
         // 5. Upload: sign -> presigned PUT per file -> complete (creates the version).
+        //    UploadFiles drives the "Uploading" (KiB-granular, cancellable) and
+        //    "Creating version" phases itself.
         session.BeginPhase("Upload");
-        CONNECTOR.GetProcessWindow().SetNextProcessPhase("Uploading", static_cast<int>(files.size()));
         const std::string rootId = "binary-" + ingestion.versionId;
-        const std::string versionId =
-            uploader.UploadFiles(ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount);
+        const std::string versionId = uploader.UploadFiles(
+            ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow);
         session.EndPhase();
 
         NativeSendResult result;

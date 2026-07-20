@@ -6,18 +6,15 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 
-#include "duckdb.h"
+#include "minipq.h"
 #include "picosha2.h"
-#include "DuckDbRuntime.h"
+#include "Utf8Path.h"
 
 namespace
 {
-    constexpr int MAX_DEPTH = 10;
-
-    duckdb_appender Appender(void* p) { return static_cast<duckdb_appender>(p); }
-
     std::string FormatDouble(double d)
     {
         char buf[64];
@@ -133,7 +130,7 @@ namespace
     std::string FormatTransform(const std::array<double, 16>& t)
     {
         std::string out;
-        for (size_t i = 0; i < t.size(); ++i)
+        for (size_t i = 0; i < t.size(); i++)
         {
             if (i != 0)
                 out.push_back(',');
@@ -142,121 +139,164 @@ namespace
         return out;
     }
 
-    std::string EscapeSqlLiteral(const std::string& s)
+    // Column encoding policy — PR-15's minus dictionaries: int32 index columns are
+    // dense/sequential (DELTA_BINARY_PACKED), everything else stays PLAIN until the
+    // viewer is verified against dictionary-encoded bundles (the DuckDB writer shipped
+    // PLAIN strings for the same reason: duckdb-wasm returned NULLs on its dict pages).
+    minipq::Field I32(const char* name) { return { name, minipq::T::I32, minipq::Enc::DELTA_I32 }; }
+    minipq::Field Str(const char* name) { return { name, minipq::T::UTF8, minipq::Enc::PLAIN }; }
+    minipq::Field F64(const char* name) { return { name, minipq::T::F64, minipq::Enc::PLAIN }; }
+    minipq::Field Bool(const char* name) { return { name, minipq::T::BOOL, minipq::Enc::PLAIN }; }
+    minipq::Field Bin(const char* name) { return { name, minipq::T::BIN, minipq::Enc::PLAIN }; }
+
+    // Nullable-column helpers (minipq needs an explicit put per column per row).
+    void PutStrOpt(minipq::Table& t, int col, const std::string* v)
     {
-        std::string out;
-        out.reserve(s.size());
-        for (char c : s)
-        {
-            out.push_back(c);
-            if (c == '\'')
-                out.push_back('\'');
-        }
-        return out;
+        if (v)
+            t.putStr(col, *v);
+        else
+            t.putStrNull(col);
     }
+    void PutIntOpt(minipq::Table& t, int col, const int* v)
+    {
+        if (v)
+            t.putInt(col, *v);
+        else
+            t.putIntNull(col);
+    }
+    std::optional<double> Opt(const double* v) { return v ? std::optional<double>(*v) : std::nullopt; }
 }
 
-BundleWriter::BundleWriter(const std::string& outputDir, const std::string& baseName)
-    : _outputDir(outputDir), _baseName(baseName)
+// One minipq::Table per bundle file, each open at its final
+// {baseName}.<group>.<table>.parquet path from construction on. Table shapes
+// follow speckle-bundle-spec (schema_version 5); the vocab/catalog tables
+// mirror what the SDK's EnvelopeWriter actually writes into a bundle.
+struct BundleTables
 {
-    DuckDbRuntime::EnsureLoaded();
-    std::filesystem::create_directories(outputDir);
+    // Geometry blobs dominate bundle size — flush them by bytes so a large model
+    // streams to disk in bounded row groups instead of sitting whole in RAM.
+    static constexpr std::int64_t GEOMETRY_FLUSH_BYTES = 64ll << 20;
 
-    duckdb_database db = nullptr;
-    duckdb_connection con = nullptr;
-    if (duckdb_open(nullptr, &db) != DuckDBSuccess)
-        throw std::runtime_error("BundleWriter: failed to open in-memory DuckDB");
-    _db = db;
-    if (duckdb_connect(db, &con) != DuckDBSuccess)
-        throw std::runtime_error("BundleWriter: failed to connect to DuckDB");
-    _con = con;
-
-    // Table shapes follow speckle-bundle-spec (schema_version 5); the vocab/catalog
-    // tables mirror what the SDK's EnvelopeWriter actually writes into a bundle.
-    Execute("CREATE TABLE objects (object_index INTEGER NOT NULL, application_id VARCHAR NOT NULL)");
-    Execute("CREATE TABLE paths (path_index INTEGER NOT NULL, path VARCHAR NOT NULL)");
-    Execute(
-        "CREATE TABLE eav (object_index INTEGER, path_index INTEGER, value_string VARCHAR, "
-        "value_double DOUBLE, value_boolean BOOLEAN, unit VARCHAR, internal_definition_name VARCHAR)");
-    Execute(
-        "CREATE TABLE nodes (id INTEGER NOT NULL, kind INTEGER NOT NULL, name VARCHAR, def_ref INTEGER, "
-        "transform VARCHAR, units VARCHAR, subtype VARCHAR, argb INTEGER, opacity DOUBLE, "
-        "metalness DOUBLE, roughness DOUBLE, elevation DOUBLE)");
-    Execute("CREATE TABLE relations (rel INTEGER NOT NULL, src INTEGER NOT NULL, dst INTEGER NOT NULL, ord INTEGER)");
-    Execute("CREATE TABLE scene_views (view INTEGER NOT NULL, name VARCHAR, is_default BOOLEAN, ord INTEGER, source VARCHAR, ref VARCHAR)");
-    Execute("CREATE TABLE geometries (geometryIndex INTEGER NOT NULL, content BLOB, id VARCHAR, type VARCHAR)");
-    Execute("CREATE TABLE meta (schema_version INTEGER, produced_by VARCHAR)");
-    Execute("CREATE TABLE rel_types (rel INTEGER, name VARCHAR, src_ns VARCHAR, dst_ns VARCHAR)");
-    Execute("CREATE TABLE node_kinds (kind INTEGER, name VARCHAR)");
+    minipq::Table objects;
+    minipq::Table paths;
+    minipq::Table eav;
+    minipq::Table nodes;
+    minipq::Table relations;
+    minipq::Table sceneViews;
+    minipq::Table geometries;
+    minipq::Table meta;
+    minipq::Table relTypes;
+    minipq::Table nodeKinds;
     // Type-dedup tables (spec: optional; viewer: REQUIRED). Archicad has no type
     // parameter dedup yet, so they stay empty — but the viewer's loader only creates
     // its object_properties view (which every scene-tree/property query reads) when
     // eav + object_type + type_eav are ALL present, so they must ship regardless.
-    Execute("CREATE TABLE types (type_index INTEGER NOT NULL, type_key VARCHAR NOT NULL)");
-    Execute(
-        "CREATE TABLE type_eav (type_index INTEGER, path_index INTEGER, value_string VARCHAR, "
-        "value_double DOUBLE, value_boolean BOOLEAN, unit VARCHAR, internal_definition_name VARCHAR)");
-    Execute("CREATE TABLE object_type (object_index INTEGER NOT NULL, type_index INTEGER NOT NULL)");
+    minipq::Table types;
+    minipq::Table typeEav;
+    minipq::Table objectType;
 
-    for (const char* table : { "objects", "paths", "eav", "nodes", "relations", "scene_views", "geometries" })
+    BundleTables(const std::filesystem::path& dir, const std::string& base)
+        : objects(File(dir, base, "eav.objects"), { I32("object_index"), Str("application_id") })
+        , paths(File(dir, base, "eav.paths"), { I32("path_index"), Str("path") })
+        , eav(File(dir, base, "eav.eav"),
+              { I32("object_index"), I32("path_index"), Str("value_string"), F64("value_double"),
+                Bool("value_boolean"), Str("unit"), Str("internal_definition_name") })
+        , nodes(File(dir, base, "envelope.nodes"),
+                { I32("id"), I32("kind"), Str("name"), I32("def_ref"), Str("transform"), Str("units"),
+                  Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"), F64("elevation") })
+        , relations(File(dir, base, "envelope.relations"), { I32("rel"), I32("src"), I32("dst"), I32("ord") })
+        , sceneViews(File(dir, base, "envelope.scene_views"),
+                     { I32("view"), Str("name"), Bool("is_default"), I32("ord"), Str("source"), Str("ref") })
+        , geometries(File(dir, base, "geometries"),
+                     { I32("geometryIndex"), Bin("content"), Str("id"), Str("type") },
+                     200000, GEOMETRY_FLUSH_BYTES)
+        , meta(File(dir, base, "envelope.meta"), { I32("schema_version"), Str("produced_by") })
+        , relTypes(File(dir, base, "envelope.rel_types"), { I32("rel"), Str("name"), Str("src_ns"), Str("dst_ns") })
+        , nodeKinds(File(dir, base, "envelope.node_kinds"), { I32("kind"), Str("name") })
+        , types(File(dir, base, "eav.types"), { I32("type_index"), Str("type_key") })
+        , typeEav(File(dir, base, "eav.type_eav"),
+                  { I32("type_index"), I32("path_index"), Str("value_string"), F64("value_double"),
+                    Bool("value_boolean"), Str("unit"), Str("internal_definition_name") })
+        , objectType(File(dir, base, "eav.object_type"), { I32("object_index"), I32("type_index") })
     {
-        duckdb_appender appender = nullptr;
-        if (duckdb_appender_create(con, nullptr, table, &appender) != DuckDBSuccess)
-            throw std::runtime_error(std::string("BundleWriter: failed to create appender for ") + table);
-        _appenders[table] = appender;
+    }
+
+    static std::string FileName(const std::string& base, const char* suffix)
+    {
+        return base + "." + suffix + ".parquet";
+    }
+
+    static std::string File(const std::filesystem::path& dir, const std::string& base, const char* suffix)
+    {
+        return Utf8Path::ToUtf8(dir / FileName(base, suffix));
+    }
+
+    // basename suffix -> table, for the ok()-check and Complete() file map.
+    std::vector<std::pair<const char*, minipq::Table*>> All()
+    {
+        return {
+            { "geometries", &geometries },
+            { "eav.objects", &objects },
+            { "eav.paths", &paths },
+            { "eav.eav", &eav },
+            { "eav.types", &types },
+            { "eav.type_eav", &typeEav },
+            { "eav.object_type", &objectType },
+            { "envelope.nodes", &nodes },
+            { "envelope.relations", &relations },
+            { "envelope.scene_views", &sceneViews },
+            { "envelope.meta", &meta },
+            { "envelope.rel_types", &relTypes },
+            { "envelope.node_kinds", &nodeKinds },
+        };
+    }
+};
+
+BundleWriter::BundleWriter(const std::string& outputDir, const std::string& baseName)
+    : _outputDir(outputDir), _baseName(baseName)
+{
+    const std::filesystem::path dir = Utf8Path::FromUtf8(outputDir);
+    std::filesystem::create_directories(dir);
+
+    _tables = std::make_unique<BundleTables>(dir, baseName);
+    for (const auto& t : _tables->All())
+    {
+        if (!t.second->ok())
+            throw std::runtime_error(
+                "BundleWriter: cannot create " + BundleTables::FileName(_baseName, t.first) + " in " + outputDir);
     }
 
     WriteVocabTables();
 }
 
-BundleWriter::~BundleWriter()
-{
-    for (auto& kv : _appenders)
-    {
-        auto appender = Appender(kv.second);
-        duckdb_appender_destroy(&appender);
-    }
-    _appenders.clear();
-    if (_con)
-    {
-        auto con = static_cast<duckdb_connection>(_con);
-        duckdb_disconnect(&con);
-        _con = nullptr;
-    }
-    if (_db)
-    {
-        auto db = static_cast<duckdb_database>(_db);
-        duckdb_close(&db);
-        _db = nullptr;
-    }
-}
-
-void BundleWriter::Execute(const std::string& sql)
-{
-    duckdb_result result;
-    if (duckdb_query(static_cast<duckdb_connection>(_con), sql.c_str(), &result) != DuckDBSuccess)
-    {
-        std::string error = duckdb_result_error(&result) ? duckdb_result_error(&result) : "unknown DuckDB error";
-        duckdb_destroy_result(&result);
-        throw std::runtime_error("BundleWriter SQL failed: " + error);
-    }
-    duckdb_destroy_result(&result);
-}
+BundleWriter::~BundleWriter() = default;
 
 void BundleWriter::WriteVocabTables()
 {
     // meta + rel/kind vocab, from the vendored generated spec (Libs/bundlespec).
-    Execute("INSERT INTO meta VALUES (" + std::to_string(bundlespec::kSchemaVersion) + ", 'Speckle Archicad BundleWriter')");
+    _tables->meta.putInt(0, bundlespec::kSchemaVersion);
+    _tables->meta.putStr(1, "Speckle Archicad BundleWriter");
+    _tables->meta.endRow();
+
     for (const auto& r : bundlespec::kRelTypes)
     {
-        Execute(
-            "INSERT INTO rel_types VALUES (" + std::to_string(r.id) + ", '" + EscapeSqlLiteral(r.name) + "', " +
-            (r.src_ns ? "'" + EscapeSqlLiteral(r.src_ns) + "'" : "NULL") + ", " +
-            (r.dst_ns ? "'" + EscapeSqlLiteral(r.dst_ns) + "'" : "NULL") + ")");
+        _tables->relTypes.putInt(0, r.id);
+        _tables->relTypes.putStr(1, r.name);
+        if (r.src_ns)
+            _tables->relTypes.putStr(2, r.src_ns);
+        else
+            _tables->relTypes.putStrNull(2);
+        if (r.dst_ns)
+            _tables->relTypes.putStr(3, r.dst_ns);
+        else
+            _tables->relTypes.putStrNull(3);
+        _tables->relTypes.endRow();
     }
     for (const auto& k : bundlespec::kNodeKinds)
     {
-        Execute("INSERT INTO node_kinds VALUES (" + std::to_string(k.id) + ", '" + EscapeSqlLiteral(k.name) + "')");
+        _tables->nodeKinds.putInt(0, k.id);
+        _tables->nodeKinds.putStr(1, k.name);
+        _tables->nodeKinds.endRow();
     }
 }
 
@@ -269,10 +309,9 @@ int BundleWriter::InternObject(const std::string& applicationId)
     const int k = static_cast<int>(_objectIndex.size());
     _objectIndex.emplace(applicationId, k);
 
-    auto appender = Appender(_appenders["objects"]);
-    duckdb_append_int32(appender, k);
-    duckdb_append_varchar(appender, applicationId.c_str());
-    duckdb_appender_end_row(appender);
+    _tables->objects.putInt(0, k);
+    _tables->objects.putStr(1, applicationId);
+    _tables->objects.endRow();
     return k;
 }
 
@@ -293,20 +332,20 @@ void BundleWriter::AddEavRow(
     {
         pathK = static_cast<int>(_pathIndex.size());
         _pathIndex.emplace(path, pathK);
-        auto pathsAppender = Appender(_appenders["paths"]);
-        duckdb_append_int32(pathsAppender, pathK);
-        duckdb_append_varchar(pathsAppender, path.c_str());
-        duckdb_appender_end_row(pathsAppender);
+        _tables->paths.putInt(0, pathK);
+        _tables->paths.putStr(1, path);
+        _tables->paths.endRow();
     }
 
     const std::string type = InferType(value);
     const std::string text = ToText(value);
 
-    auto appender = Appender(_appenders["eav"]);
-    duckdb_append_int32(appender, objectK);
-    duckdb_append_int32(appender, pathK);
-    duckdb_append_varchar(appender, text.c_str());
+    auto& eav = _tables->eav;
+    eav.putInt(0, objectK);
+    eav.putInt(1, pathK);
+    eav.putStr(2, text);
 
+    std::optional<double> valueDouble;
     if (type == "number")
     {
         double num = 0;
@@ -321,15 +360,11 @@ void BundleWriter::AddEavRow(
             ok = TryParseDouble(value.get<std::string>(), num);
         }
         if (ok)
-            duckdb_append_double(appender, num);
-        else
-            duckdb_append_null(appender);
+            valueDouble = num;
     }
-    else
-    {
-        duckdb_append_null(appender);
-    }
+    eav.putDouble(3, valueDouble);
 
+    std::optional<bool> valueBoolean;
     if (type == "boolean")
     {
         // Case-insensitive, matching the SDK's bool.TryParse semantics — Archicad
@@ -337,93 +372,18 @@ void BundleWriter::AddEavRow(
         std::string lower = text;
         for (auto& c : lower)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        duckdb_append_bool(appender, lower == "true");
+        valueBoolean = (lower == "true");
     }
-    else
-        duckdb_append_null(appender);
+    eav.putBool(4, valueBoolean);
 
-    if (units)
-        duckdb_append_varchar(appender, units->c_str());
-    else
-        duckdb_append_null(appender);
-
-    if (internalDefinitionName)
-        duckdb_append_varchar(appender, internalDefinitionName->c_str());
-    else
-        duckdb_append_null(appender);
-
-    duckdb_appender_end_row(appender);
-}
-
-void BundleWriter::WalkProperties(int objectK, const nlohmann::json& obj, const std::string& prefix, int depth)
-{
-    if (depth >= MAX_DEPTH || !obj.is_object())
-        return;
-
-    for (auto it = obj.begin(); it != obj.end(); ++it)
-    {
-        const std::string& key = it.key();
-        const nlohmann::json& val = it.value();
-        if (val.is_null())
-            continue;
-
-        const std::string path = prefix + "." + key;
-
-        if (val.is_object())
-        {
-            // Parameter pattern { name, value } -> a single row at this path.
-            if (val.contains("name") && val.contains("value"))
-            {
-                const nlohmann::json& paramVal = val["value"];
-                if (!IsScalar(paramVal))
-                    continue;
-                std::string unitsStorage, idnStorage;
-                const std::string* units = nullptr;
-                const std::string* idn = nullptr;
-                if (val.contains("units") && val["units"].is_string())
-                {
-                    unitsStorage = val["units"].get<std::string>();
-                    units = &unitsStorage;
-                }
-                if (val.contains("internalDefinitionName") && val["internalDefinitionName"].is_string())
-                {
-                    idnStorage = val["internalDefinitionName"].get<std::string>();
-                    idn = &idnStorage;
-                }
-                AddEavRow(objectK, path, paramVal, units, idn);
-                continue;
-            }
-            WalkProperties(objectK, val, path, depth + 1);
-            continue;
-        }
-
-        if (IsScalar(val))
-        {
-            AddEavRow(objectK, path, val, nullptr, nullptr);
-            continue;
-        }
-
-        if (val.is_array())
-        {
-            // Archicad — unlike Revit, which the SDK's array-skipping walk was shaped
-            // around — emits genuinely multi-valued properties as JSON arrays (native
-            // List / Multiple-Choice Enumeration collection types, and IFC List /
-            // Enumerated properties). The EAV model is one value per row, so we collapse
-            // the elements into a single comma-separated string to preserve them rather
-            // than drop the whole property. (IFC bounded ranges are split into lower/upper
-            // rows upstream, so they never reach here as an array.)
-            const std::string joined = JoinArrayScalars(val);
-            if (!joined.empty())
-                AddEavRow(objectK, path, nlohmann::json(joined), nullptr, nullptr);
-            continue;
-        }
-        // remaining non-scalars (nested arrays, objects without name/value) are skipped
-    }
+    PutStrOpt(eav, 5, units);
+    PutStrOpt(eav, 6, internalDefinitionName);
+    eav.endRow();
 }
 
 void BundleWriter::AddProperties(
     const std::string& applicationId,
-    const nlohmann::json& properties,
+    const EavLeaves& properties,
     const std::vector<std::pair<std::string, nlohmann::json>>& rootScalars)
 {
     const int objectK = InternObject(applicationId);
@@ -434,8 +394,30 @@ void BundleWriter::AddProperties(
             AddEavRow(objectK, kv.first, kv.second, nullptr, nullptr);
     }
 
-    if (properties.is_object() && !properties.empty())
-        WalkProperties(objectK, properties, "properties", 0);
+    for (const EavLeaf& leaf : properties)
+    {
+        const std::string* units = leaf.units ? &*leaf.units : nullptr;
+        const std::string* idn = leaf.internalDefinitionName ? &*leaf.internalDefinitionName : nullptr;
+
+        if (leaf.value.is_array())
+        {
+            // Archicad — unlike Revit, which the SDK's array-skipping walk was shaped
+            // around — emits genuinely multi-valued properties as JSON arrays (native
+            // List / Multiple-Choice Enumeration collection types, and IFC List /
+            // Enumerated properties). The EAV model is one value per row, so we collapse
+            // the elements into a single comma-separated string to preserve them rather
+            // than drop the whole property. (IFC bounded ranges are split into lower/upper
+            // rows upstream, so they never reach here as an array.)
+            const std::string joined = JoinArrayScalars(leaf.value);
+            if (!joined.empty())
+                AddEavRow(objectK, leaf.path, nlohmann::json(joined), units, idn);
+            continue;
+        }
+
+        if (IsScalar(leaf.value))
+            AddEavRow(objectK, leaf.path, leaf.value, units, idn);
+        // non-scalars never reach here (the converter-side flatten filters them)
+    }
 }
 
 int BundleWriter::AddGeometrySgeo(
@@ -453,12 +435,12 @@ int BundleWriter::AddGeometrySgeo(
     // id = SHA256 hex of the content (read-time shape dedup), matching GeometriesParquetWriter.
     const std::string id = picosha2::hash256_hex_string(sgeoBlob.begin(), sgeoBlob.end());
 
-    auto appender = Appender(_appenders["geometries"]);
-    duckdb_append_int32(appender, k);
-    duckdb_append_blob(appender, sgeoBlob.data(), static_cast<idx_t>(sgeoBlob.size()));
-    duckdb_append_varchar(appender, id.c_str());
-    duckdb_append_varchar(appender, typeName.c_str());
-    duckdb_appender_end_row(appender);
+    auto& geometries = _tables->geometries;
+    geometries.putInt(0, k);
+    geometries.putBinary(1, sgeoBlob.data(), static_cast<std::int64_t>(sgeoBlob.size()));
+    geometries.putStr(2, id);
+    geometries.putStr(3, typeName);
+    geometries.endRow();
     return k;
 }
 
@@ -479,7 +461,7 @@ int BundleWriter::InternNode(const std::string& key, bool& isNew)
 // Appends one row to nodes with only the kind-relevant columns set.
 // Column order: id, kind, name, def_ref, transform, units, subtype, argb, opacity, metalness, roughness, elevation
 static void AppendNodeRow(
-    duckdb_appender appender,
+    minipq::Table& nodes,
     int id,
     int kind,
     const std::string* name,
@@ -493,19 +475,19 @@ static void AppendNodeRow(
     const double* roughness,
     const double* elevation)
 {
-    duckdb_append_int32(appender, id);
-    duckdb_append_int32(appender, kind);
-    if (name) duckdb_append_varchar(appender, name->c_str()); else duckdb_append_null(appender);
-    if (defRef) duckdb_append_int32(appender, *defRef); else duckdb_append_null(appender);
-    if (transform) duckdb_append_varchar(appender, transform->c_str()); else duckdb_append_null(appender);
-    if (units) duckdb_append_varchar(appender, units->c_str()); else duckdb_append_null(appender);
-    if (subtype) duckdb_append_varchar(appender, subtype->c_str()); else duckdb_append_null(appender);
-    if (argb) duckdb_append_int32(appender, *argb); else duckdb_append_null(appender);
-    if (opacity) duckdb_append_double(appender, *opacity); else duckdb_append_null(appender);
-    if (metalness) duckdb_append_double(appender, *metalness); else duckdb_append_null(appender);
-    if (roughness) duckdb_append_double(appender, *roughness); else duckdb_append_null(appender);
-    if (elevation) duckdb_append_double(appender, *elevation); else duckdb_append_null(appender);
-    duckdb_appender_end_row(appender);
+    nodes.putInt(0, id);
+    nodes.putInt(1, kind);
+    PutStrOpt(nodes, 2, name);
+    PutIntOpt(nodes, 3, defRef);
+    PutStrOpt(nodes, 4, transform);
+    PutStrOpt(nodes, 5, units);
+    PutStrOpt(nodes, 6, subtype);
+    PutIntOpt(nodes, 7, argb);
+    nodes.putDouble(8, Opt(opacity));
+    nodes.putDouble(9, Opt(metalness));
+    nodes.putDouble(10, Opt(roughness));
+    nodes.putDouble(11, Opt(elevation));
+    nodes.endRow();
 }
 
 int BundleWriter::AddMaterial(const std::string& materialKey, int argb, double opacity, double metalness, double roughness)
@@ -515,7 +497,7 @@ int BundleWriter::AddMaterial(const std::string& materialKey, int argb, double o
     if (isNew)
     {
         AppendNodeRow(
-            Appender(_appenders["nodes"]), k, static_cast<int>(bundlespec::NodeKind::MATERIAL),
+            _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::MATERIAL),
             nullptr, nullptr, nullptr, nullptr, nullptr, &argb, &opacity, &metalness, &roughness, nullptr);
     }
     return k;
@@ -528,7 +510,7 @@ int BundleWriter::AddLevel(const std::string& levelKey, const std::string& name,
     if (isNew)
     {
         AppendNodeRow(
-            Appender(_appenders["nodes"]), k, static_cast<int>(bundlespec::NodeKind::LEVEL),
+            _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::LEVEL),
             &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &elevation);
     }
     return k;
@@ -541,7 +523,7 @@ int BundleWriter::AddCollection(const std::string& collectionKey, const std::str
     if (isNew)
     {
         AppendNodeRow(
-            Appender(_appenders["nodes"]), k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
+            _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
             &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
@@ -554,7 +536,7 @@ int BundleWriter::AddContainer(const std::string& containerKey, const std::strin
     if (isNew)
     {
         AppendNodeRow(
-            Appender(_appenders["nodes"]), k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
+            _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
             &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
@@ -567,7 +549,7 @@ int BundleWriter::AddDefinition(const std::string& definitionKey, const std::str
     if (isNew)
     {
         AppendNodeRow(
-            Appender(_appenders["nodes"]), k, static_cast<int>(bundlespec::NodeKind::DEFINITION),
+            _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::DEFINITION),
             &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
@@ -581,7 +563,7 @@ int BundleWriter::AddInstance(const std::string& placementKey, int defK, const s
     {
         const std::string tf = FormatTransform(transform);
         AppendNodeRow(
-            Appender(_appenders["nodes"]), k, static_cast<int>(bundlespec::NodeKind::INSTANCE),
+            _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::INSTANCE),
             nullptr, &defK, &tf, &units, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
@@ -589,12 +571,12 @@ int BundleWriter::AddInstance(const std::string& placementKey, int defK, const s
 
 void BundleWriter::AddRelation(bundlespec::Rel rel, int src, int dst, int ord)
 {
-    auto appender = Appender(_appenders["relations"]);
-    duckdb_append_int32(appender, static_cast<int>(rel));
-    duckdb_append_int32(appender, src);
-    duckdb_append_int32(appender, dst);
-    duckdb_append_int32(appender, ord);
-    duckdb_appender_end_row(appender);
+    auto& relations = _tables->relations;
+    relations.putInt(0, static_cast<int>(rel));
+    relations.putInt(1, src);
+    relations.putInt(2, dst);
+    relations.putInt(3, ord);
+    relations.endRow();
 }
 
 void BundleWriter::Display(int objectK, int geometryK, int ord) { AddRelation(bundlespec::Rel::DISPLAY, objectK, geometryK, ord); }
@@ -609,64 +591,47 @@ void BundleWriter::InModel(int objectK, int modelK, int ord) { AddRelation(bundl
 
 void BundleWriter::AddSceneView(int view, const std::string& name, bool isDefault, const std::vector<SceneViewTier>& tiers)
 {
-    auto appender = Appender(_appenders["scene_views"]);
+    auto& sceneViews = _tables->sceneViews;
     for (size_t ord = 0; ord < tiers.size(); ord++)
     {
-        duckdb_append_int32(appender, view);
-        duckdb_append_varchar(appender, name.c_str());
-        duckdb_append_bool(appender, isDefault);
-        duckdb_append_int32(appender, static_cast<int>(ord));
-        duckdb_append_varchar(appender, tiers[ord].source.c_str());
-        duckdb_append_varchar(appender, tiers[ord].ref.c_str());
-        duckdb_appender_end_row(appender);
+        sceneViews.putInt(0, view);
+        sceneViews.putStr(1, name);
+        sceneViews.putBool(2, isDefault);
+        sceneViews.putInt(3, static_cast<int>(ord));
+        sceneViews.putStr(4, tiers[ord].source);
+        sceneViews.putStr(5, tiers[ord].ref);
+        sceneViews.endRow();
     }
 }
 
-std::map<std::string, std::string> BundleWriter::Complete()
+int BundleWriter::TableCount()
+{
+    return 13; // the fixed bundle table set (BundleTables::All)
+}
+
+std::map<std::string, std::string> BundleWriter::Complete(
+    const std::function<void(int done, int total)>& progress)
 {
     if (_completed)
         throw std::runtime_error("BundleWriter::Complete called twice");
     _completed = true;
 
-    for (auto& kv : _appenders)
-    {
-        auto appender = Appender(kv.second);
-        duckdb_appender_close(appender);
-        duckdb_appender_destroy(&appender);
-    }
-    _appenders.clear();
-
-    // table -> artefact file suffix ({base}.<suffix>.parquet)
-    const std::vector<std::pair<std::string, std::string>> tables = {
-        { "geometries", "geometries" },
-        { "objects", "eav.objects" },
-        { "paths", "eav.paths" },
-        { "eav", "eav.eav" },
-        { "types", "eav.types" },
-        { "type_eav", "eav.type_eav" },
-        { "object_type", "eav.object_type" },
-        { "nodes", "envelope.nodes" },
-        { "relations", "envelope.relations" },
-        { "scene_views", "envelope.scene_views" },
-        { "meta", "envelope.meta" },
-        { "rel_types", "envelope.rel_types" },
-        { "node_kinds", "envelope.node_kinds" },
-    };
-
+    const std::filesystem::path dir = Utf8Path::FromUtf8(_outputDir);
     std::map<std::string, std::string> files;
-    for (const auto& t : tables)
+    const auto all = _tables->All();
+    int done = 0;
+    for (const auto& t : all)
     {
-        const std::string fileName = _baseName + "." + t.second + ".parquet";
-        std::filesystem::path fullPath = std::filesystem::path(_outputDir) / fileName;
-        const std::string pathUtf8 = fullPath.string();
-        // DICTIONARY_SIZE_LIMIT 0 disables dictionary encoding: the viewer's
-        // duckdb-wasm build returned NULLs for our dictionary-encoded VARCHAR
-        // columns (eav value_string), while the ecosystem-proven producers
-        // (Parquet.Net, Arrow) emit PLAIN strings that read fine everywhere.
-        Execute(
-            "COPY " + t.first + " TO '" + EscapeSqlLiteral(pathUtf8) +
-            "' (FORMAT PARQUET, COMPRESSION ZSTD, DICTIONARY_SIZE_LIMIT 0)");
-        files[fileName] = pathUtf8;
+        t.second->complete();
+        const std::string fileName = BundleTables::FileName(_baseName, t.first);
+        // complete() runs the post-close size gate (on-disk bytes must equal the
+        // writer's accounting) on top of any earlier write/compress failure.
+        if (!t.second->ok())
+            throw std::runtime_error("BundleWriter: failed to write " + fileName);
+        files[fileName] = BundleTables::File(dir, _baseName, t.first);
+        ++done;
+        if (progress)
+            progress(done, static_cast<int>(all.size()));
     }
     return files;
 }

@@ -1,8 +1,15 @@
 #include "ArtifactUploader.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <filesystem>
 #include <stdexcept>
 
 #include "json.hpp"
+
+#include "IProcessWindow.h"
+#include "UserCancelledException.h"
+#include "Utf8Path.h"
 
 using nlohmann::json;
 
@@ -89,9 +96,24 @@ std::string ArtifactUploader::UploadFiles(
     const std::string& versionId,
     const std::map<std::string, std::string>& files,
     const std::string& rootId,
-    int totalChildrenCount)
+    int totalChildrenCount,
+    IProcessWindow* processWindow)
 {
     const std::string base = _serverUrl + "/api/v2/projects/" + _projectId + "/modelingestion/" + ingestionId;
+
+    // Total upload size drives the "Uploading" progress bar. KiB units keep the
+    // per-phase max inside Int32 (2^31 KiB = 2 TiB) with ~1MB-chunk resolution.
+    std::int64_t totalBytes = 0;
+    for (const auto& kv : files)
+    {
+        std::error_code ec;
+        const auto size = std::filesystem::file_size(Utf8Path::FromUtf8(kv.second), ec);
+        if (!ec)
+            totalBytes += static_cast<std::int64_t>(size);
+    }
+    if (processWindow)
+        processWindow->SetNextProcessPhase(
+            "Uploading", static_cast<int>(std::max<std::int64_t>(1, totalBytes / 1024)));
 
     // 1. sign: the server presigns one PUT per artefact basename under versions/{versionId}/
     json signRequest;
@@ -109,6 +131,7 @@ std::string ArtifactUploader::UploadFiles(
 
     // 2. presigned PUT per file, collecting ETags
     json etags = json::object();
+    std::int64_t uploadedBytes = 0; // completed files
     for (const auto& kv : files)
     {
         if (!signed_["uploads"].contains(kv.first))
@@ -124,9 +147,27 @@ std::string ArtifactUploader::UploadFiles(
                 extraHeaders[it.key()] = it.value().get<std::string>();
         }
 
-        HttpResponse putResponse = _http->PutFile(url, kv.second, extraHeaders);
+        // Continuous progress + cancellation from inside the streamed PUT
+        // (called after every ~1MB chunk).
+        UploadProgress progress;
+        if (processWindow)
+        {
+            progress = [&](std::int64_t fileBytesSent)
+            {
+                processWindow->SetProcessValue(static_cast<int>((uploadedBytes + fileBytesSent) / 1024));
+                if (processWindow->IsProcessCanceled())
+                    throw UserCancelledException("The user cancelled the send operation");
+            };
+        }
+
+        HttpResponse putResponse = _http->PutFile(url, kv.second, extraHeaders, progress);
         if (!putResponse.IsSuccess())
             throw std::runtime_error("Presigned PUT of '" + kv.first + "' failed with HTTP " + std::to_string(putResponse.statusCode));
+
+        std::error_code ec;
+        const auto size = std::filesystem::file_size(Utf8Path::FromUtf8(kv.second), ec);
+        if (!ec)
+            uploadedBytes += static_cast<std::int64_t>(size);
 
         auto etagIt = putResponse.headers.find("etag");
         if (etagIt == putResponse.headers.end())
@@ -135,6 +176,9 @@ std::string ArtifactUploader::UploadFiles(
     }
 
     // 3. complete: verifies the etags and creates the version (commit PK = the pre-allocated versionId)
+    if (processWindow)
+        processWindow->SetNextProcessPhase("Creating version", 1);
+
     json completeRequest;
     completeRequest["etags"] = etags;
     completeRequest["rootId"] = rootId;
