@@ -61,10 +61,10 @@ This is the core communication mechanism and mirrors Speckle's DUI3 binding mode
 `SendBridge::Send` → `RootObjectBuilder` walks selected element IDs and builds a Speckle root object via `HostToSpeckleConverter`, `BaseObjectSerializer` serializes and batches it (batches of 10), and each batch is pushed to the JS UI (`SendBatchViaBrowser`) which performs the actual upload to the Speckle server. The C++ side never talks to the server directly — the embedded frontend does. Layer visibility that the send temporarily changed is restored afterward.
 
 ### Receive flow (Speckle → Archicad)
-`ReceiveBridge` + `HostObjectBuilder` / `RootObjectUnpacker` convert incoming Speckle objects into Archicad geometry using `SpeckleToHostConverter` (see `Converter/SpeckleToHost/`, e.g. `CreateMorph`, `LibpartPlacer`, `CreateMaterial`).
+`ReceiveBridge` + `ArtifactReceiver` (`Artifacts/`) download the version's parquet bundle, read it with the in-tree minipq reader, decode the SGEO meshes, write one GDL `<Symbol>` XML per object and convert them to `.gsm` via `LP_XMLConverter`; `LibpartPlacer` (`Converter/SpeckleToHost/`) then registers and places the produced library parts.
 
 ### Converters
-`Converter/HostToSpeckle/` and `Converter/SpeckleToHost/` hold one file per conversion concern (e.g. `GetElementBody.cpp`, `GetElementProperties.cpp`, `GetLayers.cpp`, `CreateMorph.cpp`). The `IHostToSpeckleConverter` / `ISpeckleToHostConverter` interfaces are the seam. This is the place for element-type and property mapping work.
+`Converter/HostToSpeckle/` and `Converter/SpeckleToHost/` hold one file per conversion concern (e.g. `GetElementBody.cpp`, `GetElementProperties.cpp`, `GetLayers.cpp`, `LibpartPlacer.cpp`). The `IHostToSpeckleConverter` / `ISpeckleToHostConverter` interfaces are the seam. This is the place for element-type and property mapping work.
 
 ### Data model
 `DataTypes/` holds plain structs with `nlohmann::json` (de)serialization: model cards (`SenderModelCard`/`ReceiverModelCard`), send filters (`ArchicadSelectionFilter`, `ArchicadElementTypeFilter`, `ArchicadLayerFilter`, `ArchicadViewsFilter`), Speckle proxies (`ColorProxy`, `RenderMaterialProxy`, `InstanceProxy`, `LevelProxy`), geometry (`Mesh`, `ElementBody`), and conversion results. Filters returned by `GetSendFilters` control what gets sent.
