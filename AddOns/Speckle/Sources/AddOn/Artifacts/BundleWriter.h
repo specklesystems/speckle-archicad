@@ -65,7 +65,7 @@ public:
         const std::string& typeName = "mesh");
 
     // ── node namespace (value entities) ───────────────────────────────
-    int AddMaterial(const std::string& materialKey, int argb, double opacity, double metalness, double roughness);
+    int AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness);
     int AddLevel(const std::string& levelKey, const std::string& name, double elevation);
     int AddCollection(const std::string& collectionKey, const std::string& name, const int* parentK, const std::string& subtype);
     int AddContainer(const std::string& containerKey, const std::string& name, const int* parentK, const std::string& subtype);

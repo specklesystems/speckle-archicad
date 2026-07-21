@@ -31,7 +31,7 @@ namespace
         Material material = CONNECTOR.GetHostToSpeckleConverter().GetModelMaterial(materialIndex);
         const int argb = static_cast<int>(material.diffuse);
         const int k = writer.AddMaterial(
-            std::to_string(materialIndex), argb, material.opacity, material.metalness, material.roughness);
+            std::to_string(materialIndex), material.name, argb, material.opacity, material.metalness, material.roughness);
         cache.emplace(materialIndex, k);
         return k;
     }
