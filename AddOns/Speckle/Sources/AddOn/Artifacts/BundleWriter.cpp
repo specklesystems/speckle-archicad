@@ -490,7 +490,7 @@ static void AppendNodeRow(
     nodes.endRow();
 }
 
-int BundleWriter::AddMaterial(const std::string& materialKey, int argb, double opacity, double metalness, double roughness)
+int BundleWriter::AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness)
 {
     bool isNew;
     const int k = InternNode("mat:" + materialKey, isNew);
@@ -498,7 +498,7 @@ int BundleWriter::AddMaterial(const std::string& materialKey, int argb, double o
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::MATERIAL),
-            nullptr, nullptr, nullptr, nullptr, nullptr, &argb, &opacity, &metalness, &roughness, nullptr);
+            name.empty() ? nullptr : &name, nullptr, nullptr, nullptr, nullptr, &argb, &opacity, &metalness, &roughness, nullptr);
     }
     return k;
 }
