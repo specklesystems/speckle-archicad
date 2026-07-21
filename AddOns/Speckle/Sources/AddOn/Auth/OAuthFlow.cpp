@@ -1,14 +1,11 @@
 #include "OAuthFlow.h"
 #include "CryptoUtils.h"
 #include "LoopbackListener.h"
+#include "UrlLauncher.h"
 
 #include <stdexcept>
-#include <windows.h>
-#include <shellapi.h>
 
 #include "json.hpp"
-
-#pragma comment(lib, "shell32.lib")
 
 namespace
 {
@@ -23,19 +20,6 @@ namespace
         while (end > 0 && url[end - 1] == '/')
             --end;
         return url.substr(0, end);
-    }
-
-    void OpenInBrowser(const std::string& url)
-    {
-        int wideLen = MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, nullptr, 0);
-        std::wstring wideUrl(wideLen > 0 ? wideLen - 1 : 0, L'\0');
-        if (wideLen > 0)
-            MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, &wideUrl[0], wideLen);
-
-        HINSTANCE result = ShellExecuteW(nullptr, L"open", wideUrl.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-        // ShellExecute returns a value <= 32 on failure.
-        if (reinterpret_cast<INT_PTR>(result) <= 32)
-            throw std::runtime_error("Failed to open the system browser for sign-in.");
     }
 }
 
@@ -85,7 +69,7 @@ OAuthTokens OAuthFlow::Authenticate(
     LoopbackListener listener(kRedirectPort);
 
     // 4. Hand off to the system browser and wait for the redirect.
-    OpenInBrowser(authUrl);
+    UrlLauncher::Open(authUrl);
     const std::string accessCode = listener.WaitForAccessCode(timeoutSeconds, isCanceled);
 
     // 5. Exchange the access code for tokens.

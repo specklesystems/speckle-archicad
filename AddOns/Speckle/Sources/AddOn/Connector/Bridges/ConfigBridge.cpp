@@ -4,6 +4,7 @@
 #include "Connector.h"
 #include "ConnectorConfig.h"
 #include "AccountsConfig.h"
+#include "UrlLauncher.h"
 #include "WorkspacesConfig.h"
 
 
@@ -115,8 +116,7 @@ void ConfigBridge::OpenUrl(const RunMethodEventArgs& args)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
     std::string url = args.data[0].get<std::string>();
-    std::string command = "start " + url;
-    system(command.c_str());
+    UrlLauncher::Open(url);
 }
 
 void ConfigBridge::GetUserSelectedAccountId(const RunMethodEventArgs& args)
