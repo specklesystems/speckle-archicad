@@ -2,6 +2,7 @@
 #include "Connector.h"
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
+#include "UrlLauncher.h"
 
 
 BaseBridge::BaseBridge(IBrowserAdapter* browser)
@@ -166,11 +167,10 @@ void BaseBridge::OpenUrl(const RunMethodEventArgs& args)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 
     std::string url = args.data[0].get<std::string>();
-    std::string command = "start " + url;
-    system(command.c_str());
+    UrlLauncher::Open(url);
 }
 
-void BaseBridge::RemoveModel(const RunMethodEventArgs& args) 
+void BaseBridge::RemoveModel(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);

@@ -189,6 +189,10 @@ set (DiagnosticsFolder Sources/AddOn/Diagnostics)
 file (GLOB DiagnosticsFiles ${DiagnosticsFolder}/*.h ${DiagnosticsFolder}/*.cpp)
 source_group ("Diagnostics" FILES ${DiagnosticsFiles})
 
+set (AuthFolder Sources/AddOn/Auth)
+file (GLOB AuthFiles ${AuthFolder}/*.h ${AuthFolder}/*.cpp)
+source_group ("Auth" FILES ${AuthFiles})
+
 if (WIN32)
 	add_library (${SPECKLE_ADDON_LIB} SHARED
 		${AddOnFiles}
@@ -203,7 +207,8 @@ if (WIN32)
 		${UtilsFiles}
 		${ArtifactsFiles}
 		${NetworkFiles}
-		${DiagnosticsFiles})
+		${DiagnosticsFiles}
+		${AuthFiles})
 else ()
 	add_library (${SPECKLE_ADDON_LIB} MODULE
 		${AddOnFiles}
@@ -218,7 +223,8 @@ else ()
 		${UtilsFiles}
 		${ArtifactsFiles}
 		${NetworkFiles}
-		${DiagnosticsFiles})
+		${DiagnosticsFiles}
+		${AuthFiles})
 endif ()
 
 set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES OUTPUT_NAME ${SPECKLE_ADDON_NAME})
@@ -249,6 +255,7 @@ target_include_directories (${SPECKLE_ADDON_LIB} PUBLIC
 		${ArtifactsFolder}
 		${NetworkFolder}
 		${DiagnosticsFolder}
+		${AuthFolder}
 		${AC_API_DEVKIT_DIR}/Support/Inc
 		${LIB_INCLUDE_DIRS}
 )
