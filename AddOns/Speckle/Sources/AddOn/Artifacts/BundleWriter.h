@@ -88,6 +88,24 @@ public:
     void InCollection(int objectK, int collectionK, int ord);
     void InModel(int objectK, int modelK, int ord);
 
+    // Authored group membership -> CONTAINER(subtype "Group"). A SEPARATE axis from
+    // InCollection (the layer scene-tree, single-valued on receive): an object keeps its
+    // layer AND its group(s).
+    void InGroup(int objectK, int groupK, int ord);
+
+    // Spatial occupancy: element -> the ZONE object containing it. Zones ship as objects
+    // (their geometry is the zone volume), so roomK is an object K, not a node.
+    void InRoom(int objectK, int roomK, int ord);
+
+    // A room-bounding element -> the ZONE object it bounds (the zone footprint).
+    void Bounds(int boundingObjectK, int roomObjectK, int ord);
+
+    // Object -> object connectivity, DIRECTED src->dst. `scope` tags which connectivity
+    // graph the edge belongs to — CONNECTS_TO uses ord as a SCOPE, not an ordinal
+    // (rel_types.ord_semantics = 'scope'). For zone adjacency the scope is the connecting
+    // opening's object K; 0 means unscoped.
+    void ConnectsTo(int sourceObjectK, int targetObjectK, int scope);
+
     // ── scene views ───────────────────────────────────────────────────
     void AddSceneView(int view, const std::string& name, bool isDefault, const std::vector<SceneViewTier>& tiers);
 

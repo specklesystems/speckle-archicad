@@ -21,7 +21,9 @@ enum class Rel : int {
   IN_MODEL = 11,
   IN_ROOM = 12,
   IN_SYSTEM = 14,
+  IN_GROUP = 17,
   CONNECTS_TO = 21,
+  HOSTED_ON = 22,
   BOUNDS = 23,
 };
 
@@ -53,7 +55,9 @@ static const RelTypeRow kRelTypes[] = {
   {11, "IN_MODEL", "object", "node", "live"},
   {12, "IN_ROOM", "object", "object", "live"},
   {14, "IN_SYSTEM", "object", "node", "live"},
+  {17, "IN_GROUP", "object", "node", "live"},
   {21, "CONNECTS_TO", "object", "object", "live"},
+  {22, "HOSTED_ON", "object", "object", "live"},
   {23, "BOUNDS", "object", "object", "live"},
 };
 static const NodeKindRow kNodeKinds[] = {
@@ -62,7 +66,7 @@ static const NodeKindRow kNodeKinds[] = {
   {3, "MATERIAL", nullptr},
   {4, "COLOR", nullptr},
   {5, "LEVEL", nullptr},
-  {7, "CONTAINER", "Collection,Model,MEP System,Network"},
+  {7, "CONTAINER", "Collection,Model,MEP System,Network,Group"},
 };
 
 }  // namespace bundlespec
