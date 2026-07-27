@@ -35,6 +35,7 @@ public:
 	WorkingUnits GetWorkingUnits() override;
 	ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult, bool includeProperties) override;
 	std::vector<ArchicadObject> GetElementChildren(const std::string& elemId, bool includeProperties) override;
+	std::vector<std::string> FilterOutHierarchicalChildren(const std::vector<std::string>& elementIds) override;
 	std::string GetResourceString(short resourceId) override;
 	std::vector<NavigatorView> GetNavigatorViews() override;
 	std::vector<LayerData> GetLayers() override;

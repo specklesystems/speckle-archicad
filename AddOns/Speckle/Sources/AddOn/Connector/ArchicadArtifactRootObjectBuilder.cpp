@@ -234,10 +234,21 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         //    names, ...) cached across elements for the duration of the loop.
         session.BeginPhase("CollectAndWrite");
         ConverterUtils::SendCacheScope sendCacheScope;
-        processWindow.SetNextProcessPhase("Converting elements", static_cast<int>(elementIds.size()));
+
+        // Drop sub-elements whose hierarchical parent is also selected — they are emitted as
+        // that parent's SUBELEMENT children, so sending them again at top level would
+        // duplicate their geometry and properties. A single element-type filter returns both
+        // tiers ("CurtainWall" -> the wall AND its frames/panels/...), which is exactly when
+        // this bites.
+        const std::vector<std::string> topLevelIds =
+            CONNECTOR.GetHostToSpeckleConverter().FilterOutHierarchicalChildren(elementIds);
+        const size_t foldedIntoParents = elementIds.size() - topLevelIds.size();
+        session.SetStat("foldedIntoParents", static_cast<long long>(foldedIntoParents));
+
+        processWindow.SetNextProcessPhase("Converting elements", static_cast<int>(topLevelIds.size()));
         EmitContext ctx;
         int elemCount = 0;
-        for (const auto& elemId : elementIds)
+        for (const auto& elemId : topLevelIds)
         {
             elemCount++;
             processWindow.SetProcessValue(elemCount);

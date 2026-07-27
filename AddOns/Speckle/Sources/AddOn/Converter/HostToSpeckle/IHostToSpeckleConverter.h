@@ -50,6 +50,9 @@ public:
 	virtual WorkingUnits GetWorkingUnits() = 0;
 	virtual ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult, bool includeProperties) = 0;
 	virtual std::vector<ArchicadObject> GetElementChildren(const std::string& elemId, bool includeProperties) = 0;
+	// Drops elements whose hierarchical parent is also in the list — they ship as
+	// SUBELEMENT children of that parent instead of duplicating at top level.
+	virtual std::vector<std::string> FilterOutHierarchicalChildren(const std::vector<std::string>& elementIds) = 0;
 	virtual std::string GetResourceString(short resourceId) = 0;
 	virtual std::vector<NavigatorView> GetNavigatorViews() = 0;
 	virtual std::vector<LayerData> GetLayers() = 0;
