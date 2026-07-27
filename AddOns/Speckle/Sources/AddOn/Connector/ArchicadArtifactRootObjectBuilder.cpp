@@ -21,6 +21,24 @@
 
 namespace
 {
+    // Mutable state threaded through the emit walk.
+    //
+    // Beyond the interning caches it collects the object->object edges that CANNOT be
+    // written during the walk: an edge may only be emitted once both endpoints are known
+    // to be sent objects, and the far endpoint may not have been reached yet (or may not
+    // be in the selection at all). Interning an unsent guid would mint a phantom object
+    // row with no properties and no geometry, so these are resolved in a second pass
+    // against objectKByAppId. Mirrors the Revit builder's objectKsByElementUniqueId.
+    struct EmitContext
+    {
+        std::unordered_map<int, int> materialCache;          // Modeler material index -> MATERIAL node K
+        std::unordered_set<std::string> seenDefinitions;     // definitionId whose geometry is written
+        std::unordered_map<std::string, int> objectKByAppId; // every emitted object, by applicationId
+
+        // (hosted element guid, host element guid) — door/window -> wall, skylight -> roof/shell.
+        std::vector<std::pair<std::string, std::string>> hostedPairs;
+    };
+
     // Resolves (and caches) the MATERIAL node for a Modeler material index.
     int GetOrAddMaterialNode(BundleWriter& writer, std::unordered_map<int, int>& cache, int materialIndex)
     {
@@ -39,19 +57,14 @@ namespace
     // Emits the display geometry for an object as an INSTANCE of a shared DEFINITION.
     // The definition (its local-space geometry + material edges) is written once per
     // definitionId; every placement adds only its own INSTANCE node + DISPLAY_INSTANCE edge.
-    void EmitInstance(
-        BundleWriter& writer,
-        std::unordered_map<int, int>& materialCache,
-        std::unordered_set<std::string>& seenDefinitions,
-        int objK,
-        const ArchicadObject& obj)
+    void EmitInstance(BundleWriter& writer, EmitContext& ctx, int objK, const ArchicadObject& obj)
     {
         const std::string& definitionId = obj.instance.definitionId;
         const int defK = writer.AddDefinition(definitionId, obj.name.empty() ? definitionId : obj.name);
 
         // Definition geometry is emitted exactly once. Geometry ids are deterministic per
         // definition ("def:{id}:{i}") so AddGeometrySgeo interns them stably across placements.
-        if (seenDefinitions.insert(definitionId).second)
+        if (ctx.seenDefinitions.insert(definitionId).second)
         {
             int ord = 0;
             for (const auto& mesh : obj.instance.localBody.meshes)
@@ -61,7 +74,7 @@ namespace
                 const int geometryK = writer.AddGeometrySgeo(geometryAppId, sgeo);
                 writer.Defines(defK, geometryK, ord);
 
-                const int materialK = GetOrAddMaterialNode(writer, materialCache, mesh.materialIndex);
+                const int materialK = GetOrAddMaterialNode(writer, ctx.materialCache, mesh.materialIndex);
                 writer.HasMaterial(geometryK, materialK);
                 ord++;
             }
@@ -74,14 +87,15 @@ namespace
 
     // Emits one ArchicadObject (and recursively its children) into the bundle.
     // Returns the object's dense K.
-    int EmitObject(
-        BundleWriter& writer,
-        std::unordered_map<int, int>& materialCache,
-        std::unordered_set<std::string>& seenDefinitions,
-        const ArchicadObject& obj,
-        bool isTopLevel)
+    int EmitObject(BundleWriter& writer, EmitContext& ctx, const ArchicadObject& obj, bool isTopLevel)
     {
         const int objK = writer.InternObject(obj.applicationId);
+        ctx.objectKByAppId[obj.applicationId] = objK;
+
+        // Deferred to the second pass — the host may be emitted later in the loop, or not
+        // be in the selection at all.
+        if (!obj.hostElementId.empty())
+            ctx.hostedPairs.emplace_back(obj.applicationId, obj.hostElementId);
 
         // Root scalars mirror the eav root-scalar fields the SDK indexes
         // (speckle_type/name/type/level/units — same set Revit emits, minus category/family).
@@ -116,7 +130,7 @@ namespace
         if (obj.instance.valid)
         {
             // Instanced GDL/library-part object: shared DEFINITION + per-placement INSTANCE.
-            EmitInstance(writer, materialCache, seenDefinitions, objK, obj);
+            EmitInstance(writer, ctx, objK, obj);
         }
         else
         {
@@ -130,7 +144,7 @@ namespace
                 const int geometryK = writer.AddGeometrySgeo(geometryAppId, sgeo);
                 writer.Display(objK, geometryK, ord);
 
-                const int materialK = GetOrAddMaterialNode(writer, materialCache, mesh.materialIndex);
+                const int materialK = GetOrAddMaterialNode(writer, ctx.materialCache, mesh.materialIndex);
                 writer.HasMaterial(geometryK, materialK);
                 ord++;
             }
@@ -140,11 +154,28 @@ namespace
         int subOrd = 0;
         for (const auto& child : obj.elements)
         {
-            const int childK = EmitObject(writer, materialCache, seenDefinitions, child, false);
+            const int childK = EmitObject(writer, ctx, child, false);
             writer.Subelement(objK, childK, subOrd++);
         }
 
         return objK;
+    }
+
+    // Second pass: object->object edges whose far endpoint could only be resolved once the
+    // whole selection had been emitted. Every edge is guarded on BOTH endpoints being sent
+    // objects — an opening whose wall is not in the selection simply gets no edge, rather
+    // than a dangling reference into an object that carries no data.
+    void EmitDeferredTopology(BundleWriter& writer, const EmitContext& ctx)
+    {
+        for (const auto& [hostedAppId, hostAppId] : ctx.hostedPairs)
+        {
+            const auto hosted = ctx.objectKByAppId.find(hostedAppId);
+            const auto host = ctx.objectKByAppId.find(hostAppId);
+            if (hosted == ctx.objectKByAppId.end() || host == ctx.objectKByAppId.end())
+                continue;
+
+            writer.HostedOn(hosted->second, host->second);
+        }
     }
 }
 
@@ -192,8 +223,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.BeginPhase("CollectAndWrite");
         ConverterUtils::SendCacheScope sendCacheScope;
         processWindow.SetNextProcessPhase("Converting elements", static_cast<int>(elementIds.size()));
-        std::unordered_map<int, int> materialCache;
-        std::unordered_set<std::string> seenDefinitions;
+        EmitContext ctx;
         int elemCount = 0;
         for (const auto& elemId : elementIds)
         {
@@ -206,7 +236,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             {
                 auto archicadObject =
                     CONNECTOR.GetHostToSpeckleConverter().GetArchicadObject(elemId, conversionResult, includeProperties);
-                EmitObject(writer, materialCache, seenDefinitions, archicadObject, true);
+                EmitObject(writer, ctx, archicadObject, true);
 
                 const double ms =
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - objStart).count();
@@ -231,7 +261,11 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
                 throw UserCancelledException("The user cancelled the send operation");
         }
 
-        // 3. Default explorer projection: Story (ON_LEVEL) -> Layer (IN_COLLECTION) ->
+        // 3. Object->object topology whose endpoints could only be resolved after the whole
+        //    selection was emitted (HOSTED_ON). Never fails the send.
+        EmitDeferredTopology(writer, ctx);
+
+        // 4. Default explorer projection: Story (ON_LEVEL) -> Layer (IN_COLLECTION) ->
         //    Element type (eav "type"). Layer sits between them because that is how
         //    Archicad users navigate a storey; the type tier stays innermost.
         writer.AddSceneView(0, "Default", true, {
@@ -244,7 +278,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.SetStat("objects", objectCount);
         session.EndPhase();
 
-        // 4. Flush the parquet bundle (one tick per finalized table).
+        // 5. Flush the parquet bundle (one tick per finalized table).
         session.BeginPhase("WriteParquet");
         processWindow.SetNextProcessPhase("Writing bundle", BundleWriter::TableCount());
         auto files = writer.Complete([&](int done, int)
@@ -256,7 +290,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.SetStat("files", static_cast<long long>(files.size()));
         session.EndPhase();
 
-        // 5. Upload: sign -> presigned PUT per file -> complete (creates the version).
+        // 6. Upload: sign -> presigned PUT per file -> complete (creates the version).
         //    UploadFiles drives the "Uploading" (KiB-granular, cancellable) and
         //    "Creating version" phases itself.
         session.BeginPhase("Upload");
