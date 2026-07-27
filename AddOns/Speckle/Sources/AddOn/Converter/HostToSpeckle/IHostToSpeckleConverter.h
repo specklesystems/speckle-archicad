@@ -30,6 +30,10 @@ public:
 	// Guid of the element this one is hosted on (door/window -> wall, skylight ->
 	// roof/shell); empty when the element is not an opening.
 	virtual std::string GetElementHost(const std::string& elemId) = 0;
+	// Guid of the group the element belongs to; empty when ungrouped.
+	virtual std::string GetElementGroup(const std::string& elemId) = 0;
+	// Synthetic display label for a group (Archicad groups carry no name).
+	virtual std::string GetGroupDisplayName(const std::string& groupId) = 0;
 	virtual std::string GetElementType(const std::string& elemId) = 0;
 	virtual std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) = 0;
 	virtual ProjectInfo GetProjectInfo() = 0;

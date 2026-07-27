@@ -93,6 +93,11 @@ public:
     // component of it. Emit only when both endpoints are objects that were sent.
     void HostedOn(int hostedObjectK, int hostObjectK);
 
+    // Authored group membership -> CONTAINER(subtype "Group"). A SEPARATE axis from
+    // InCollection (the layer scene-tree, single-valued on receive): an object keeps its
+    // layer AND its group(s).
+    void InGroup(int objectK, int groupK, int ord);
+
     // ── scene views ───────────────────────────────────────────────────
     void AddSceneView(int view, const std::string& name, bool isDefault, const std::vector<SceneViewTier>& tiers);
 

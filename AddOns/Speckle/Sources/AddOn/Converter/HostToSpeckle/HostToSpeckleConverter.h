@@ -19,6 +19,8 @@ public:
 	ArchicadLevel GetElementLevel(const std::string& elemId) override;
 	ArchicadLayer GetElementLayer(const std::string& elemId) override;
 	std::string GetElementHost(const std::string& elemId) override;
+	std::string GetElementGroup(const std::string& elemId) override;
+	std::string GetGroupDisplayName(const std::string& groupId) override;
 	std::string GetElementType(const std::string& elemId) override;
 	std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) override;
 	ProjectInfo GetProjectInfo() override;

@@ -589,6 +589,7 @@ void BundleWriter::OnLevel(int objectK, int levelK) { AddRelation(bundlespec::Re
 void BundleWriter::InCollection(int objectK, int collectionK, int ord) { AddRelation(bundlespec::Rel::IN_COLLECTION, objectK, collectionK, ord); }
 void BundleWriter::InModel(int objectK, int modelK, int ord) { AddRelation(bundlespec::Rel::IN_MODEL, objectK, modelK, ord); }
 void BundleWriter::HostedOn(int hostedObjectK, int hostObjectK) { AddRelation(bundlespec::Rel::HOSTED_ON, hostedObjectK, hostObjectK, 0); }
+void BundleWriter::InGroup(int objectK, int groupK, int ord) { AddRelation(bundlespec::Rel::IN_GROUP, objectK, groupK, ord); }
 
 void BundleWriter::AddSceneView(int view, const std::string& name, bool isDefault, const std::vector<SceneViewTier>& tiers)
 {

@@ -127,6 +127,18 @@ namespace
             writer.InCollection(objK, layerK, 0);
         }
 
+        // Group membership -> CONTAINER(subtype "Group") + IN_GROUP. A SEPARATE axis from
+        // IN_COLLECTION above: an element keeps its layer AND its group, and the receive side
+        // treats the two differently (collection is last-wins because it IS the scene tree;
+        // groups are multi-valued). Groups are emitted FLAT for now — the immediate group only,
+        // no parent chain; see the plan's open questions.
+        if (isTopLevel && !obj.groupId.empty())
+        {
+            const std::string groupName = CONNECTOR.GetHostToSpeckleConverter().GetGroupDisplayName(obj.groupId);
+            const int groupK = writer.AddContainer(obj.groupId, groupName, nullptr, "Group");
+            writer.InGroup(objK, groupK, 0);
+        }
+
         if (obj.instance.valid)
         {
             // Instanced GDL/library-part object: shared DEFINITION + per-placement INSTANCE.

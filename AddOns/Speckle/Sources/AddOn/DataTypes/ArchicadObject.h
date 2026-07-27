@@ -25,6 +25,10 @@ struct ArchicadObject
     // main emit loop, once it is known whether the host was itself converted.
     std::string hostElementId = "";
 
+    // Guid of the group the element belongs to; empty when ungrouped. A SEPARATE,
+    // overlapping axis from layerInfo — an element keeps its layer AND its group.
+    std::string groupId = "";
+
     // Populated (valid == true) only for GDL/library-part "Object" leaves that were
     // extracted as an instance. When valid, displayValue is left empty and the object
     // is emitted as an INSTANCE of a shared DEFINITION rather than baked geometry.
