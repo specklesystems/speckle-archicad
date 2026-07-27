@@ -9,6 +9,7 @@
 #include "PropertyFilters.h"
 #include "NavigatorView.h"
 #include "ArchicadLevel.h"
+#include "ArchicadRoomTopology.h"
 #include "LayerData.h"
 
 class IHostToSpeckleConverter 
@@ -34,6 +35,8 @@ public:
 	virtual std::string GetElementGroup(const std::string& elemId) = 0;
 	// Synthetic display label for a group (Archicad groups carry no name).
 	virtual std::string GetGroupDisplayName(const std::string& groupId) = 0;
+	// Zone occupancy/boundary, or the two zones an opening connects. Empty otherwise.
+	virtual ArchicadRoomTopology GetElementRoomTopology(const std::string& elemId) = 0;
 	virtual std::string GetElementType(const std::string& elemId) = 0;
 	virtual std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) = 0;
 	virtual ProjectInfo GetProjectInfo() = 0;

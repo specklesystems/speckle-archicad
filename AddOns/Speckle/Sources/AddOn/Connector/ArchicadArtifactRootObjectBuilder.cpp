@@ -37,6 +37,10 @@ namespace
 
         // (hosted element guid, host element guid) — door/window -> wall, skylight -> roof/shell.
         std::vector<std::pair<std::string, std::string>> hostedPairs;
+
+        // (zone guid, its spatial relations) and (opening guid, the two zones it connects).
+        std::vector<std::pair<std::string, ArchicadRoomTopology>> zoneTopology;
+        std::vector<std::pair<std::string, ArchicadRoomTopology>> openingTopology;
     };
 
     // Resolves (and caches) the MATERIAL node for a Modeler material index.
@@ -96,6 +100,11 @@ namespace
         // be in the selection at all.
         if (!obj.hostElementId.empty())
             ctx.hostedPairs.emplace_back(obj.applicationId, obj.hostElementId);
+
+        if (!obj.roomInfo.occupantElementIds.empty() || !obj.roomInfo.boundingElementIds.empty())
+            ctx.zoneTopology.emplace_back(obj.applicationId, obj.roomInfo);
+        if (!obj.roomInfo.fromRoomId.empty() && !obj.roomInfo.toRoomId.empty())
+            ctx.openingTopology.emplace_back(obj.applicationId, obj.roomInfo);
 
         // Root scalars mirror the eav root-scalar fields the SDK indexes
         // (speckle_type/name/type/level/units — same set Revit emits, minus category/family).
@@ -179,14 +188,52 @@ namespace
     // than a dangling reference into an object that carries no data.
     void EmitDeferredTopology(BundleWriter& writer, const EmitContext& ctx)
     {
+        // Resolves an applicationId to its object K, or nullptr when that element was not
+        // among the sent objects.
+        const auto resolve = [&ctx](const std::string& appId) -> const int*
+        {
+            const auto it = ctx.objectKByAppId.find(appId);
+            return it == ctx.objectKByAppId.end() ? nullptr : &it->second;
+        };
+
         for (const auto& [hostedAppId, hostAppId] : ctx.hostedPairs)
         {
-            const auto hosted = ctx.objectKByAppId.find(hostedAppId);
-            const auto host = ctx.objectKByAppId.find(hostAppId);
-            if (hosted == ctx.objectKByAppId.end() || host == ctx.objectKByAppId.end())
+            const int* hosted = resolve(hostedAppId);
+            const int* host = resolve(hostAppId);
+            if (hosted != nullptr && host != nullptr)
+                writer.HostedOn(*hosted, *host);
+        }
+
+        for (const auto& [zoneAppId, topology] : ctx.zoneTopology)
+        {
+            const int* zoneK = resolve(zoneAppId);
+            if (zoneK == nullptr)
                 continue;
 
-            writer.HostedOn(hosted->second, host->second);
+            for (const auto& occupantId : topology.occupantElementIds)
+            {
+                if (const int* occupantK = resolve(occupantId))
+                    writer.InRoom(*occupantK, *zoneK, 0);
+            }
+
+            int boundsOrd = 0;
+            for (const auto& boundingId : topology.boundingElementIds)
+            {
+                if (const int* boundingK = resolve(boundingId))
+                    writer.Bounds(*boundingK, *zoneK, boundsOrd++);
+            }
+        }
+
+        // Zone adjacency: the two zones an opening joins, scoped by the opening itself so a
+        // consumer can tell WHICH door connects a given pair (CONNECTS_TO's ord is a scope
+        // tag, not an ordinal).
+        for (const auto& [openingAppId, topology] : ctx.openingTopology)
+        {
+            const int* openingK = resolve(openingAppId);
+            const int* fromK = resolve(topology.fromRoomId);
+            const int* toK = resolve(topology.toRoomId);
+            if (openingK != nullptr && fromK != nullptr && toK != nullptr)
+                writer.ConnectsTo(*fromK, *toK, *openingK);
         }
     }
 }

@@ -5,6 +5,7 @@
 #include "ElementBody.h"
 #include "ArchicadLevel.h"
 #include "ArchicadLayer.h"
+#include "ArchicadRoomTopology.h"
 #include "ObjectInstance.h"
 
 struct ArchicadObject
@@ -28,6 +29,10 @@ struct ArchicadObject
     // Guid of the group the element belongs to; empty when ungrouped. A SEPARATE,
     // overlapping axis from layerInfo — an element keeps its layer AND its group.
     std::string groupId = "";
+
+    // Zone occupancy/boundary (zones) or the two zones an opening connects (openings).
+    // Empty for every other element type.
+    ArchicadRoomTopology roomInfo;
 
     // Populated (valid == true) only for GDL/library-part "Object" leaves that were
     // extracted as an instance. When valid, displayValue is left empty and the object
