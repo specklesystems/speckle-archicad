@@ -103,6 +103,16 @@ namespace
             writer.OnLevel(objK, levelK);
         }
 
+        // Layer membership -> CONTAINER(subtype "Collection") + IN_COLLECTION, the authored
+        // scene-tree axis. Archicad layers are flat, so the container never gets a parent.
+        // Children inherit the parent's layer (openings take their host's), so only top-level
+        // objects carry the edge — same rule as ON_LEVEL above.
+        if (isTopLevel && !obj.layerInfo.id.empty())
+        {
+            const int layerK = writer.AddCollection(obj.layerInfo.id, obj.layerInfo.name, nullptr, "Collection");
+            writer.InCollection(objK, layerK, 0);
+        }
+
         if (obj.instance.valid)
         {
             // Instanced GDL/library-part object: shared DEFINITION + per-placement INSTANCE.
@@ -221,10 +231,12 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
                 throw UserCancelledException("The user cancelled the send operation");
         }
 
-        // 3. Default explorer projection: Story (ON_LEVEL) -> Element type (eav "type") —
-        //    the same hierarchy the old nested Level/ElementTypeCollection tree encoded.
+        // 3. Default explorer projection: Story (ON_LEVEL) -> Layer (IN_COLLECTION) ->
+        //    Element type (eav "type"). Layer sits between them because that is how
+        //    Archicad users navigate a storey; the type tier stays innermost.
         writer.AddSceneView(0, "Default", true, {
             { "rel", std::to_string(static_cast<int>(bundlespec::Rel::ON_LEVEL)) },
+            { "rel", std::to_string(static_cast<int>(bundlespec::Rel::IN_COLLECTION)) },
             { "eav", "type" },
         });
 

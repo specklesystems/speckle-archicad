@@ -26,6 +26,7 @@ public:
 	virtual Material GetModelMaterial(int materialIndex) = 0;
 	virtual std::string GetElementName(const std::string& elemId) = 0;
 	virtual ArchicadLevel GetElementLevel(const std::string& elemId) = 0;
+	virtual ArchicadLayer GetElementLayer(const std::string& elemId) = 0;
 	virtual std::string GetElementType(const std::string& elemId) = 0;
 	virtual std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) = 0;
 	virtual ProjectInfo GetProjectInfo() = 0;
