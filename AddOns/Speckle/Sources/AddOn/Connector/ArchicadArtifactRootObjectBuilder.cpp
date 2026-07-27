@@ -36,7 +36,13 @@ namespace
         std::unordered_map<std::string, int> objectKByAppId; // every emitted object, by applicationId
 
         // (hosted element guid, host element guid) — door/window -> wall, skylight -> roof/shell.
+        // Emitted as SUBELEMENT host->hosted; see EmitDeferredTopology.
         std::vector<std::pair<std::string, std::string>> hostedPairs;
+
+        // Next SUBELEMENT ordinal per parent object K. Shared by the child walk and the
+        // deferred hosting pass so a curtain wall that also hosts a door does not hand out
+        // the same ordinal twice.
+        std::unordered_map<int, int> nextSubelementOrd;
 
         // (zone guid, its spatial relations) and (opening guid, the two zones it connects).
         std::vector<std::pair<std::string, ArchicadRoomTopology>> zoneTopology;
@@ -171,12 +177,11 @@ namespace
             }
         }
 
-        // Hosted/nested children (beam & column segments today) -> SUBELEMENT edges.
-        int subOrd = 0;
+        // Nested children (beam/column segments, curtain wall parts) -> SUBELEMENT edges.
         for (const auto& child : obj.elements)
         {
             const int childK = EmitObject(writer, ctx, child, false);
-            writer.Subelement(objK, childK, subOrd++);
+            writer.Subelement(objK, childK, ctx.nextSubelementOrd[objK]++);
         }
 
         return objK;
@@ -186,7 +191,7 @@ namespace
     // whole selection had been emitted. Every edge is guarded on BOTH endpoints being sent
     // objects — an opening whose wall is not in the selection simply gets no edge, rather
     // than a dangling reference into an object that carries no data.
-    void EmitDeferredTopology(BundleWriter& writer, const EmitContext& ctx)
+    void EmitDeferredTopology(BundleWriter& writer, EmitContext& ctx)
     {
         // Resolves an applicationId to its object K, or nullptr when that element was not
         // among the sent objects.
@@ -196,12 +201,22 @@ namespace
             return it == ctx.objectKByAppId.end() ? nullptr : &it->second;
         };
 
+        // Hosting -> SUBELEMENT, directed HOST -> HOSTED, matching the Revit connector
+        // (RevitArtifactRootObjectBuilder.EmitElementTopology does
+        // pipeline.Subelement(parentK, elementK) for FamilyInstance.Host ?? .SuperComponent).
+        //
+        // The spec has a dedicated HOSTED_ON (22) whose semantics fit better — an opening is
+        // placed ON a wall rather than being a component of it — but NO connector emits it,
+        // and the .NET receive side has no map for it. A door reading as a wall's child in
+        // every client beats a semantically purer edge that nothing consumes. Direction
+        // matters: the viewer labels SUBELEMENT by direction ("children" outgoing from the
+        // wall, "host" incoming on the door), which HOSTED_ON's reversed src/dst would invert.
         for (const auto& [hostedAppId, hostAppId] : ctx.hostedPairs)
         {
             const int* hosted = resolve(hostedAppId);
             const int* host = resolve(hostAppId);
             if (hosted != nullptr && host != nullptr)
-                writer.HostedOn(*hosted, *host);
+                writer.Subelement(*host, *hosted, ctx.nextSubelementOrd[*host]++);
         }
 
         for (const auto& [zoneAppId, topology] : ctx.zoneTopology)

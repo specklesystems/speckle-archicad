@@ -88,11 +88,6 @@ public:
     void InCollection(int objectK, int collectionK, int ord);
     void InModel(int objectK, int modelK, int ord);
 
-    // Hosted element -> its host (door/window -> wall, skylight -> roof/shell). A
-    // DIFFERENT semantic from Subelement: an opening is placed ON its host, not a
-    // component of it. Emit only when both endpoints are objects that were sent.
-    void HostedOn(int hostedObjectK, int hostObjectK);
-
     // Authored group membership -> CONTAINER(subtype "Group"). A SEPARATE axis from
     // InCollection (the layer scene-tree, single-valued on receive): an object keeps its
     // layer AND its group(s).
