@@ -16,7 +16,8 @@ struct OAuthTokens
 // flow. Probes for the new /oauth/token endpoint (falling back to the legacy
 // /auth/token), opens the system browser at the server's authn page, catches the
 // redirect on a loopback listener, and exchanges the access code for tokens.
-// Talks to the server exclusively through IHttpClient (WinHTTP).
+// Talks to the server exclusively through IHttpClient (WinHTTP on Windows,
+// NSURLSession on macOS — see CreateHttpClient()).
 class OAuthFlow
 {
 public:

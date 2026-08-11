@@ -5,7 +5,7 @@
 
 // Minimal single-shot HTTP loopback listener used to catch the OAuth redirect
 // (http://localhost:29355/?access_code=...). Mirrors the HttpListener that
-// Speckle.Sdk's AuthFlow spins up. Windows/Winsock only.
+// Speckle.Sdk's AuthFlow spins up. Winsock on Windows, POSIX sockets on macOS.
 class LoopbackListener
 {
 public:

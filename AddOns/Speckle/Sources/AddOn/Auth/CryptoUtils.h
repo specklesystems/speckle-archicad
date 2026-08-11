@@ -5,11 +5,12 @@
 #include <cstdint>
 
 // Small crypto helpers for the native OAuth (PKCE) account flow.
-// Windows-only: random bytes and MD5 come from CNG (bcrypt); SHA-256 reuses
-// the vendored picosha2. Mirrors Speckle.Sdk's AuthFlow / Crypt helpers.
+// Random bytes and MD5 come from CNG (bcrypt) on Windows and from
+// arc4random/CommonCrypto on macOS; SHA-256 reuses the vendored picosha2.
+// Mirrors Speckle.Sdk's AuthFlow / Crypt helpers.
 namespace CryptoUtils
 {
-    // Cryptographically strong random bytes (BCryptGenRandom).
+    // Cryptographically strong random bytes (BCryptGenRandom / arc4random_buf).
     std::vector<std::uint8_t> RandomBytes(std::size_t count);
 
     // Base64url (RFC 4648 §5): '+'->'-', '/'->'_', padding '=' stripped.

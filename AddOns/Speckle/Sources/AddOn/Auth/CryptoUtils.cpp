@@ -1,16 +1,22 @@
 #include "CryptoUtils.h"
 
 #include <stdexcept>
+
+#ifdef _WIN32
 #include <windows.h>
 #include <bcrypt.h>
-
-#include "picosha2.h"
 
 #pragma comment(lib, "bcrypt.lib")
 
 #ifndef STATUS_SUCCESS
 #define STATUS_SUCCESS ((NTSTATUS)0x00000000L)
 #endif
+#else
+#include <cstdlib>              // arc4random_buf (CSPRNG, no seeding/failure mode)
+#include <CommonCrypto/CommonDigest.h>
+#endif
+
+#include "picosha2.h"
 
 namespace
 {
@@ -23,6 +29,7 @@ namespace CryptoUtils
     std::vector<std::uint8_t> RandomBytes(std::size_t count)
     {
         std::vector<std::uint8_t> buffer(count);
+#ifdef _WIN32
         NTSTATUS status = BCryptGenRandom(
             nullptr,
             buffer.data(),
@@ -30,6 +37,9 @@ namespace CryptoUtils
             BCRYPT_USE_SYSTEM_PREFERRED_RNG);
         if (status != STATUS_SUCCESS)
             throw std::runtime_error("BCryptGenRandom failed");
+#else
+        arc4random_buf(buffer.data(), buffer.size());
+#endif
         return buffer;
     }
 
@@ -85,6 +95,7 @@ namespace CryptoUtils
         return Base64UrlEncode(digest);
     }
 
+#ifdef _WIN32
     std::string Md5UpperHex(const std::string& asciiInput)
     {
         BCRYPT_ALG_HANDLE hAlg = nullptr;
@@ -129,4 +140,27 @@ namespace CryptoUtils
             throw;
         }
     }
+#else
+    std::string Md5UpperHex(const std::string& asciiInput)
+    {
+        // MD5 is used here only for the SDK's account-id derivation
+        // (UPPERCASE hex MD5(lower(email+url))), not for security.
+        // CC_MD5 is deprecated for cryptographic use, which this is not.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        unsigned char digest[CC_MD5_DIGEST_LENGTH];
+        CC_MD5(asciiInput.data(), static_cast<CC_LONG>(asciiInput.size()), digest);
+#pragma clang diagnostic pop
+
+        static const char* kHex = "0123456789ABCDEF";
+        std::string out;
+        out.reserve(CC_MD5_DIGEST_LENGTH * 2);
+        for (unsigned char b : digest)
+        {
+            out.push_back(kHex[b >> 4]);
+            out.push_back(kHex[b & 0x0F]);
+        }
+        return out;
+    }
+#endif
 }

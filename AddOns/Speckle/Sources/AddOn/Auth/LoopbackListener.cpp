@@ -5,13 +5,27 @@
 #include <stdexcept>
 #include <string>
 
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
 #pragma comment(lib, "ws2_32.lib")
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
 
 namespace
 {
+#ifdef _WIN32
+    using SocketHandle = SOCKET;
+    constexpr SocketHandle kInvalidSocket = INVALID_SOCKET;
+
+    void CloseSocket(SocketHandle s) { closesocket(s); }
+
     // RAII for WSAStartup/WSACleanup. WinHTTP does its own networking, so the
     // OAuth listener owns the only Winsock usage in the add-on.
     struct WinsockScope
@@ -28,6 +42,12 @@ namespace
                 WSACleanup();
         }
     };
+#else
+    using SocketHandle = int;
+    constexpr SocketHandle kInvalidSocket = -1;
+
+    void CloseSocket(SocketHandle s) { close(s); }
+#endif
 
     // The page the user sees in their browser once the redirect lands.
     const char* kSuccessBody =
@@ -95,7 +115,7 @@ namespace
         return false;
     }
 
-    void SendHttpResponse(SOCKET client, const std::string& body)
+    void SendHttpResponse(SocketHandle client, const std::string& body)
     {
         std::string response =
             "HTTP/1.1 200 OK\r\n"
@@ -108,14 +128,16 @@ namespace
 }
 
 LoopbackListener::LoopbackListener(unsigned short port)
-    : _listenSocket(INVALID_SOCKET)
+    : _listenSocket(static_cast<unsigned long long>(kInvalidSocket))
 {
+#ifdef _WIN32
     static WinsockScope winsock; // one-time init for the process lifetime
     if (!winsock.ok)
         throw std::runtime_error("WSAStartup failed");
+#endif
 
-    SOCKET listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (listenSocket == INVALID_SOCKET)
+    SocketHandle listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (listenSocket == kInvalidSocket)
         throw std::runtime_error("Failed to create listener socket");
 
     sockaddr_in addr{};
@@ -123,32 +145,32 @@ LoopbackListener::LoopbackListener(unsigned short port)
     addr.sin_port = htons(port);
     inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
 
-    if (bind(listenSocket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR)
+    if (bind(listenSocket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0)
     {
-        closesocket(listenSocket);
+        CloseSocket(listenSocket);
         throw std::runtime_error(
             "Failed to bind 127.0.0.1:" + std::to_string(port) +
             " for the sign-in redirect (another sign-in may be in progress).");
     }
 
-    if (listen(listenSocket, 1) == SOCKET_ERROR)
+    if (listen(listenSocket, 1) != 0)
     {
-        closesocket(listenSocket);
+        CloseSocket(listenSocket);
         throw std::runtime_error("Failed to listen on the sign-in redirect socket");
     }
 
-    _listenSocket = listenSocket;
+    _listenSocket = static_cast<unsigned long long>(listenSocket);
 }
 
 LoopbackListener::~LoopbackListener()
 {
-    if (_listenSocket != INVALID_SOCKET)
-        closesocket(static_cast<SOCKET>(_listenSocket));
+    if (static_cast<SocketHandle>(_listenSocket) != kInvalidSocket)
+        CloseSocket(static_cast<SocketHandle>(_listenSocket));
 }
 
 std::string LoopbackListener::WaitForAccessCode(int timeoutSeconds, const std::function<bool()>& isCanceled)
 {
-    SOCKET listenSocket = static_cast<SOCKET>(_listenSocket);
+    SocketHandle listenSocket = static_cast<SocketHandle>(_listenSocket);
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(timeoutSeconds);
 
     for (;;)
@@ -168,20 +190,26 @@ std::string LoopbackListener::WaitForAccessCode(int timeoutSeconds, const std::f
         tv.tv_sec = 0;
         tv.tv_usec = 200 * 1000; // 200ms
 
-        int ready = select(0, &readSet, nullptr, nullptr, &tv);
+#ifdef _WIN32
+        int ready = select(0, &readSet, nullptr, nullptr, &tv); // first arg ignored on Winsock
         if (ready == SOCKET_ERROR)
             throw std::runtime_error("select() failed on the sign-in redirect socket");
+#else
+        int ready = select(listenSocket + 1, &readSet, nullptr, nullptr, &tv);
+        if (ready < 0)
+            throw std::runtime_error("select() failed on the sign-in redirect socket");
+#endif
         if (ready == 0)
             continue; // nothing yet — loop and re-check cancel/deadline
 
-        SOCKET client = accept(listenSocket, nullptr, nullptr);
-        if (client == INVALID_SOCKET)
+        SocketHandle client = accept(listenSocket, nullptr, nullptr);
+        if (client == kInvalidSocket)
             continue;
 
         // Read the request (we only need the request line, which arrives first).
         std::string request;
         char buffer[2048];
-        int received = recv(client, buffer, sizeof(buffer), 0);
+        int received = static_cast<int>(recv(client, buffer, sizeof(buffer), 0));
         if (received > 0)
             request.assign(buffer, static_cast<std::size_t>(received));
 
@@ -191,7 +219,7 @@ std::string LoopbackListener::WaitForAccessCode(int timeoutSeconds, const std::f
         if (TryGetQueryParam(firstLine, "denied", denied))
         {
             SendHttpResponse(client, kSuccessBody);
-            closesocket(client);
+            CloseSocket(client);
             throw std::runtime_error("Sign-in was denied.");
         }
 
@@ -199,12 +227,12 @@ std::string LoopbackListener::WaitForAccessCode(int timeoutSeconds, const std::f
         if (TryGetQueryParam(firstLine, "access_code", accessCode) && !accessCode.empty())
         {
             SendHttpResponse(client, kSuccessBody);
-            closesocket(client);
+            CloseSocket(client);
             return accessCode;
         }
 
         // Unrelated request (e.g. a favicon probe) — answer politely and keep waiting.
         SendHttpResponse(client, kSuccessBody);
-        closesocket(client);
+        CloseSocket(client);
     }
 }
