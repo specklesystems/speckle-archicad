@@ -25,7 +25,7 @@ Build a release bundle for the installed Archicad major version:
 # or: ./build.sh 29 Release
 ```
 
-The script downloads the matching official Graphisoft macOS DevKit and official universal DuckDB binary on first use. DevKits are cached under `.cache/archicad-devkits`; CMake caches DuckDB in the build tree. The output is:
+The script downloads the matching official Graphisoft macOS DevKit on first use. DevKits are cached under `.cache/archicad-devkits`. The output is:
 
 ```text
 build/mac/<version>/INT/<configuration>/Speckle.bundle
