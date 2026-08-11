@@ -86,7 +86,8 @@ set(LIB_INCLUDE_DIRS
 		${CMAKE_SOURCE_DIR}/Libs/sqlite/include
 		${CMAKE_SOURCE_DIR}/Libs/sha/include
 		${CMAKE_SOURCE_DIR}/Libs/md5/include
-		${CMAKE_SOURCE_DIR}/Libs/duckdb/include
+		${CMAKE_SOURCE_DIR}/Libs/minipq/include
+		${CMAKE_SOURCE_DIR}/Libs/zstd
 		${CMAKE_SOURCE_DIR}/Libs/bundlespec/include)
 set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}")
 
@@ -96,7 +97,8 @@ add_subdirectory(Libs/spdlog)
 add_subdirectory(Libs/sqlite)
 add_subdirectory(Libs/sha)
 add_subdirectory(Libs/md5)
-add_subdirectory(Libs/duckdb)
+add_subdirectory(Libs/zstd)
+add_subdirectory(Libs/minipq)
 
 # fmt 8's consteval parser predates current Apple Clang and fails to compile
 # with Clang 21. Runtime format validation is sufficient for this legacy copy.
@@ -107,5 +109,5 @@ endif()
 # AddOns
 add_subdirectory(AddOns/Speckle)
 
-# (duckdb is an IMPORTED binary target — no FOLDER grouping needed)
-set_target_properties(json spdlog sqlite sha md5 PROPERTIES FOLDER Libs)
+# (minipq is an INTERFACE target — no FOLDER grouping needed)
+set_target_properties(json spdlog sqlite sha md5 zstd PROPERTIES FOLDER Libs)

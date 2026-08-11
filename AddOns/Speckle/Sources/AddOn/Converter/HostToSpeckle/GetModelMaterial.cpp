@@ -17,7 +17,9 @@ Material HostToSpeckleConverter::GetModelMaterial(int materialIndex)
 	acModel.GetMaterial(attributeIndex, &modelerMaterial);
 
 	auto color = modelerMaterial.GetSurfaceColor();
-	auto name = modelerMaterial.GetName().ToCStr();
+	// UTF-8 explicitly: bundle parquet strings are UTF-8, CC_Default is the system codepage.
+	// Keep the CStr buffer alive past the statement (dangling pointer on clang/macOS otherwise).
+	auto name = modelerMaterial.GetName().ToCStr(CC_UTF8);
 
 	Material material;
 	material.name = name.Get();

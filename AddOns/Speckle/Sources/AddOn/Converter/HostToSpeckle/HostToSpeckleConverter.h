@@ -13,9 +13,15 @@ public:
 	std::vector<std::string> GetElementListAllVisibleIn3D() override;
 	std::vector<std::string> GetElementTypeList() override;
 	ElementBody GetElementBody(const std::string& elemId) override;
+	ObjectInstance GetObjectInstance(const std::string& elemId) override;
 	Material GetModelMaterial(int materialIndex) override;
 	std::string GetElementName(const std::string& elemId) override;
 	ArchicadLevel GetElementLevel(const std::string& elemId) override;
+	ArchicadLayer GetElementLayer(const std::string& elemId) override;
+	std::string GetElementHost(const std::string& elemId) override;
+	std::string GetElementGroup(const std::string& elemId) override;
+	std::string GetGroupDisplayName(const std::string& groupId) override;
+	ArchicadRoomTopology GetElementRoomTopology(const std::string& elemId) override;
 	std::string GetElementType(const std::string& elemId) override;
 	std::map<std::string, std::string> GetElementClassifications(const std::string& elemId) override;
 	ProjectInfo GetProjectInfo() override;
@@ -26,10 +32,11 @@ public:
 	nlohmann::json GetElementPropertiesByPropertyType(const std::string& elemId, const ArchicadPropertyTypeFilter propertyType) override;
 	nlohmann::json GetElementBuiltInProperties(const std::string& elemId) override;
 	nlohmann::json GetElementIfcProperties(const std::string& elemId) override;
-	nlohmann::json GetElementProperties(const std::string& elemId) override;
+	EavLeaves GetElementProperties(const std::string& elemId) override;
 	WorkingUnits GetWorkingUnits() override;
 	ArchicadObject GetArchicadObject(const std::string& elemId, SendConversionResult& conversionResult, bool includeProperties) override;
 	std::vector<ArchicadObject> GetElementChildren(const std::string& elemId, bool includeProperties) override;
+	std::vector<std::string> FilterOutHierarchicalChildren(const std::vector<std::string>& elementIds) override;
 	std::string GetResourceString(short resourceId) override;
 	std::vector<NavigatorView> GetNavigatorViews() override;
 	std::vector<LayerData> GetLayers() override;

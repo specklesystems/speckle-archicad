@@ -26,7 +26,7 @@ Then open `build_27/archicad-speckle.sln` in Visual Studio 2022 and build, or de
 ```
 ./build.sh 27 Release       # or 28 / 29
 ```
-This downloads and caches the official macOS Graphisoft DevKit for the selected version, builds a universal `arm64;x86_64` bundle, embeds DuckDB, and ad-hoc signs it. Output: `build/mac/<version>/INT/<configuration>/Speckle.bundle`. Use `AC_API_DEVKIT_DIR` for a local DevKit, `SPECKLE_DUCKDB_ROOT` for a local DuckDB package, `SPECKLE_MAC_ARCHITECTURES=arm64` for a faster local build, and `SPECKLE_CODESIGN_IDENTITY` at CMake configuration time for distribution signing.
+This downloads and caches the official macOS Graphisoft DevKit for the selected version, builds a universal `arm64;x86_64` bundle, and ad-hoc signs it (minipq/zstd compile in statically — no embedded dylibs). Output: `build/mac/<version>/INT/<configuration>/Speckle.bundle`. Use `AC_API_DEVKIT_DIR` for a local DevKit, `SPECKLE_MAC_ARCHITECTURES=arm64` for a faster local build, and `SPECKLE_CODESIGN_IDENTITY` at CMake configuration time for distribution signing.
 
 **Full Windows CI-style build (all versions, Release, zipped installers):**
 ```
@@ -61,13 +61,13 @@ This is the core communication mechanism and mirrors Speckle's DUI3 binding mode
 - The `IBrowserAdapter` abstraction (`Browser/`) keeps Archicad's `DG::Browser` dependency out of the binding logic; `ArchiCadBrowserAdapter` is the real impl and `DummyBrowserAdapter` is the no-op.
 
 ### Send flow (Archicad → Speckle)
-The current artifact pipeline builds an EAV Parquet bundle with DuckDB and uploads it through the platform HTTP client (WinHTTP on Windows and NSURLSession on macOS). Earlier JSON bridge code remains in the codebase for the legacy send path. Layer visibility that send temporarily changes is restored afterward.
+The current artifact pipeline builds an EAV Parquet bundle with the in-tree minipq writer and uploads it through the platform HTTP client (WinHTTP on Windows and NSURLSession on macOS, via `CreateHttpClient()`). Earlier JSON bridge code remains in the codebase for the legacy send path. Layer visibility that send temporarily changes is restored afterward.
 
 ### Receive flow (Speckle → Archicad)
-`ReceiveBridge` downloads the artifact bundle, decodes geometry, generates library-part XML, invokes Archicad's `LP_XMLConverter`, and places the resulting GSM library parts through `LibpartPlacer`. Process launch is implemented with `CreateProcessW` on Windows and `posix_spawn` on macOS.
+`ReceiveBridge` + `ArtifactReceiver` (`Artifacts/`) download the version's parquet bundle, read it with the in-tree minipq reader, decode the SGEO meshes, write one GDL `<Symbol>` XML per object and convert them to `.gsm` via `LP_XMLConverter`; `LibpartPlacer` (`Converter/SpeckleToHost/`) then registers and places the produced library parts. Process launch is implemented with `CreateProcessW` on Windows and `posix_spawn` on macOS.
 
 ### Converters
-`Converter/HostToSpeckle/` and `Converter/SpeckleToHost/` hold one file per conversion concern (e.g. `GetElementBody.cpp`, `GetElementProperties.cpp`, `GetLayers.cpp`, `CreateMorph.cpp`). The `IHostToSpeckleConverter` / `ISpeckleToHostConverter` interfaces are the seam. This is the place for element-type and property mapping work.
+`Converter/HostToSpeckle/` and `Converter/SpeckleToHost/` hold one file per conversion concern (e.g. `GetElementBody.cpp`, `GetElementProperties.cpp`, `GetLayers.cpp`, `LibpartPlacer.cpp`). The `IHostToSpeckleConverter` / `ISpeckleToHostConverter` interfaces are the seam. This is the place for element-type and property mapping work.
 
 ### Data model
 `DataTypes/` holds plain structs with `nlohmann::json` (de)serialization: model cards (`SenderModelCard`/`ReceiverModelCard`), send filters (`ArchicadSelectionFilter`, `ArchicadElementTypeFilter`, `ArchicadLayerFilter`, `ArchicadViewsFilter`), Speckle proxies (`ColorProxy`, `RenderMaterialProxy`, `InstanceProxy`, `LevelProxy`), geometry (`Mesh`, `ElementBody`), and conversion results. Filters returned by `GetSendFilters` control what gets sent.
@@ -82,5 +82,5 @@ The current artifact pipeline builds an EAV Parquet bundle with DuckDB and uploa
 - Interfaces are `I*.h` header-only abstract classes; the singleton getters throw `std::runtime_error` if a dependency wasn't initialized. New backend services should follow the interface + `Connector`-owned-`unique_ptr` pattern so they can be swapped/mocked.
 - Version-specific Archicad API differences are gated on the `AC27`/`AC28`/`AC29` compile definitions.
 - The JS-facing method names in a `Binding` must exactly match what the DUI3 frontend calls — these are a shared contract with the Speckle frontend, not free to rename unilaterally.
-- Bundled third-party libs (`Libs/json`, `spdlog`, `sqlite`, `sha`, `md5`) are added as CMake subdirectories and grouped under a `Libs` solution folder; don't vendor duplicates.
+- Bundled third-party libs (`Libs/json`, `spdlog`, `sqlite`, `sha`, `md5`, `zstd`, `minipq`, `bundlespec`) are added as CMake subdirectories and grouped under a `Libs` solution folder; don't vendor duplicates. `minipq` (in-tree parquet writer/reader, zstd-only dependency) is the parquet engine for the artifact send/receive pipeline — it and `zstd` compile statically into the .apx, and `Libs/minipq/README.md` documents its provenance and local modifications.
 - Versioning is GitVersion/GitFlow (`GitVersion.yml`); the connector version is injected into resources at build time, not hardcoded.

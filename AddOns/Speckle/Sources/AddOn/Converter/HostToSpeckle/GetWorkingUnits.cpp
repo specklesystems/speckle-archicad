@@ -60,6 +60,13 @@ namespace
 
 WorkingUnits HostToSpeckleConverter::GetWorkingUnits()
 {
+	// Project preferences are invariant during a send; cache per SendCacheScope.
+	static unsigned cachedGeneration = 0;
+	static WorkingUnits cachedUnits;
+	const unsigned generation = ConverterUtils::SendCacheGeneration();
+	if (generation != 0 && generation == cachedGeneration)
+		return cachedUnits;
+
 	API_WorkingUnitPrefs workingPrefs{};
 	CHECK_ERROR(ACAPI_ProjectSetting_GetPreferences(&workingPrefs, APIPrefs_WorkingUnitsID));
 
@@ -76,5 +83,10 @@ WorkingUnits HostToSpeckleConverter::GetWorkingUnits()
     units.calculatedAreaUnits = AreaTypeToString(calcPrefs.area.unit);
     units.calculatedVolumeUnits = VolumeTypeToString(calcPrefs.volume.unit);
 
+    if (generation != 0)
+    {
+        cachedUnits = units;
+        cachedGeneration = generation;
+    }
     return units;
 }

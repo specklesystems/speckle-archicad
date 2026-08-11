@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include "Utf8Path.h"
+
 #pragma comment(lib, "winhttp.lib")
 
 namespace
@@ -287,22 +289,23 @@ HttpResponse WinHttpClient::GetToFile(
     const std::string& bearerToken,
     const std::string& filePath)
 {
-    std::ofstream file(filePath, std::ios::binary | std::ios::trunc);
+    std::ofstream file(Utf8Path::FromUtf8(filePath), std::ios::binary | std::ios::trunc);
     if (!file)
         throw std::runtime_error("Cannot open file for download: " + filePath);
     HttpResponse response = DoGet(url, bearerToken, &file);
     file.close();
     if (!response.IsSuccess())
-        std::filesystem::remove(filePath); // never leave a partial/error body behind
+        std::filesystem::remove(Utf8Path::FromUtf8(filePath)); // never leave a partial/error body behind
     return response;
 }
 
 HttpResponse WinHttpClient::PutFile(
     const std::string& url,
     const std::string& filePath,
-    const std::map<std::string, std::string>& extraHeaders)
+    const std::map<std::string, std::string>& extraHeaders,
+    const UploadProgress& progress)
 {
-    std::ifstream file(filePath, std::ios::binary | std::ios::ate);
+    std::ifstream file(Utf8Path::FromUtf8(filePath), std::ios::binary | std::ios::ate);
     if (!file)
         throw std::runtime_error("Cannot open file for upload: " + filePath);
     const std::streamsize fileSize = file.tellg();
@@ -346,6 +349,8 @@ HttpResponse WinHttpClient::PutFile(
         if (!WinHttpWriteData(request.h, buffer.data(), static_cast<DWORD>(toRead), &written) || written != static_cast<DWORD>(toRead))
             throw std::runtime_error("WinHttpWriteData failed, error " + std::to_string(GetLastError()));
         remaining -= toRead;
+        if (progress)
+            progress(static_cast<std::int64_t>(fileSize - remaining)); // may throw to abort (cancellation)
     }
 
     return ReadResponse(request.h);

@@ -31,11 +31,11 @@ int main()
         AccountDatabase database;
         assert(database.GetAccounts().empty());
 
-        database.AddOrUpdateAccount("TEST-ACCOUNT-ID", MakeAccount("first-token"));
+        database.SaveAccount("TEST-ACCOUNT-ID", MakeAccount("first-token"));
         assert(database.GetAccounts().size() == 1);
         assert(database.GetAccount("TEST-ACCOUNT-ID")["token"] == "first-token");
 
-        database.AddOrUpdateAccount("TEST-ACCOUNT-ID", MakeAccount("updated-token"));
+        database.SaveAccount("TEST-ACCOUNT-ID", MakeAccount("updated-token"));
         assert(database.GetAccounts().size() == 1);
         assert(database.GetAccount("TEST-ACCOUNT-ID")["token"] == "updated-token");
     }

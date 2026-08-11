@@ -24,26 +24,24 @@ namespace
         return 0;
     }
 
-    void AppendU32(std::vector<std::uint8_t>& out, std::uint32_t v)
+    // Little-endian writers into a pre-sized buffer (single pass, no per-byte
+    // push_back). x64/arm64 are little-endian, so the value memcpys are exact.
+    std::uint8_t* WriteU32(std::uint8_t* out, std::uint32_t v)
     {
-        out.push_back(static_cast<std::uint8_t>(v));
-        out.push_back(static_cast<std::uint8_t>(v >> 8));
-        out.push_back(static_cast<std::uint8_t>(v >> 16));
-        out.push_back(static_cast<std::uint8_t>(v >> 24));
+        std::memcpy(out, &v, 4);
+        return out + 4;
     }
 
-    void AppendI32(std::vector<std::uint8_t>& out, std::int32_t v)
+    std::uint8_t* WriteI32(std::uint8_t* out, std::int32_t v)
     {
-        AppendU32(out, static_cast<std::uint32_t>(v));
+        return WriteU32(out, static_cast<std::uint32_t>(v));
     }
 
-    void AppendF64(std::vector<std::uint8_t>& out, double v)
+    std::uint8_t* WriteF64(std::uint8_t* out, double v)
     {
-        std::uint64_t bits;
-        static_assert(sizeof(bits) == sizeof(v), "double must be 64-bit");
-        std::memcpy(&bits, &v, sizeof(bits));
-        for (int i = 0; i < 8; i++)
-            out.push_back(static_cast<std::uint8_t>(bits >> (8 * i)));
+        static_assert(sizeof(std::uint64_t) == sizeof(v), "double must be 64-bit");
+        std::memcpy(out, &v, 8);
+        return out + 8;
     }
 }
 
@@ -84,39 +82,41 @@ namespace SgeoEncoder
         if (hasColors)
             flags |= FLAG_HAS_COLORS;
 
-        std::vector<std::uint8_t> body;
-        body.reserve(8 + vertices.size() * 8 + faces.size() * 4 + colors.size() * 4);
-        AppendU32(body, static_cast<std::uint32_t>(vertices.size() / 3));
-        AppendU32(body, static_cast<std::uint32_t>(faces.size()));
+        // Single pre-sized allocation: header + body written in place, one CRC
+        // pass over the body region — no intermediate body buffer or re-copy.
+        const size_t bodySize = 8 + vertices.size() * 8 + faces.size() * 4 + (hasColors ? colors.size() * 4 : 0);
+        std::vector<std::uint8_t> blob(HEADER_SIZE + bodySize);
+
+        std::uint8_t* p = blob.data() + HEADER_SIZE;
+        p = WriteU32(p, static_cast<std::uint32_t>(vertices.size() / 3));
+        p = WriteU32(p, static_cast<std::uint32_t>(faces.size()));
         for (double v : vertices)
-            AppendF64(body, v);
+            p = WriteF64(p, v);
         for (int f : faces)
-            AppendI32(body, f);
+            p = WriteI32(p, f);
         if (hasColors)
         {
             for (int c : colors)
-                AppendI32(body, c);
+                p = WriteI32(p, c);
         }
 
-        const std::uint32_t crc = Crc32(body.data(), body.size());
+        const std::uint32_t crc = Crc32(blob.data() + HEADER_SIZE, bodySize);
         const std::uint16_t unitsCode = UnitsCode(units);
 
-        std::vector<std::uint8_t> blob;
-        blob.reserve(HEADER_SIZE + body.size());
-        blob.push_back('S');
-        blob.push_back('G');
-        blob.push_back('E');
-        blob.push_back('O');
-        blob.push_back(SGEO_VERSION);
-        blob.push_back(PRIMITIVE_MESH);
-        blob.push_back(static_cast<std::uint8_t>(flags));
-        blob.push_back(static_cast<std::uint8_t>(flags >> 8));
-        blob.push_back(static_cast<std::uint8_t>(unitsCode));
-        blob.push_back(static_cast<std::uint8_t>(unitsCode >> 8));
-        blob.push_back(0); // reserved
-        blob.push_back(0);
-        AppendU32(blob, crc);
-        blob.insert(blob.end(), body.begin(), body.end());
+        std::uint8_t* h = blob.data();
+        h[0] = 'S';
+        h[1] = 'G';
+        h[2] = 'E';
+        h[3] = 'O';
+        h[4] = SGEO_VERSION;
+        h[5] = PRIMITIVE_MESH;
+        h[6] = static_cast<std::uint8_t>(flags);
+        h[7] = static_cast<std::uint8_t>(flags >> 8);
+        h[8] = static_cast<std::uint8_t>(unitsCode);
+        h[9] = static_cast<std::uint8_t>(unitsCode >> 8);
+        h[10] = 0; // reserved
+        h[11] = 0;
+        WriteU32(h + 12, crc);
         return blob;
     }
 }

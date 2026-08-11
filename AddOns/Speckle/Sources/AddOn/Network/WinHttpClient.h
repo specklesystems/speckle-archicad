@@ -15,7 +15,8 @@ public:
     HttpResponse PutFile(
         const std::string& url,
         const std::string& filePath,
-        const std::map<std::string, std::string>& extraHeaders) override;
+        const std::map<std::string, std::string>& extraHeaders,
+        const UploadProgress& progress = nullptr) override;
 
     HttpResponse Get(
         const std::string& url,

@@ -208,6 +208,10 @@ set (DiagnosticsFolder Sources/AddOn/Diagnostics)
 file (GLOB DiagnosticsFiles ${DiagnosticsFolder}/*.h ${DiagnosticsFolder}/*.cpp)
 source_group ("Diagnostics" FILES ${DiagnosticsFiles})
 
+set (AuthFolder Sources/AddOn/Auth)
+file (GLOB AuthFiles ${AuthFolder}/*.h ${AuthFolder}/*.cpp)
+source_group ("Auth" FILES ${AuthFiles})
+
 if (WIN32)
 	add_library (${SPECKLE_ADDON_LIB} SHARED
 		${AddOnFiles}
@@ -222,7 +226,8 @@ if (WIN32)
 		${UtilsFiles}
 		${ArtifactsFiles}
 		${NetworkFiles}
-		${DiagnosticsFiles})
+		${DiagnosticsFiles}
+		${AuthFiles})
 else ()
 	add_library (${SPECKLE_ADDON_LIB} MODULE
 		${AddOnFiles}
@@ -237,7 +242,8 @@ else ()
 		${UtilsFiles}
 		${ArtifactsFiles}
 		${NetworkFiles}
-		${DiagnosticsFiles})
+		${DiagnosticsFiles}
+		${AuthFiles})
 endif ()
 
 set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES OUTPUT_NAME ${SPECKLE_ADDON_NAME})
@@ -274,6 +280,7 @@ target_include_directories (${SPECKLE_ADDON_LIB} PUBLIC
 		${ArtifactsFolder}
 		${NetworkFolder}
 		${DiagnosticsFolder}
+		${AuthFolder}
 		${AC_API_DEVKIT_DIR}/Support/Inc
 		${LIB_INCLUDE_DIRS}
 )
@@ -316,19 +323,10 @@ set_target_properties(${SPECKLE_ADDON_RESOURCES} PROPERTIES FOLDER Resources)
 
 set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT_INT\\Archicad 29\\Archicad.exe")
 
-# other libs
-target_link_libraries(${SPECKLE_ADDON_LIB} json spdlog sqlite sha md5 duckdb)
+# other libs (minipq/zstd are statically compiled in — the .apx is self-contained)
+target_link_libraries(${SPECKLE_ADDON_LIB} json spdlog sqlite sha md5 minipq)
 if (WIN32)
-	target_link_libraries(${SPECKLE_ADDON_LIB} winhttp delayimp)
-	# duckdb.dll is delay-loaded: Windows resolves plugin dependencies against
-	# Archicad.exe's folder, not the .apx folder, so BundleWriter LoadLibrary's
-	# it by full path from the add-on's own directory before first use.
-	target_link_options(${SPECKLE_ADDON_LIB} PRIVATE /DELAYLOAD:duckdb.dll)
-	# Ship the DLL next to the .apx (debugging + installer zip pick it up from there).
-	add_custom_command(TARGET ${SPECKLE_ADDON_LIB} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${CMAKE_SOURCE_DIR}/Libs/duckdb/redist/duckdb.dll"
-			"$<TARGET_FILE_DIR:${SPECKLE_ADDON_LIB}>")
+	target_link_libraries(${SPECKLE_ADDON_LIB} winhttp)
 else ()
 	find_program(CODESIGN_EXECUTABLE codesign REQUIRED)
 	set(DEFAULT_CODESIGN_IDENTITY "$ENV{SPECKLE_CODESIGN_IDENTITY}")
@@ -337,11 +335,6 @@ else ()
 	endif ()
 	set(SPECKLE_CODESIGN_IDENTITY "${DEFAULT_CODESIGN_IDENTITY}" CACHE STRING "macOS code-signing identity; '-' creates a local ad-hoc signature")
 	add_custom_command(TARGET ${SPECKLE_ADDON_LIB} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E make_directory
-			"$<TARGET_BUNDLE_DIR:${SPECKLE_ADDON_LIB}>/Contents/Frameworks"
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"$<TARGET_FILE:duckdb>"
-			"$<TARGET_BUNDLE_DIR:${SPECKLE_ADDON_LIB}>/Contents/Frameworks/libduckdb.dylib"
 		COMMAND "${CODESIGN_EXECUTABLE}" --force --deep --sign "${SPECKLE_CODESIGN_IDENTITY}"
 			"$<TARGET_BUNDLE_DIR:${SPECKLE_ADDON_LIB}>"
 		COMMENT "Signing the Speckle macOS bundle")

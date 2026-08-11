@@ -101,67 +101,6 @@ void AccountDatabase::LoadAccountsFromDB()
     _accountsData = std::move(accounts);
 }
 
-void AccountDatabase::AddOrUpdateAccount(
-    const std::string& id,
-    const nlohmann::json& account)
-{
-    sqlite3* db = nullptr;
-    sqlite3_stmt* stmt = nullptr;
-
-    const int openResult = sqlite3_open_v2(
-        GetAccountsDatabasePath().c_str(),
-        &db,
-        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-        nullptr);
-    if (openResult != SQLITE_OK)
-    {
-        const std::string error = db != nullptr ? sqlite3_errmsg(db) : "unknown error";
-        if (db != nullptr)
-            sqlite3_close(db);
-        throw std::runtime_error("Failed to open the Speckle account database: " + error);
-    }
-
-    const char* createTableSql = R"(
-        CREATE TABLE IF NOT EXISTS objects(
-            hash TEXT PRIMARY KEY,
-            content TEXT
-        ) WITHOUT ROWID;
-    )";
-    char* createError = nullptr;
-    if (sqlite3_exec(db, createTableSql, nullptr, nullptr, &createError) != SQLITE_OK)
-    {
-        const std::string error = createError != nullptr ? createError : "unknown error";
-        sqlite3_free(createError);
-        sqlite3_close(db);
-        throw std::runtime_error("Failed to initialize the Speckle account database: " + error);
-    }
-
-    const char* insertSql =
-        "INSERT OR REPLACE INTO objects (hash, content) VALUES (?, ?);";
-    if (sqlite3_prepare_v2(db, insertSql, -1, &stmt, nullptr) != SQLITE_OK)
-    {
-        const std::string error = sqlite3_errmsg(db);
-        sqlite3_close(db);
-        throw std::runtime_error("Failed to prepare the Speckle account update: " + error);
-    }
-
-    const std::string serializedAccount = account.dump();
-    sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, serializedAccount.c_str(), -1, SQLITE_TRANSIENT);
-
-    if (sqlite3_step(stmt) != SQLITE_DONE)
-    {
-        const std::string error = sqlite3_errmsg(db);
-        sqlite3_finalize(stmt);
-        sqlite3_close(db);
-        throw std::runtime_error("Failed to save the Speckle account: " + error);
-    }
-
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
-    _accountsData[id] = account;
-}
-
 void AccountDatabase::RemoveAccountById(const std::string& id)
 {
     sqlite3* db;
@@ -203,6 +142,61 @@ void AccountDatabase::RemoveAccountById(const std::string& id)
     }
 
     // Finalize and close
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+}
+
+void AccountDatabase::SaveAccount(const std::string& id, const nlohmann::json& account)
+{
+    sqlite3* db;
+    int rc = sqlite3_open(GetAccountsDatabasePath().c_str(), &db);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Error opening database: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_close(db);
+        throw std::runtime_error("Failed to open the Speckle accounts database.");
+    }
+
+    // The DB may not exist yet on a machine that never ran Speckle Manager.
+    // Create the table with the same schema the Speckle SDK uses so the store
+    // stays compatible with the Manager and other connectors.
+    const char* createSql =
+        "CREATE TABLE IF NOT EXISTS objects (hash TEXT PRIMARY KEY, content TEXT) WITHOUT ROWID;";
+    char* errMsg = nullptr;
+    rc = sqlite3_exec(db, createSql, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK)
+    {
+        std::string msg = errMsg ? errMsg : "unknown error";
+        sqlite3_free(errMsg);
+        sqlite3_close(db);
+        throw std::runtime_error("Failed to prepare the accounts table: " + msg);
+    }
+
+    const char* sql = "INSERT OR REPLACE INTO objects (hash, content) VALUES (?, ?);";
+    sqlite3_stmt* stmt;
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_close(db);
+        throw std::runtime_error("Failed to prepare the account insert statement.");
+    }
+
+    std::string content = account.dump();
+    sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, content.c_str(), -1, SQLITE_TRANSIENT);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        std::cerr << "Error executing statement: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        throw std::runtime_error("Failed to write the account to the database.");
+    }
+
+    _accountsData[id] = account;
+
     sqlite3_finalize(stmt);
     sqlite3_close(db);
 }

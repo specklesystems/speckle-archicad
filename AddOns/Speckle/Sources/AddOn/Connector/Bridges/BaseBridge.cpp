@@ -168,11 +168,12 @@ void BaseBridge::OpenUrl(const RunMethodEventArgs& args)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);
 	}
 
-	UrlLauncher::OpenInDefaultBrowser(args.data[0].get<std::string>());
-	args.eventSource->ResponseReady(args.methodId);
+    std::string url = args.data[0].get<std::string>();
+    UrlLauncher::Open(url);
+    args.eventSource->ResponseReady(args.methodId);
 }
 
-void BaseBridge::RemoveModel(const RunMethodEventArgs& args) 
+void BaseBridge::RemoveModel(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)
         throw std::invalid_argument("Too few of arguments when calling " + args.methodName);

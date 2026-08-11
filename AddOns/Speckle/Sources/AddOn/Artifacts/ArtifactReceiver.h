@@ -14,7 +14,8 @@
 //   1. GET /api/v2/.../versions/{v}/artifacts  → presigned parquet downloads
 //      (only the files receive needs: geometries + envelope nodes/relations +
 //      eav objects; the server-built viewer.dat is skipped).
-//   2. Read the bundle with the embedded DuckDB (read_parquet): objects,
+//   2. Read the bundle with the in-tree minipq parquet reader (Libs/minipq;
+//      statically compiled in — no DLL): objects,
 //      DISPLAY/DEFINES/HAS_MATERIAL/DISPLAY_INSTANCE/DEFINES_INSTANCE
 //      relations, INSTANCE + MATERIAL nodes, SGEO geometry blobs.
 //   3. Per object: decode SGEO meshes, scale to meters, bake instance
