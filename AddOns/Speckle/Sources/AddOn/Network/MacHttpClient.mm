@@ -126,7 +126,8 @@ HttpResponse MacHttpClient::PostJson(
 HttpResponse MacHttpClient::PutFile(
     const std::string& url,
     const std::string& filePath,
-    const std::map<std::string, std::string>& extraHeaders)
+    const std::map<std::string, std::string>& extraHeaders,
+    const UploadProgress& progress)
 {
     @autoreleasepool
     {
@@ -151,9 +152,36 @@ HttpResponse MacHttpClient::PutFile(
                 dispatch_semaphore_signal(completed);
             }];
         [task resume];
-        dispatch_semaphore_wait(completed, DISPATCH_TIME_FOREVER);
+
+        // Poll from the calling thread (like WinHttpClient's chunk loop) so the
+        // progress callback runs on the caller's thread and may throw to cancel.
+        std::exception_ptr progressException = nullptr;
+        std::int64_t lastReported = -1;
+        while (dispatch_semaphore_wait(
+                   completed, dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC)) != 0)
+        {
+            if (progress == nullptr || progressException != nullptr)
+                continue;
+
+            const std::int64_t sent = task.countOfBytesSent;
+            if (sent == lastReported)
+                continue;
+            lastReported = sent;
+
+            try
+            {
+                progress(sent);
+            }
+            catch (...)
+            {
+                progressException = std::current_exception();
+                [task cancel]; // completionHandler still fires (NSURLErrorCancelled)
+            }
+        }
         [session finishTasksAndInvalidate];
 
+        if (progressException != nullptr)
+            std::rethrow_exception(progressException);
         if (requestError != nil)
             throw std::runtime_error("File upload failed: " + ErrorMessage(requestError));
         return MakeResponse(nativeResponse, responseData);
