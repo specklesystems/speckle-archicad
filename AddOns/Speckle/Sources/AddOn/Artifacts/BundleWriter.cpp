@@ -642,6 +642,7 @@ void BundleWriter::InModel(int objectK, int modelK, int ord) { AddRelation(bundl
 void BundleWriter::InGroup(int objectK, int groupK, int ord) { AddRelation(bundlespec::Rel::IN_GROUP, objectK, groupK, ord); }
 void BundleWriter::InRoom(int objectK, int roomK, int ord) { AddRelation(bundlespec::Rel::IN_ROOM, objectK, roomK, ord); }
 void BundleWriter::Bounds(int boundingObjectK, int roomObjectK, int ord) { AddRelation(bundlespec::Rel::BOUNDS, boundingObjectK, roomObjectK, ord); }
+void BundleWriter::HostedOn(int hostedObjectK, int hostObjectK) { AddRelation(bundlespec::Rel::HOSTED_ON, hostedObjectK, hostObjectK, 0); }
 void BundleWriter::ConnectsTo(int sourceObjectK, int targetObjectK, int scope) { AddRelation(bundlespec::Rel::CONNECTS_TO, sourceObjectK, targetObjectK, scope); }
 
 void BundleWriter::AddSceneView(int view, const std::string& name, bool isDefault, const std::vector<SceneViewTier>& tiers)

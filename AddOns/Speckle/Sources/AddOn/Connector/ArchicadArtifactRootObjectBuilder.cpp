@@ -36,13 +36,8 @@ namespace
         std::unordered_map<std::string, int> objectKByAppId; // every emitted object, by applicationId
 
         // (hosted element guid, host element guid) — door/window -> wall, skylight -> roof/shell.
-        // Emitted as SUBELEMENT host->hosted; see EmitDeferredTopology.
+        // Emitted as HOSTED_ON hosted->host; see EmitDeferredTopology.
         std::vector<std::pair<std::string, std::string>> hostedPairs;
-
-        // Next SUBELEMENT ordinal per parent object K. Shared by the child walk and the
-        // deferred hosting pass so a curtain wall that also hosts a door does not hand out
-        // the same ordinal twice.
-        std::unordered_map<int, int> nextSubelementOrd;
 
         // (zone guid, its spatial relations) and (opening guid, the two zones it connects).
         std::vector<std::pair<std::string, ArchicadRoomTopology>> zoneTopology;
@@ -180,10 +175,13 @@ namespace
         }
 
         // Nested children (beam/column segments, curtain wall parts) -> SUBELEMENT edges.
+        // OWNERSHIP only: hosted openings are a different relation, emitted as HOSTED_ON by
+        // EmitDeferredTopology, so this loop is the sole source of a parent's ordinals.
+        int childOrd = 0;
         for (const auto& child : obj.elements)
         {
             const int childK = EmitObject(writer, ctx, child, false);
-            writer.Subelement(objK, childK, ctx.nextSubelementOrd[objK]++);
+            writer.Subelement(objK, childK, childOrd++);
         }
 
         return objK;
@@ -203,22 +201,26 @@ namespace
             return it == ctx.objectKByAppId.end() ? nullptr : &it->second;
         };
 
-        // Hosting -> SUBELEMENT, directed HOST -> HOSTED, matching the Revit connector
-        // (RevitArtifactRootObjectBuilder.EmitElementTopology does
-        // pipeline.Subelement(parentK, elementK) for FamilyInstance.Host ?? .SuperComponent).
+        // Hosting -> HOSTED_ON, directed HOSTED -> HOST [ENG-9224]. PLACEMENT, not ownership:
+        // an opening is placed ON a wall rather than being a component of it. SUBELEMENT stays
+        // reserved for real parent/child ownership (the beam/column/curtain-wall parts emitted
+        // by the child walk above).
         //
-        // The spec has a dedicated HOSTED_ON (22) whose semantics fit better — an opening is
-        // placed ON a wall rather than being a component of it — but NO connector emits it,
-        // and the .NET receive side has no map for it. A door reading as a wall's child in
-        // every client beats a semantically purer edge that nothing consumes. Direction
-        // matters: the viewer labels SUBELEMENT by direction ("children" outgoing from the
-        // wall, "host" incoming on the door), which HOSTED_ON's reversed src/dst would invert.
+        // This is the same split the .NET connectors settled on in ENG-9081 — Revit resolves
+        // SuperComponent -> Subelement(owner, element) and Host -> HostedOn(element, host) in
+        // PlacementTopology.Resolve, with ownership winning when an element has both. Archicad
+        // needs no such precedence: GetElementHost only reports an owner for window/door/
+        // skylight, and those never appear as ArchicadObject::elements children, so the two
+        // relations cover disjoint sets of elements.
+        //
+        // Note the REVERSED argument order against Subelement(parent, child, ord): HostedOn
+        // takes the hosted element first.
         for (const auto& [hostedAppId, hostAppId] : ctx.hostedPairs)
         {
             const int* hosted = resolve(hostedAppId);
             const int* host = resolve(hostAppId);
             if (hosted != nullptr && host != nullptr)
-                writer.Subelement(*host, *hosted, ctx.nextSubelementOrd[*host]++);
+                writer.HostedOn(*hosted, *host);
         }
 
         for (const auto& [zoneAppId, topology] : ctx.zoneTopology)

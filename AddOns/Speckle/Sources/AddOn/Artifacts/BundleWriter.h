@@ -105,6 +105,12 @@ public:
     // A room-bounding element -> the ZONE object it bounds (the zone footprint).
     void Bounds(int boundingObjectK, int roomObjectK, int ord);
 
+    // PLACEMENT: the hosted element -> what it is placed on (door/window -> wall,
+    // skylight -> roof/shell). NOT Subelement, which is ownership, and note the REVERSED
+    // argument order: the hosted element is src, the host is dst (matching the .NET
+    // façade's HostedOn(hosted, host)).
+    void HostedOn(int hostedObjectK, int hostObjectK);
+
     // Object -> object connectivity, DIRECTED src->dst. `scope` tags which connectivity
     // graph the edge belongs to — CONNECTS_TO uses ord as a SCOPE, not an ordinal
     // (rel_types.ord_semantics = 'scope'). For zone adjacency the scope is the connecting

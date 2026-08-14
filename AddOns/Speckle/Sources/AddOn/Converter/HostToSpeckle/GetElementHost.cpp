@@ -11,11 +11,11 @@
 // ACAPI round-trip. API_DoorType is a typedef of API_WindowType, so both read `.owner`
 // off their respective union members.
 //
-// The caller turns this into a SUBELEMENT edge directed HOST -> HOSTED, matching the Revit
-// connector. Archicad's API does distinguish hosting (this `owner` guid) from composition
-// (ACAPI_HierarchicalEditing_GetHierarchicalElementOwner, used by FilterOutHierarchicalChildren),
-// and the spec has a separate HOSTED_ON (22) for the former — but no connector emits it, so
-// both collapse onto SUBELEMENT here. See EmitDeferredTopology for the reasoning.
+// The caller turns this into a HOSTED_ON edge directed HOSTED -> HOST [ENG-9224], which is
+// what the bundle contract uses for placement. Archicad's API distinguishes hosting (this
+// `owner` guid) from composition (ACAPI_HierarchicalEditing_GetHierarchicalElementOwner, used
+// by FilterOutHierarchicalChildren), and the two map onto the two different relations:
+// hosting -> HOSTED_ON, composition -> SUBELEMENT. See EmitDeferredTopology.
 std::string HostToSpeckleConverter::GetElementHost(const std::string& elemId)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
