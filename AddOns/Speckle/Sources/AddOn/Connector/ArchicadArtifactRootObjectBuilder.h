@@ -21,7 +21,8 @@ struct NativeSendResult
 //   display meshes        -> SGEO blobs with DETERMINISTIC ids "{guid}:{i}" + DISPLAY edges
 //   modeler material idx  -> MATERIAL node + HAS_MATERIAL (geometry -> node)
 //   story                 -> LEVEL node + ON_LEVEL
-//   beam/column segments  -> child objects + SUBELEMENT edges
+//   beam/column segments  -> child objects + SUBELEMENT edges (ownership)
+//   door/window/skylight  -> HOSTED_ON edge to its wall/roof/shell (placement)
 //   default scene view    -> [Rel(ON_LEVEL), Eav("type")]  (Story -> Element type)
 //
 // The parquet bundle lands in %TEMP%\Speckle\artifacts\{versionId}\ and is
