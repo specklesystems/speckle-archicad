@@ -13,6 +13,22 @@
 #include "picosha2.h"
 #include "Utf8Path.h"
 
+// Named column indices generated from the spec (Libs/bundlespec). Using these
+// instead of literal ordinals makes a spec column insertion a compile error
+// rather than a silent row shift — the failure mode that once emptied nodes
+// fleet-wide when emissive/ior were inserted ahead of elevation.
+// bundle_cols.h declares camera_views::near/far, which windef.h defines as
+// macros; undef them so this still compiles behind Archicad's headers.
+#ifdef near
+#undef near
+#endif
+#ifdef far
+#undef far
+#endif
+#include "bundle_cols.h"
+
+namespace col = bundlespec::col;
+
 namespace
 {
     std::string FormatDouble(double d)
@@ -203,16 +219,20 @@ struct BundleTables
                 Bool("value_boolean"), Str("unit"), Str("internal_definition_name") })
         , nodes(File(dir, base, "envelope.nodes"),
                 { I32("id"), I32("kind"), Str("name"), I32("def_ref"), Str("transform"), Str("units"),
-                  Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"), F64("elevation") })
+                  Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"),
+                  I32("emissive"), F64("ior"), F64("elevation") })
         , relations(File(dir, base, "envelope.relations"), { I32("rel"), I32("src"), I32("dst"), I32("ord") })
         , sceneViews(File(dir, base, "envelope.scene_views"),
                      { I32("view"), Str("name"), Bool("is_default"), I32("ord"), Str("source"), Str("ref") })
         , geometries(File(dir, base, "geometries"),
                      { I32("geometryIndex"), Bin("content"), Str("id"), Str("type") },
                      200000, GEOMETRY_FLUSH_BYTES)
-        , meta(File(dir, base, "envelope.meta"), { I32("schema_version"), Str("produced_by") })
-        , relTypes(File(dir, base, "envelope.rel_types"), { I32("rel"), Str("name"), Str("src_ns"), Str("dst_ns") })
-        , nodeKinds(File(dir, base, "envelope.node_kinds"), { I32("kind"), Str("name") })
+        , meta(File(dir, base, "envelope.meta"),
+               { I32("schema_version"), Str("produced_by"), Str("reference_point_kind"), Str("reference_point_offset"),
+                 Str("producer_version"), Str("sdk_name"), Str("sdk_version"), I32("migrated_from_schema_version") })
+        , relTypes(File(dir, base, "envelope.rel_types"),
+                   { I32("rel"), Str("name"), Str("src_ns"), Str("dst_ns"), Str("status") })
+        , nodeKinds(File(dir, base, "envelope.node_kinds"), { I32("kind"), Str("name"), Str("subtype_values") })
         , types(File(dir, base, "eav.types"), { I32("type_index"), Str("type_key") })
         , typeEav(File(dir, base, "eav.type_eav"),
                   { I32("type_index"), I32("path_index"), Str("value_string"), F64("value_double"),
@@ -252,8 +272,8 @@ struct BundleTables
     }
 };
 
-BundleWriter::BundleWriter(const std::string& outputDir, const std::string& baseName)
-    : _outputDir(outputDir), _baseName(baseName)
+BundleWriter::BundleWriter(const std::string& outputDir, const std::string& baseName, const std::string& producerVersion)
+    : _outputDir(outputDir), _baseName(baseName), _producerVersion(producerVersion)
 {
     const std::filesystem::path dir = Utf8Path::FromUtf8(outputDir);
     std::filesystem::create_directories(dir);
@@ -275,7 +295,20 @@ void BundleWriter::WriteVocabTables()
 {
     // meta + rel/kind vocab, from the vendored generated spec (Libs/bundlespec).
     _tables->meta.putInt(0, bundlespec::kSchemaVersion);
-    _tables->meta.putStr(1, "Speckle Archicad BundleWriter");
+    _tables->meta.putStr(1, "archicad"); // producer slug, as rvextract/nwextract/teklaextract
+    // reference_point_kind/_offset stay NULL: we convert at the internal origin and
+    // never re-base geometry, which is precisely what NULL means in the spec.
+    _tables->meta.putStrNull(2);
+    _tables->meta.putStrNull(3);
+    if (_producerVersion.empty())
+        _tables->meta.putStrNull(4);
+    else
+        _tables->meta.putStr(4, _producerVersion);
+    // No Speckle SDK in this path — the C++ connector writes bundles directly and the
+    // embedded frontend does the upload, so there is no SDK name/version to record.
+    _tables->meta.putStrNull(5);
+    _tables->meta.putStrNull(6);
+    _tables->meta.putIntNull(7); // nothing migrated: authored at the current schema
     _tables->meta.endRow();
 
     for (const auto& r : bundlespec::kRelTypes)
@@ -290,12 +323,20 @@ void BundleWriter::WriteVocabTables()
             _tables->relTypes.putStr(3, r.dst_ns);
         else
             _tables->relTypes.putStrNull(3);
+        // status is what makes the catalog self-describing: without it a consumer
+        // cannot tell a live relation from a reserved one (e.g. SOLID).
+        _tables->relTypes.putStr(4, r.status);
         _tables->relTypes.endRow();
     }
     for (const auto& k : bundlespec::kNodeKinds)
     {
         _tables->nodeKinds.putInt(0, k.id);
         _tables->nodeKinds.putStr(1, k.name);
+        // CONTAINER's allowed subtype set; NULL for every other kind.
+        if (k.subtype_values)
+            _tables->nodeKinds.putStr(2, k.subtype_values);
+        else
+            _tables->nodeKinds.putStrNull(2);
         _tables->nodeKinds.endRow();
     }
 }
@@ -309,8 +350,8 @@ int BundleWriter::InternObject(const std::string& applicationId)
     const int k = static_cast<int>(_objectIndex.size());
     _objectIndex.emplace(applicationId, k);
 
-    _tables->objects.putInt(0, k);
-    _tables->objects.putStr(1, applicationId);
+    _tables->objects.putInt(col::objects::object_index, k);
+    _tables->objects.putStr(col::objects::application_id, applicationId);
     _tables->objects.endRow();
     return k;
 }
@@ -332,8 +373,8 @@ void BundleWriter::AddEavRow(
     {
         pathK = static_cast<int>(_pathIndex.size());
         _pathIndex.emplace(path, pathK);
-        _tables->paths.putInt(0, pathK);
-        _tables->paths.putStr(1, path);
+        _tables->paths.putInt(col::paths::path_index, pathK);
+        _tables->paths.putStr(col::paths::path, path);
         _tables->paths.endRow();
     }
 
@@ -341,9 +382,9 @@ void BundleWriter::AddEavRow(
     const std::string text = ToText(value);
 
     auto& eav = _tables->eav;
-    eav.putInt(0, objectK);
-    eav.putInt(1, pathK);
-    eav.putStr(2, text);
+    eav.putInt(col::eav::object_index, objectK);
+    eav.putInt(col::eav::path_index, pathK);
+    eav.putStr(col::eav::value_string, text);
 
     std::optional<double> valueDouble;
     if (type == "number")
@@ -362,7 +403,7 @@ void BundleWriter::AddEavRow(
         if (ok)
             valueDouble = num;
     }
-    eav.putDouble(3, valueDouble);
+    eav.putDouble(col::eav::value_double, valueDouble);
 
     std::optional<bool> valueBoolean;
     if (type == "boolean")
@@ -374,10 +415,10 @@ void BundleWriter::AddEavRow(
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         valueBoolean = (lower == "true");
     }
-    eav.putBool(4, valueBoolean);
+    eav.putBool(col::eav::value_boolean, valueBoolean);
 
-    PutStrOpt(eav, 5, units);
-    PutStrOpt(eav, 6, internalDefinitionName);
+    PutStrOpt(eav, col::eav::unit, units);
+    PutStrOpt(eav, col::eav::internal_definition_name, internalDefinitionName);
     eav.endRow();
 }
 
@@ -436,10 +477,10 @@ int BundleWriter::AddGeometrySgeo(
     const std::string id = picosha2::hash256_hex_string(sgeoBlob.begin(), sgeoBlob.end());
 
     auto& geometries = _tables->geometries;
-    geometries.putInt(0, k);
-    geometries.putBinary(1, sgeoBlob.data(), static_cast<std::int64_t>(sgeoBlob.size()));
-    geometries.putStr(2, id);
-    geometries.putStr(3, typeName);
+    geometries.putInt(col::geometries::geometry_index, k);
+    geometries.putBinary(col::geometries::content, sgeoBlob.data(), static_cast<std::int64_t>(sgeoBlob.size()));
+    geometries.putStr(col::geometries::id, id);
+    geometries.putStr(col::geometries::type, typeName);
     geometries.endRow();
     return k;
 }
@@ -458,8 +499,9 @@ int BundleWriter::InternNode(const std::string& key, bool& isNew)
     return k;
 }
 
-// Appends one row to nodes with only the kind-relevant columns set.
-// Column order: id, kind, name, def_ref, transform, units, subtype, argb, opacity, metalness, roughness, elevation
+// Appends one row to nodes with only the kind-relevant columns set. Column
+// positions come from the generated spec constants, so an upstream insertion
+// shifts these automatically (see bundle_cols.h).
 static void AppendNodeRow(
     minipq::Table& nodes,
     int id,
@@ -473,32 +515,41 @@ static void AppendNodeRow(
     const double* opacity,
     const double* metalness,
     const double* roughness,
+    const int* emissive,
+    const double* ior,
     const double* elevation)
 {
-    nodes.putInt(0, id);
-    nodes.putInt(1, kind);
-    PutStrOpt(nodes, 2, name);
-    PutIntOpt(nodes, 3, defRef);
-    PutStrOpt(nodes, 4, transform);
-    PutStrOpt(nodes, 5, units);
-    PutStrOpt(nodes, 6, subtype);
-    PutIntOpt(nodes, 7, argb);
-    nodes.putDouble(8, Opt(opacity));
-    nodes.putDouble(9, Opt(metalness));
-    nodes.putDouble(10, Opt(roughness));
-    nodes.putDouble(11, Opt(elevation));
+    nodes.putInt(col::nodes::id, id);
+    nodes.putInt(col::nodes::kind, kind);
+    PutStrOpt(nodes, col::nodes::name, name);
+    PutIntOpt(nodes, col::nodes::def_ref, defRef);
+    PutStrOpt(nodes, col::nodes::transform, transform);
+    PutStrOpt(nodes, col::nodes::units, units);
+    PutStrOpt(nodes, col::nodes::subtype, subtype);
+    PutIntOpt(nodes, col::nodes::argb, argb);
+    nodes.putDouble(col::nodes::opacity, Opt(opacity));
+    nodes.putDouble(col::nodes::metalness, Opt(metalness));
+    nodes.putDouble(col::nodes::roughness, Opt(roughness));
+    PutIntOpt(nodes, col::nodes::emissive, emissive);
+    nodes.putDouble(col::nodes::ior, Opt(ior));
+    nodes.putDouble(col::nodes::elevation, Opt(elevation));
     nodes.endRow();
 }
 
-int BundleWriter::AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness)
+int BundleWriter::AddMaterial(
+    const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness,
+    const int* emissive)
 {
     bool isNew;
     const int k = InternNode("mat:" + materialKey, isNew);
     if (isNew)
     {
+        // ior stays NULL: Archicad surfaces have no index-of-refraction concept,
+        // which is exactly what the spec's "NULL = the host has no IOR" means.
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::MATERIAL),
-            name.empty() ? nullptr : &name, nullptr, nullptr, nullptr, nullptr, &argb, &opacity, &metalness, &roughness, nullptr);
+            name.empty() ? nullptr : &name, nullptr, nullptr, nullptr, nullptr, &argb, &opacity, &metalness, &roughness,
+            emissive, nullptr, nullptr);
     }
     return k;
 }
@@ -511,7 +562,7 @@ int BundleWriter::AddLevel(const std::string& levelKey, const std::string& name,
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::LEVEL),
-            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &elevation);
+            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &elevation);
     }
     return k;
 }
@@ -524,7 +575,7 @@ int BundleWriter::AddCollection(const std::string& collectionKey, const std::str
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
-            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr);
+            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
 }
@@ -537,7 +588,7 @@ int BundleWriter::AddContainer(const std::string& containerKey, const std::strin
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
-            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr);
+            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
 }
@@ -550,7 +601,7 @@ int BundleWriter::AddDefinition(const std::string& definitionKey, const std::str
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::DEFINITION),
-            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
 }
@@ -564,7 +615,7 @@ int BundleWriter::AddInstance(const std::string& placementKey, int defK, const s
         const std::string tf = FormatTransform(transform);
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::INSTANCE),
-            nullptr, &defK, &tf, &units, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+            nullptr, &defK, &tf, &units, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
 }
@@ -572,10 +623,10 @@ int BundleWriter::AddInstance(const std::string& placementKey, int defK, const s
 void BundleWriter::AddRelation(bundlespec::Rel rel, int src, int dst, int ord)
 {
     auto& relations = _tables->relations;
-    relations.putInt(0, static_cast<int>(rel));
-    relations.putInt(1, src);
-    relations.putInt(2, dst);
-    relations.putInt(3, ord);
+    relations.putInt(col::relations::rel, static_cast<int>(rel));
+    relations.putInt(col::relations::src, src);
+    relations.putInt(col::relations::dst, dst);
+    relations.putInt(col::relations::ord, ord);
     relations.endRow();
 }
 
@@ -598,12 +649,12 @@ void BundleWriter::AddSceneView(int view, const std::string& name, bool isDefaul
     auto& sceneViews = _tables->sceneViews;
     for (size_t ord = 0; ord < tiers.size(); ord++)
     {
-        sceneViews.putInt(0, view);
-        sceneViews.putStr(1, name);
-        sceneViews.putBool(2, isDefault);
-        sceneViews.putInt(3, static_cast<int>(ord));
-        sceneViews.putStr(4, tiers[ord].source);
-        sceneViews.putStr(5, tiers[ord].ref);
+        sceneViews.putInt(col::scene_views::view, view);
+        sceneViews.putStr(col::scene_views::name, name);
+        sceneViews.putBool(col::scene_views::is_default, isDefault);
+        sceneViews.putInt(col::scene_views::ord, static_cast<int>(ord));
+        sceneViews.putStr(col::scene_views::source, tiers[ord].source);
+        sceneViews.putStr(col::scene_views::ref, tiers[ord].ref);
         sceneViews.endRow();
     }
 }

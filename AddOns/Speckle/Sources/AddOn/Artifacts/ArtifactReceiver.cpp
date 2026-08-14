@@ -151,9 +151,14 @@ namespace
     struct ParquetFile
     {
         minipq::Reader reader;
-        std::vector<int> cols; // same order as the requested names
+        std::vector<int> cols;    // same order as the requested names
+        std::vector<int> optCols; // same order as optionalColumns; -1 when absent
 
-        ParquetFile(const std::string& path, const std::vector<std::string>& columns)
+        // Columns the spec added after a producer shipped are OPTIONAL: the spec's
+        // additive-column contract requires consumers to read by name and tolerate
+        // absence, so a bundle written before the column existed still loads.
+        ParquetFile(const std::string& path, const std::vector<std::string>& columns,
+                    const std::vector<std::string>& optionalColumns = {})
             : reader(path)
         {
             if (!reader.good)
@@ -165,6 +170,11 @@ namespace
                 if (it == names.end())
                     throw std::runtime_error("ArtifactReceiver: " + path + " has no column '" + wanted + "'");
                 cols.push_back(static_cast<int>(it - names.begin()));
+            }
+            for (const auto& wanted : optionalColumns)
+            {
+                const auto it = std::find(names.begin(), names.end(), wanted);
+                optCols.push_back(it == names.end() ? -1 : static_cast<int>(it - names.begin()));
             }
         }
 
@@ -419,13 +429,15 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         int argb = 0;
         double opacity = 1.0;
         double roughness = 1.0;
+        int emissive = 0; // packed ARGB; 0 = no emission (spec writes NULL for it)
     };
     std::map<int, InstanceNode> instanceNodes;
     std::map<int, MaterialNode> materialNodes;
     {
         ParquetFile f(
             nodesPath,
-            { "id", "kind", "name", "def_ref", "transform", "units", "argb", "opacity", "roughness" });
+            { "id", "kind", "name", "def_ref", "transform", "units", "argb", "opacity", "roughness" },
+            { "emissive" });
         minipq::Batch batch;
         while (f.Next(batch, nodesPath))
         {
@@ -438,6 +450,9 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             const auto argbCol = minipq::i32(batch, f.cols[6]);
             const auto opacityCol = minipq::f64(batch, f.cols[7]);
             const auto roughnessCol = minipq::f64(batch, f.cols[8]);
+            std::optional<minipq::Int32Arr> emissiveCol;
+            if (f.optCols[0] >= 0)
+                emissiveCol = minipq::i32(batch, f.optCols[0]);
             for (std::int64_t r = 0; r < batch.num_rows(); r++)
             {
                 const int kind = kindCol.Value(r); // INSTANCE=2, MATERIAL=3
@@ -465,6 +480,8 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                         node.opacity = opacityCol.Value(r);
                     if (!roughnessCol.IsNull(r))
                         node.roughness = roughnessCol.Value(r);
+                    if (emissiveCol && !emissiveCol->IsNull(r))
+                        node.emissive = emissiveCol->Value(r);
                     materialNodes[id] = node;
                 }
             }
@@ -657,6 +674,14 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                             def.b = (argb & 0xFF) / 255.0;
                             def.transparent = 1.0 - mat->second.opacity;
                             def.shining = static_cast<int>((1.0 - mat->second.roughness) * 100);
+                            const int emissive = mat->second.emissive;
+                            if (emissive != 0)
+                            {
+                                def.hasEmission = true;
+                                def.emissionR = ((emissive >> 16) & 0xFF) / 255.0;
+                                def.emissionG = ((emissive >> 8) & 0xFF) / 255.0;
+                                def.emissionB = (emissive & 0xFF) / 255.0;
+                            }
                         }
                         materialName = def.name;
                     }

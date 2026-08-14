@@ -39,7 +39,8 @@ class BundleWriter
 {
 public:
     // outputDir must exist or be creatable; baseName is the server-pre-allocated versionId.
-    BundleWriter(const std::string& outputDir, const std::string& baseName);
+    // producerVersion lands in envelope.meta.producer_version; empty writes NULL.
+    BundleWriter(const std::string& outputDir, const std::string& baseName, const std::string& producerVersion = "");
     ~BundleWriter();
 
     BundleWriter(const BundleWriter&) = delete;
@@ -65,7 +66,11 @@ public:
         const std::string& typeName = "mesh");
 
     // ── node namespace (value entities) ───────────────────────────────
-    int AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness);
+    // emissive: packed ARGB emission colour, or nullptr for none. The spec treats
+    // NULL as "no emission" and expects producers to normalize black RGB to NULL,
+    // so pass nullptr rather than 0x000000 for an unlit surface.
+    int AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness,
+                    const int* emissive = nullptr);
     int AddLevel(const std::string& levelKey, const std::string& name, double elevation);
     int AddCollection(const std::string& collectionKey, const std::string& name, const int* parentK, const std::string& subtype);
     int AddContainer(const std::string& containerKey, const std::string& name, const int* parentK, const std::string& subtype);
@@ -129,6 +134,7 @@ private:
 
     std::string _outputDir;
     std::string _baseName;
+    std::string _producerVersion;
 
     // One minipq::Table per bundle file (opaque here so minipq.h stays out of this header).
     std::unique_ptr<BundleTables> _tables;
