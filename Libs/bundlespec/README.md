@@ -1,4 +1,9 @@
-Vendored from speckle-bundle-spec (schema_version 5) generated/cpp/envelope_spec.h.
+Vendored from speckle-bundle-spec (schema_version 5), generated/cpp/:
+  envelope_spec.h — rel/node-kind vocabulary + catalog rows.
+  bundle_cols.h   — named column indices per produced table (no arrow dependency).
+
+bundle_cols.h declares camera_views::near/far, which windef.h defines as macros;
+include it before <windows.h> or #undef them first (BundleWriter.cpp does the latter).
 
 Pinned to spec commit 5e54be4efec17ae0e5d8b42e2be4ab7c1ccbccb6 (2026-08-06).
 

@@ -13,6 +13,22 @@
 #include "picosha2.h"
 #include "Utf8Path.h"
 
+// Named column indices generated from the spec (Libs/bundlespec). Using these
+// instead of literal ordinals makes a spec column insertion a compile error
+// rather than a silent row shift — the failure mode that once emptied nodes
+// fleet-wide when emissive/ior were inserted ahead of elevation.
+// bundle_cols.h declares camera_views::near/far, which windef.h defines as
+// macros; undef them so this still compiles behind Archicad's headers.
+#ifdef near
+#undef near
+#endif
+#ifdef far
+#undef far
+#endif
+#include "bundle_cols.h"
+
+namespace col = bundlespec::col;
+
 namespace
 {
     std::string FormatDouble(double d)
@@ -309,8 +325,8 @@ int BundleWriter::InternObject(const std::string& applicationId)
     const int k = static_cast<int>(_objectIndex.size());
     _objectIndex.emplace(applicationId, k);
 
-    _tables->objects.putInt(0, k);
-    _tables->objects.putStr(1, applicationId);
+    _tables->objects.putInt(col::objects::object_index, k);
+    _tables->objects.putStr(col::objects::application_id, applicationId);
     _tables->objects.endRow();
     return k;
 }
@@ -332,8 +348,8 @@ void BundleWriter::AddEavRow(
     {
         pathK = static_cast<int>(_pathIndex.size());
         _pathIndex.emplace(path, pathK);
-        _tables->paths.putInt(0, pathK);
-        _tables->paths.putStr(1, path);
+        _tables->paths.putInt(col::paths::path_index, pathK);
+        _tables->paths.putStr(col::paths::path, path);
         _tables->paths.endRow();
     }
 
@@ -341,9 +357,9 @@ void BundleWriter::AddEavRow(
     const std::string text = ToText(value);
 
     auto& eav = _tables->eav;
-    eav.putInt(0, objectK);
-    eav.putInt(1, pathK);
-    eav.putStr(2, text);
+    eav.putInt(col::eav::object_index, objectK);
+    eav.putInt(col::eav::path_index, pathK);
+    eav.putStr(col::eav::value_string, text);
 
     std::optional<double> valueDouble;
     if (type == "number")
@@ -362,7 +378,7 @@ void BundleWriter::AddEavRow(
         if (ok)
             valueDouble = num;
     }
-    eav.putDouble(3, valueDouble);
+    eav.putDouble(col::eav::value_double, valueDouble);
 
     std::optional<bool> valueBoolean;
     if (type == "boolean")
@@ -374,10 +390,10 @@ void BundleWriter::AddEavRow(
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         valueBoolean = (lower == "true");
     }
-    eav.putBool(4, valueBoolean);
+    eav.putBool(col::eav::value_boolean, valueBoolean);
 
-    PutStrOpt(eav, 5, units);
-    PutStrOpt(eav, 6, internalDefinitionName);
+    PutStrOpt(eav, col::eav::unit, units);
+    PutStrOpt(eav, col::eav::internal_definition_name, internalDefinitionName);
     eav.endRow();
 }
 
@@ -436,10 +452,10 @@ int BundleWriter::AddGeometrySgeo(
     const std::string id = picosha2::hash256_hex_string(sgeoBlob.begin(), sgeoBlob.end());
 
     auto& geometries = _tables->geometries;
-    geometries.putInt(0, k);
-    geometries.putBinary(1, sgeoBlob.data(), static_cast<std::int64_t>(sgeoBlob.size()));
-    geometries.putStr(2, id);
-    geometries.putStr(3, typeName);
+    geometries.putInt(col::geometries::geometry_index, k);
+    geometries.putBinary(col::geometries::content, sgeoBlob.data(), static_cast<std::int64_t>(sgeoBlob.size()));
+    geometries.putStr(col::geometries::id, id);
+    geometries.putStr(col::geometries::type, typeName);
     geometries.endRow();
     return k;
 }
@@ -572,10 +588,10 @@ int BundleWriter::AddInstance(const std::string& placementKey, int defK, const s
 void BundleWriter::AddRelation(bundlespec::Rel rel, int src, int dst, int ord)
 {
     auto& relations = _tables->relations;
-    relations.putInt(0, static_cast<int>(rel));
-    relations.putInt(1, src);
-    relations.putInt(2, dst);
-    relations.putInt(3, ord);
+    relations.putInt(col::relations::rel, static_cast<int>(rel));
+    relations.putInt(col::relations::src, src);
+    relations.putInt(col::relations::dst, dst);
+    relations.putInt(col::relations::ord, ord);
     relations.endRow();
 }
 
@@ -598,12 +614,12 @@ void BundleWriter::AddSceneView(int view, const std::string& name, bool isDefaul
     auto& sceneViews = _tables->sceneViews;
     for (size_t ord = 0; ord < tiers.size(); ord++)
     {
-        sceneViews.putInt(0, view);
-        sceneViews.putStr(1, name);
-        sceneViews.putBool(2, isDefault);
-        sceneViews.putInt(3, static_cast<int>(ord));
-        sceneViews.putStr(4, tiers[ord].source);
-        sceneViews.putStr(5, tiers[ord].ref);
+        sceneViews.putInt(col::scene_views::view, view);
+        sceneViews.putStr(col::scene_views::name, name);
+        sceneViews.putBool(col::scene_views::is_default, isDefault);
+        sceneViews.putInt(col::scene_views::ord, static_cast<int>(ord));
+        sceneViews.putStr(col::scene_views::source, tiers[ord].source);
+        sceneViews.putStr(col::scene_views::ref, tiers[ord].ref);
         sceneViews.endRow();
     }
 }
