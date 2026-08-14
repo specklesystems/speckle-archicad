@@ -227,12 +227,28 @@ project2{4} 3, 270,
 
     void AppendMaterial(std::string& out, const GdlLibpartXml::XmlMaterial& m)
     {
-        out += "DEFINE MATERIAL \"" + m.name + "\" 1,\n";
+        // Type 1 is the simple definition (n=9): the specular colour and emission
+        // parameters are constants or derived, so emission cannot be set. Only the
+        // general definition (type 0, n=16) accepts them — so stay on type 1 unless
+        // this material actually emits, and existing output is unchanged.
+        const bool general = m.hasEmission;
+        out += "DEFINE MATERIAL \"" + m.name + "\" " + (general ? "0" : "1") + ",\n";
         out += "        " + Coef(m.r) + ", " + Coef(m.g) + ", " + Coef(m.b) + ",! surface RGB [0.0..1.0]\n";
         out += "        " + Coef(m.ambient) + ", " + Coef(m.diffuse) + ", " + Coef(m.specular) + ", " +
                Coef(m.transparent) + ", ! ambient, diffuse, specular, transparent [0..1]\n";
         out += "        " + std::to_string(m.shining) + ", ! shining [0..100]\n";
-        out += "        " + std::to_string(m.transparencyAttenuation) + " ! transparency attenuation [0..4]\n\n";
+        out += "        " + std::to_string(m.transparencyAttenuation) +
+               (general ? "," : " ") + " ! transparency attenuation [0..4]\n";
+        if (general)
+        {
+            // The general form requires specular RGB before the emission triplet;
+            // white is the neutral choice the simple form already implies.
+            out += "        1, 1, 1, ! specular RGB [0.0..1.0]\n";
+            out += "        " + Coef(m.emissionR) + ", " + Coef(m.emissionG) + ", " + Coef(m.emissionB) +
+                   ", ! emission RGB [0.0..1.0]\n";
+            out += "        " + Coef(m.emissionAttenuation) + " ! emission attenuation [0..65.5]\n";
+        }
+        out += "\n";
     }
 
     // Mesh → VERT/EDGE/PGON body, porting ArchicadMesh's edge dedup and signed

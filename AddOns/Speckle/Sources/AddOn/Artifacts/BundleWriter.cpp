@@ -219,7 +219,8 @@ struct BundleTables
                 Bool("value_boolean"), Str("unit"), Str("internal_definition_name") })
         , nodes(File(dir, base, "envelope.nodes"),
                 { I32("id"), I32("kind"), Str("name"), I32("def_ref"), Str("transform"), Str("units"),
-                  Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"), F64("elevation") })
+                  Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"),
+                  I32("emissive"), F64("ior"), F64("elevation") })
         , relations(File(dir, base, "envelope.relations"), { I32("rel"), I32("src"), I32("dst"), I32("ord") })
         , sceneViews(File(dir, base, "envelope.scene_views"),
                      { I32("view"), Str("name"), Bool("is_default"), I32("ord"), Str("source"), Str("ref") })
@@ -474,8 +475,9 @@ int BundleWriter::InternNode(const std::string& key, bool& isNew)
     return k;
 }
 
-// Appends one row to nodes with only the kind-relevant columns set.
-// Column order: id, kind, name, def_ref, transform, units, subtype, argb, opacity, metalness, roughness, elevation
+// Appends one row to nodes with only the kind-relevant columns set. Column
+// positions come from the generated spec constants, so an upstream insertion
+// shifts these automatically (see bundle_cols.h).
 static void AppendNodeRow(
     minipq::Table& nodes,
     int id,
@@ -489,32 +491,41 @@ static void AppendNodeRow(
     const double* opacity,
     const double* metalness,
     const double* roughness,
+    const int* emissive,
+    const double* ior,
     const double* elevation)
 {
-    nodes.putInt(0, id);
-    nodes.putInt(1, kind);
-    PutStrOpt(nodes, 2, name);
-    PutIntOpt(nodes, 3, defRef);
-    PutStrOpt(nodes, 4, transform);
-    PutStrOpt(nodes, 5, units);
-    PutStrOpt(nodes, 6, subtype);
-    PutIntOpt(nodes, 7, argb);
-    nodes.putDouble(8, Opt(opacity));
-    nodes.putDouble(9, Opt(metalness));
-    nodes.putDouble(10, Opt(roughness));
-    nodes.putDouble(11, Opt(elevation));
+    nodes.putInt(col::nodes::id, id);
+    nodes.putInt(col::nodes::kind, kind);
+    PutStrOpt(nodes, col::nodes::name, name);
+    PutIntOpt(nodes, col::nodes::def_ref, defRef);
+    PutStrOpt(nodes, col::nodes::transform, transform);
+    PutStrOpt(nodes, col::nodes::units, units);
+    PutStrOpt(nodes, col::nodes::subtype, subtype);
+    PutIntOpt(nodes, col::nodes::argb, argb);
+    nodes.putDouble(col::nodes::opacity, Opt(opacity));
+    nodes.putDouble(col::nodes::metalness, Opt(metalness));
+    nodes.putDouble(col::nodes::roughness, Opt(roughness));
+    PutIntOpt(nodes, col::nodes::emissive, emissive);
+    nodes.putDouble(col::nodes::ior, Opt(ior));
+    nodes.putDouble(col::nodes::elevation, Opt(elevation));
     nodes.endRow();
 }
 
-int BundleWriter::AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness)
+int BundleWriter::AddMaterial(
+    const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness,
+    const int* emissive)
 {
     bool isNew;
     const int k = InternNode("mat:" + materialKey, isNew);
     if (isNew)
     {
+        // ior stays NULL: Archicad surfaces have no index-of-refraction concept,
+        // which is exactly what the spec's "NULL = the host has no IOR" means.
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::MATERIAL),
-            name.empty() ? nullptr : &name, nullptr, nullptr, nullptr, nullptr, &argb, &opacity, &metalness, &roughness, nullptr);
+            name.empty() ? nullptr : &name, nullptr, nullptr, nullptr, nullptr, &argb, &opacity, &metalness, &roughness,
+            emissive, nullptr, nullptr);
     }
     return k;
 }
@@ -527,7 +538,7 @@ int BundleWriter::AddLevel(const std::string& levelKey, const std::string& name,
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::LEVEL),
-            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &elevation);
+            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &elevation);
     }
     return k;
 }
@@ -540,7 +551,7 @@ int BundleWriter::AddCollection(const std::string& collectionKey, const std::str
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
-            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr);
+            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
 }
@@ -553,7 +564,7 @@ int BundleWriter::AddContainer(const std::string& containerKey, const std::strin
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
-            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr);
+            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
 }
@@ -566,7 +577,7 @@ int BundleWriter::AddDefinition(const std::string& definitionKey, const std::str
     {
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::DEFINITION),
-            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+            &name, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
 }
@@ -580,7 +591,7 @@ int BundleWriter::AddInstance(const std::string& placementKey, int defK, const s
         const std::string tf = FormatTransform(transform);
         AppendNodeRow(
             _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::INSTANCE),
-            nullptr, &defK, &tf, &units, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+            nullptr, &defK, &tf, &units, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
     return k;
 }

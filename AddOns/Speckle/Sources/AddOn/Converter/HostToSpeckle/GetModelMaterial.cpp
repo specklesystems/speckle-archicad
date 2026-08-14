@@ -27,6 +27,12 @@ Material HostToSpeckleConverter::GetModelMaterial(int materialIndex)
 	double shiny = modelerMaterial.GetShining();
 	material.opacity = 1.0 - transparent;
 	material.roughness = 1.0 - (shiny / 100.0);
-	
+
+	// Emission is a real Archicad surface property; normalize an unlit (black)
+	// surface to 0 so the bundle writes NULL rather than an explicit black.
+	auto emission = modelerMaterial.GetEmissionColor();
+	if (emission.red > 0.0 || emission.green > 0.0 || emission.blue > 0.0)
+		material.emissive = ARGBColorConverter::PackARGB(1.0, emission.red, emission.green, emission.blue);
+
 	return material;
 }

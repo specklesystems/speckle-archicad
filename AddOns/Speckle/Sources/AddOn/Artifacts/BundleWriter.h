@@ -65,7 +65,11 @@ public:
         const std::string& typeName = "mesh");
 
     // ── node namespace (value entities) ───────────────────────────────
-    int AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness);
+    // emissive: packed ARGB emission colour, or nullptr for none. The spec treats
+    // NULL as "no emission" and expects producers to normalize black RGB to NULL,
+    // so pass nullptr rather than 0x000000 for an unlit surface.
+    int AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness,
+                    const int* emissive = nullptr);
     int AddLevel(const std::string& levelKey, const std::string& name, double elevation);
     int AddCollection(const std::string& collectionKey, const std::string& name, const int* parentK, const std::string& subtype);
     int AddContainer(const std::string& containerKey, const std::string& name, const int* parentK, const std::string& subtype);
