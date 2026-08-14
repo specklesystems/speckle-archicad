@@ -230,8 +230,9 @@ struct BundleTables
         , meta(File(dir, base, "envelope.meta"),
                { I32("schema_version"), Str("produced_by"), Str("reference_point_kind"), Str("reference_point_offset"),
                  Str("producer_version"), Str("sdk_name"), Str("sdk_version"), I32("migrated_from_schema_version") })
-        , relTypes(File(dir, base, "envelope.rel_types"), { I32("rel"), Str("name"), Str("src_ns"), Str("dst_ns") })
-        , nodeKinds(File(dir, base, "envelope.node_kinds"), { I32("kind"), Str("name") })
+        , relTypes(File(dir, base, "envelope.rel_types"),
+                   { I32("rel"), Str("name"), Str("src_ns"), Str("dst_ns"), Str("status") })
+        , nodeKinds(File(dir, base, "envelope.node_kinds"), { I32("kind"), Str("name"), Str("subtype_values") })
         , types(File(dir, base, "eav.types"), { I32("type_index"), Str("type_key") })
         , typeEav(File(dir, base, "eav.type_eav"),
                   { I32("type_index"), I32("path_index"), Str("value_string"), F64("value_double"),
@@ -322,12 +323,20 @@ void BundleWriter::WriteVocabTables()
             _tables->relTypes.putStr(3, r.dst_ns);
         else
             _tables->relTypes.putStrNull(3);
+        // status is what makes the catalog self-describing: without it a consumer
+        // cannot tell a live relation from a reserved one (e.g. SOLID).
+        _tables->relTypes.putStr(4, r.status);
         _tables->relTypes.endRow();
     }
     for (const auto& k : bundlespec::kNodeKinds)
     {
         _tables->nodeKinds.putInt(0, k.id);
         _tables->nodeKinds.putStr(1, k.name);
+        // CONTAINER's allowed subtype set; NULL for every other kind.
+        if (k.subtype_values)
+            _tables->nodeKinds.putStr(2, k.subtype_values);
+        else
+            _tables->nodeKinds.putStrNull(2);
         _tables->nodeKinds.endRow();
     }
 }
