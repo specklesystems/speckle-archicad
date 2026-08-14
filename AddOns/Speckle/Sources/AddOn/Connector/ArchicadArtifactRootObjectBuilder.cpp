@@ -291,7 +291,16 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     {
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
-        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId);
+
+        // Connector version for envelope.meta.producer_version — the same STR# 5010
+        // resource BaseBridge::GetConnectorVersion reports to the UI. CI substitutes
+        // the real version at build time; in a local build the placeholder survives,
+        // and a placeholder is worse than no answer, so it becomes NULL.
+        std::string producerVersion = CONNECTOR.GetHostToSpeckleConverter().GetResourceString(5010);
+        if (producerVersion == "connector_build_num")
+            producerVersion.clear();
+
+        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId, producerVersion);
 
         // 2. Collect + emit in one pass (ACAPI main thread). The SendCacheScope
         //    keeps per-send invariants (3D model + GUID index, stories, attribute

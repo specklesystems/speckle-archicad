@@ -227,7 +227,9 @@ struct BundleTables
         , geometries(File(dir, base, "geometries"),
                      { I32("geometryIndex"), Bin("content"), Str("id"), Str("type") },
                      200000, GEOMETRY_FLUSH_BYTES)
-        , meta(File(dir, base, "envelope.meta"), { I32("schema_version"), Str("produced_by") })
+        , meta(File(dir, base, "envelope.meta"),
+               { I32("schema_version"), Str("produced_by"), Str("reference_point_kind"), Str("reference_point_offset"),
+                 Str("producer_version"), Str("sdk_name"), Str("sdk_version"), I32("migrated_from_schema_version") })
         , relTypes(File(dir, base, "envelope.rel_types"), { I32("rel"), Str("name"), Str("src_ns"), Str("dst_ns") })
         , nodeKinds(File(dir, base, "envelope.node_kinds"), { I32("kind"), Str("name") })
         , types(File(dir, base, "eav.types"), { I32("type_index"), Str("type_key") })
@@ -269,8 +271,8 @@ struct BundleTables
     }
 };
 
-BundleWriter::BundleWriter(const std::string& outputDir, const std::string& baseName)
-    : _outputDir(outputDir), _baseName(baseName)
+BundleWriter::BundleWriter(const std::string& outputDir, const std::string& baseName, const std::string& producerVersion)
+    : _outputDir(outputDir), _baseName(baseName), _producerVersion(producerVersion)
 {
     const std::filesystem::path dir = Utf8Path::FromUtf8(outputDir);
     std::filesystem::create_directories(dir);
@@ -292,7 +294,20 @@ void BundleWriter::WriteVocabTables()
 {
     // meta + rel/kind vocab, from the vendored generated spec (Libs/bundlespec).
     _tables->meta.putInt(0, bundlespec::kSchemaVersion);
-    _tables->meta.putStr(1, "Speckle Archicad BundleWriter");
+    _tables->meta.putStr(1, "archicad"); // producer slug, as rvextract/nwextract/teklaextract
+    // reference_point_kind/_offset stay NULL: we convert at the internal origin and
+    // never re-base geometry, which is precisely what NULL means in the spec.
+    _tables->meta.putStrNull(2);
+    _tables->meta.putStrNull(3);
+    if (_producerVersion.empty())
+        _tables->meta.putStrNull(4);
+    else
+        _tables->meta.putStr(4, _producerVersion);
+    // No Speckle SDK in this path — the C++ connector writes bundles directly and the
+    // embedded frontend does the upload, so there is no SDK name/version to record.
+    _tables->meta.putStrNull(5);
+    _tables->meta.putStrNull(6);
+    _tables->meta.putIntNull(7); // nothing migrated: authored at the current schema
     _tables->meta.endRow();
 
     for (const auto& r : bundlespec::kRelTypes)

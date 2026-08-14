@@ -39,7 +39,8 @@ class BundleWriter
 {
 public:
     // outputDir must exist or be creatable; baseName is the server-pre-allocated versionId.
-    BundleWriter(const std::string& outputDir, const std::string& baseName);
+    // producerVersion lands in envelope.meta.producer_version; empty writes NULL.
+    BundleWriter(const std::string& outputDir, const std::string& baseName, const std::string& producerVersion = "");
     ~BundleWriter();
 
     BundleWriter(const BundleWriter&) = delete;
@@ -133,6 +134,7 @@ private:
 
     std::string _outputDir;
     std::string _baseName;
+    std::string _producerVersion;
 
     // One minipq::Table per bundle file (opaque here so minipq.h stays out of this header).
     std::unique_ptr<BundleTables> _tables;
