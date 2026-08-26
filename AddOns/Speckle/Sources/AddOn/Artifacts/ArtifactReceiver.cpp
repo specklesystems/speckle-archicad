@@ -190,6 +190,44 @@ namespace
         }
     };
 
+    // ═════════════════════════════════════════════════════════════════════════
+    // TEMPORARY — ENG-9412 receive diagnostics. DELETE THIS BLOCK (and every
+    // RECV_DIAG use) once the bundle-spec v1 receive changes are signed off.
+    //
+    // The appearance ladders, the SOLID fallback and the PLACES hop are internal
+    // decisions that leave no trace in the baked GDL, so a correct-looking receive
+    // and a receive that silently took the wrong tier are indistinguishable from
+    // the output alone. These counters say which path each mesh actually took.
+    // Appended to %TEMP%\Speckle\sessions\ENG-9412-receive-diagnostics.txt, one
+    // block per receive, never overwritten.
+    struct ReceiveDiag
+    {
+        std::map<std::string, long long> counters;
+        void Bump(const char* name, long long by = 1) { counters[name] += by; }
+
+        void Write(const std::string& versionId)
+        {
+            try
+            {
+                const fs::path dir = fs::temp_directory_path() / "Speckle" / "sessions";
+                fs::create_directories(dir);
+                std::ofstream out(dir / "ENG-9412-receive-diagnostics.txt", std::ios::app);
+                if (!out)
+                    return;
+                out << "=== receive " << versionId << " ===\n";
+                for (const auto& kv : counters)
+                    out << "  " << kv.first << " = " << kv.second << "\n";
+                out << "\n";
+            }
+            catch (...)
+            {
+                // diagnostics must never break a receive
+            }
+        }
+    };
+#define RECV_DIAG(name) diag.Bump(name)
+    // ═════════════════════════════════════════════════════════════════════════
+
     // NULL -> "" (same contract the DuckDB-based reader had).
     std::string StrOrEmpty(const minipq::BytesArr& arr, std::int64_t row)
     {
@@ -279,6 +317,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
     throw std::runtime_error("Native artefact receive is Windows-only for now");
 #else
     Result result;
+    ReceiveDiag diag; // TEMPORARY (ENG-9412) — delete with the ReceiveDiag block
 
     // ── working folders (same layout the desktop service used) ─────────────
     const char* appData = std::getenv("APPDATA");
@@ -435,7 +474,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             switch (row.rel)
             {
             case 1: displayByObj[row.src].push_back(row.dst); break;
-            case 2: solidByObj[row.src].push_back(row.dst); break;
+            case 2: solidByObj[row.src].push_back(row.dst); RECV_DIAG("rel.2_solid"); break;
             case 4: definesByDef[row.src].push_back(row.dst); break;
             // HAS_MATERIAL / HAS_COLOR carry a namespace tag in ord for PRE-SPLIT bundles
             // (ENG-8822/8849): ord==1 means the src is an object (a placement paint), not a
@@ -446,24 +485,36 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             // post-split spelling and share these maps: one map, two vintages.
             case 5:
                 if (row.ord == 1)
+                {
                     materialByObj[row.src] = row.dst;
+                    RECV_DIAG("rel.5_has_material_ord1_object");
+                }
                 else
+                {
                     materialByGeom[row.src] = row.dst;
+                    RECV_DIAG("rel.5_has_material_geometry");
+                }
                 break;
             case 6:
                 if (row.ord == 1)
+                {
                     colorByObj[row.src] = row.dst;
+                    RECV_DIAG("rel.6_has_color_ord1_object");
+                }
                 else
+                {
                     colorByGeom[row.src] = row.dst;
+                    RECV_DIAG("rel.6_has_color_geometry");
+                }
                 break;
             case 8: instancesByObj[row.src].push_back(row.dst); break;
             case 9: childInstancesByDef[row.src].push_back(row.dst); break;
-            case 10: containerByObj[row.src] = row.dst; break;
-            case 24: placementByObj[row.src] = row.dst; break;
-            case 26: materialByObj[row.src] = row.dst; break;
-            case 27: colorByObj[row.src] = row.dst; break;
-            case 28: materialByNode[row.src] = row.dst; break;
-            case 29: colorByNode[row.src] = row.dst; break;
+            case 10: containerByObj[row.src] = row.dst; RECV_DIAG("rel.10_in_collection"); break;
+            case 24: placementByObj[row.src] = row.dst; RECV_DIAG("rel.24_places"); break;
+            case 26: materialByObj[row.src] = row.dst; RECV_DIAG("rel.26_object_has_material"); break;
+            case 27: colorByObj[row.src] = row.dst; RECV_DIAG("rel.27_object_has_color"); break;
+            case 28: materialByNode[row.src] = row.dst; RECV_DIAG("rel.28_node_has_material"); break;
+            case 29: colorByNode[row.src] = row.dst; RECV_DIAG("rel.29_node_has_color"); break;
             default: break;
             }
         }
@@ -530,12 +581,16 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                     if (!opacityCol.IsNull(r))
                         node.opacity = opacityCol.Value(r);
                     colorNodes[id] = node;
+                    RECV_DIAG("node.4_color");
                     continue;
                 }
                 if (kind == 7)
                 {
                     if (!argbCol.IsNull(r))
+                    {
                         containerArgb[id] = argbCol.Value(r);
+                        RECV_DIAG("node.7_container_with_argb");
+                    }
                     continue;
                 }
                 if (kind == 2)
@@ -613,6 +668,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             {
                 byObj[k] = byGeom[k];
                 byGeom.erase(k);
+                RECV_DIAG("recovered_untagged_object_edge");
             }
         };
         recover(colorByGeom, colorByObj);
@@ -698,10 +754,17 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         { auto it = k < 0 ? m.end() : m.find(k); return it == m.end() ? -1 : it->second; };
 
         int materialK = lookup(materialByGeom, geometryK);
+        const char* materialTier = "material.geometry_5"; // TEMPORARY (ENG-9412)
         if (materialK < 0)
+        {
             materialK = lookup(materialByObj, objK);
+            materialTier = "material.object_26";
+        }
         if (materialK < 0)
+        {
             materialK = lookup(materialByNode, containerK);
+            materialTier = "material.container_28";
+        }
 
         if (materialK >= 0)
         {
@@ -715,17 +778,26 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 out.opacity = mat->second.opacity;
                 out.roughness = mat->second.roughness;
                 out.emissive = mat->second.emissive;
+                diag.Bump(materialTier); // TEMPORARY (ENG-9412)
                 return out;
             }
             // Edge pointing at a node that is absent or not a MATERIAL — fall through to
             // colour rather than treating the bundle as appearance-less.
+            RECV_DIAG("material.edge_to_missing_node"); // TEMPORARY (ENG-9412)
         }
 
         int colorK = lookup(colorByObj, objK);
+        const char* colorTier = "color.object_27"; // TEMPORARY (ENG-9412)
         if (colorK < 0)
+        {
             colorK = lookup(colorByGeom, geometryK);
+            colorTier = "color.geometry_6";
+        }
         if (colorK < 0)
+        {
             colorK = lookup(colorByNode, containerK);
+            colorTier = "color.container_29";
+        }
 
         if (colorK >= 0)
         {
@@ -736,6 +808,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 out.key = colorK;
                 out.argb = colour->second.argb;
                 out.opacity = colour->second.opacity;
+                diag.Bump(colorTier); // TEMPORARY (ENG-9412)
                 return out; // name left empty — the caller mints "Speckle Material <k>"
             }
         }
@@ -750,9 +823,11 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 ResolvedAppearance out;
                 out.key = -(containerK + 2);
                 out.argb = argb->second;
+                RECV_DIAG("color.container_argb_legacy_fallback"); // TEMPORARY (ENG-9412)
                 return out;
             }
         }
+        RECV_DIAG("appearance.unresolved_default_grey"); // TEMPORARY (ENG-9412)
         return std::nullopt;
     };
 
@@ -764,6 +839,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
     std::map<int, int> memberObjByInstance;
     for (const auto& kv : placementByObj)
         memberObjByInstance[kv.second] = kv.first;
+    diag.Bump("places.member_objects_mapped", static_cast<long long>(memberObjByInstance.size()));
 
     // Recursively expand an INSTANCE node into (geometryK, worldTransform) pairs.
     // ownerObjK is the object whose object-plane appearance applies to this geometry:
@@ -832,6 +908,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
 
         try
         {
+            RECV_DIAG("objects.baked_attempted"); // TEMPORARY (ENG-9412)
             std::vector<MeshInstance> meshInstances;
             auto direct = displayByObj.find(objK);
             if (direct != displayByObj.end())
@@ -856,6 +933,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 {
                     for (const int geomK : solids->second)
                         meshInstances.push_back({ geomK, Mat4{}, false, objK });
+                    RECV_DIAG("solid_fallback_used_no_display_meshes");
                 }
             }
             auto placed = instancesByObj.find(objK);
@@ -879,7 +957,10 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 try
                 {
                     if (!SgeoDecoder::TryDecodeMesh(blob->second.first.data(), blob->second.first.size(), decoded))
+                    {
+                        RECV_DIAG("geometry.undecodable_skipped"); // TEMPORARY (ENG-9412)
                         continue; // non-mesh primitive (lines/points) or raw solid — geometry-only scope
+                    }
                 }
                 catch (const std::exception&)
                 {
@@ -901,6 +982,8 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 // Appearance: the two ladders above, flattened onto one GDL surface;
                 // default light gray when nothing resolves.
                 std::string materialName = defaultMaterialName;
+                if (mi.ownerObjK != objK)
+                    RECV_DIAG("places.resolved_via_member_owner"); // TEMPORARY (ENG-9412)
                 if (auto appearance = resolveAppearance(mi.ownerObjK, mi.geometryK))
                 {
                     auto& def = usedMaterials[appearance->key];
@@ -1044,6 +1127,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
     if (!anyGsm)
         throw std::runtime_error("LP_XMLConverter produced no GSM files (check " + result.rootDir + ")");
 
+    diag.Write(versionId); // TEMPORARY (ENG-9412)
     return result;
 #endif
 }
