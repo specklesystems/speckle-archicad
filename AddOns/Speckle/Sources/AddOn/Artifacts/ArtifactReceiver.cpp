@@ -365,16 +365,33 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         }
     }
 
-    // relations: DISPLAY=1, DEFINES=4, HAS_MATERIAL=5, DISPLAY_INSTANCE=8, DEFINES_INSTANCE=9
+    // Relations we consume, by spec id:
+    //   geometry   DISPLAY 1, SOLID 2, DEFINES 4, DISPLAY_INSTANCE 8, DEFINES_INSTANCE 9
+    //   appearance HAS_MATERIAL 5, HAS_COLOR 6 (geometry plane)
+    //              OBJECT_HAS_MATERIAL 26, OBJECT_HAS_COLOR 27 (object plane)
+    //              NODE_HAS_MATERIAL 28, NODE_HAS_COLOR 29 (container plane)
+    //   traversal  IN_COLLECTION 10 (object -> its container, for the container tier)
+    //              PLACES 24 (member object -> its INSTANCE, the object<->node map)
+    // SOLID went live and the appearance rels were split out of HAS_MATERIAL/HAS_COLOR
+    // after this reader was written, so a bundle from Rhino/AutoCAD/SketchUp carried
+    // colour and placement paint on edges we dropped on the floor.
     std::map<int, std::vector<int>> displayByObj;
     std::map<int, std::vector<int>> definesByDef;
+    std::map<int, std::vector<int>> solidByObj;
     std::map<int, int> materialByGeom;
+    std::map<int, int> colorByGeom;
+    std::map<int, int> materialByObj;
+    std::map<int, int> colorByObj;
+    std::map<int, int> materialByNode;
+    std::map<int, int> colorByNode;
     std::map<int, std::vector<int>> instancesByObj;
     std::map<int, std::vector<int>> childInstancesByDef;
+    std::map<int, int> containerByObj;
+    std::map<int, int> placementByObj;
     {
-        // The SQL this replaces: WHERE rel IN (1,4,5,8,9) ORDER BY src, ord —
-        // collect the filtered rows, sort by (src, ord), then bucket per rel so
-        // each per-src vector keeps its ord order.
+        // The SQL this replaces: WHERE rel IN (…) ORDER BY src, ord — collect the
+        // filtered rows, sort by (src, ord), then bucket per rel so each per-src
+        // vector keeps its ord order.
         struct RelRow
         {
             int rel, src, dst, ord;
@@ -392,8 +409,14 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             for (std::int64_t r = 0; r < batch.num_rows(); r++)
             {
                 const int relValue = rel.Value(r);
-                if (relValue != 1 && relValue != 4 && relValue != 5 && relValue != 8 && relValue != 9)
+                switch (relValue)
+                {
+                case 1: case 2: case 4: case 5: case 6: case 8: case 9:
+                case 10: case 24: case 26: case 27: case 28: case 29:
+                    break;
+                default:
                     continue;
+                }
                 // NULL ord sorts last, matching DuckDB's default NULLS LAST.
                 const int ordValue = ord.IsNull(r) ? std::numeric_limits<int>::max() : ord.Value(r);
                 relRows.push_back({ relValue, src.Value(r), dst.Value(r), ordValue });
@@ -406,13 +429,23 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
 
         for (const RelRow& row : relRows)
         {
+            // Appearance edges are single-valued per src (last write wins, matching the
+            // deployed receives); geometry/placement edges are ordered lists.
             switch (row.rel)
             {
             case 1: displayByObj[row.src].push_back(row.dst); break;
+            case 2: solidByObj[row.src].push_back(row.dst); break;
             case 4: definesByDef[row.src].push_back(row.dst); break;
             case 5: materialByGeom[row.src] = row.dst; break;
+            case 6: colorByGeom[row.src] = row.dst; break;
             case 8: instancesByObj[row.src].push_back(row.dst); break;
             case 9: childInstancesByDef[row.src].push_back(row.dst); break;
+            case 10: containerByObj[row.src] = row.dst; break;
+            case 24: placementByObj[row.src] = row.dst; break;
+            case 26: materialByObj[row.src] = row.dst; break;
+            case 27: colorByObj[row.src] = row.dst; break;
+            case 28: materialByNode[row.src] = row.dst; break;
+            case 29: colorByNode[row.src] = row.dst; break;
             default: break;
             }
         }
