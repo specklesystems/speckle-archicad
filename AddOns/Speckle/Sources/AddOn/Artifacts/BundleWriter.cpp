@@ -165,6 +165,24 @@ namespace
     minipq::Field Bool(const char* name) { return { name, minipq::T::BOOL, minipq::Enc::PLAIN }; }
     minipq::Field Bin(const char* name) { return { name, minipq::T::BIN, minipq::Enc::PLAIN }; }
 
+    // Arity guard for the tables whose shape the spec owns. minipq takes a plain
+    // vector<Field>, so nothing otherwise ties the hand-written field list to the
+    // generated column indices the put calls use — and the two drifting apart is the
+    // Jul-29 empty-nodes incident exactly (emissive/ior inserted ahead of elevation,
+    // writers kept the stale ordinal, every nodes row silently dropped fleet-wide).
+    // Naming the count makes a spec insertion a build break here rather than a bundle
+    // that validates and renders nothing. The other native producers get this for free
+    // by constructing arrow schemas from bundle_schemas.h; this is the minipq analogue.
+    template <int SpecColumnCount, typename... F>
+    std::vector<minipq::Field> SpecFields(F&&... fields)
+    {
+        static_assert(
+            sizeof...(F) == SpecColumnCount,
+            "BundleWriter table field list is out of sync with bundle_cols.h — re-vendor "
+            "Libs/bundlespec and add/remove the column here (and its put in the row writer)");
+        return { std::forward<F>(fields)... };
+    }
+
     // Nullable-column helpers (minipq needs an explicit put per column per row).
     void PutStrOpt(minipq::Table& t, int col, const std::string* v)
     {
@@ -212,20 +230,27 @@ struct BundleTables
     minipq::Table objectType;
 
     BundleTables(const std::filesystem::path& dir, const std::string& base)
-        : objects(File(dir, base, "eav.objects"), { I32("object_index"), Str("application_id") })
-        , paths(File(dir, base, "eav.paths"), { I32("path_index"), Str("path") })
+        : objects(File(dir, base, "eav.objects"),
+                  SpecFields<col::objects::columnCount>(I32("object_index"), Str("application_id")))
+        , paths(File(dir, base, "eav.paths"),
+                SpecFields<col::paths::columnCount>(I32("path_index"), Str("path")))
         , eav(File(dir, base, "eav.eav"),
-              { I32("object_index"), I32("path_index"), Str("value_string"), F64("value_double"),
-                Bool("value_boolean"), Str("unit"), Str("internal_definition_name") })
+              SpecFields<col::eav::columnCount>(
+                  I32("object_index"), I32("path_index"), Str("value_string"), F64("value_double"),
+                  Bool("value_boolean"), Str("unit"), Str("internal_definition_name")))
         , nodes(File(dir, base, "envelope.nodes"),
-                { I32("id"), I32("kind"), Str("name"), I32("def_ref"), Str("transform"), Str("units"),
-                  Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"),
-                  I32("emissive"), F64("ior"), F64("elevation"), Str("gh_topology") })
-        , relations(File(dir, base, "envelope.relations"), { I32("rel"), I32("src"), I32("dst"), I32("ord") })
+                SpecFields<col::nodes::columnCount>(
+                    I32("id"), I32("kind"), Str("name"), I32("def_ref"), Str("transform"), Str("units"),
+                    Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"),
+                    I32("emissive"), F64("ior"), F64("elevation"), Str("gh_topology")))
+        , relations(File(dir, base, "envelope.relations"),
+                    SpecFields<col::relations::columnCount>(I32("rel"), I32("src"), I32("dst"), I32("ord")))
         , sceneViews(File(dir, base, "envelope.scene_views"),
-                     { I32("view"), Str("name"), Bool("is_default"), I32("ord"), Str("source"), Str("ref") })
+                     SpecFields<col::scene_views::columnCount>(
+                         I32("view"), Str("name"), Bool("is_default"), I32("ord"), Str("source"), Str("ref")))
         , geometries(File(dir, base, "geometries"),
-                     { I32("geometryIndex"), Bin("content"), Str("id"), Str("type") },
+                     SpecFields<col::geometries::columnCount>(
+                         I32("geometryIndex"), Bin("content"), Str("id"), Str("type")),
                      200000, GEOMETRY_FLUSH_BYTES)
         // schema_version is a VARCHAR carrying the spec's semver ("1.0.0"), not an int;
         // migrated_from_schema_version stays an int (the legacy object-model vintage, a
@@ -234,14 +259,23 @@ struct BundleTables
         , meta(File(dir, base, "envelope.meta"),
                { Str("schema_version"), Str("produced_by"), Str("producer_version"),
                  Str("sdk_name"), Str("sdk_version"), I32("migrated_from_schema_version") })
+        // No SpecFields guard on meta / rel_types / node_kinds: the spec excludes all
+        // three (plus bundle_files) from its column codegen, so there is no columnCount
+        // to assert against. Their shape is the projection of the catalog a producer
+        // ships, not a spec-owned table — we carry two columns more than the SDK and
+        // the native extractors do (status, subtype_values), which readers resolve by
+        // name and the validator tolerates as extras.
         , relTypes(File(dir, base, "envelope.rel_types"),
                    { I32("rel"), Str("name"), Str("src_ns"), Str("dst_ns"), Str("status") })
         , nodeKinds(File(dir, base, "envelope.node_kinds"), { I32("kind"), Str("name"), Str("subtype_values") })
-        , types(File(dir, base, "eav.types"), { I32("type_index"), Str("type_key") })
+        , types(File(dir, base, "eav.types"),
+                SpecFields<col::types::columnCount>(I32("type_index"), Str("type_key")))
         , typeEav(File(dir, base, "eav.type_eav"),
-                  { I32("type_index"), I32("path_index"), Str("value_string"), F64("value_double"),
-                    Bool("value_boolean"), Str("unit"), Str("internal_definition_name") })
-        , objectType(File(dir, base, "eav.object_type"), { I32("object_index"), I32("type_index") })
+                  SpecFields<col::type_eav::columnCount>(
+                      I32("type_index"), I32("path_index"), Str("value_string"), F64("value_double"),
+                      Bool("value_boolean"), Str("unit"), Str("internal_definition_name")))
+        , objectType(File(dir, base, "eav.object_type"),
+                     SpecFields<col::object_type::columnCount>(I32("object_index"), I32("type_index")))
     {
     }
 
