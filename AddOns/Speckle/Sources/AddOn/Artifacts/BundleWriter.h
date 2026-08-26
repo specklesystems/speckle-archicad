@@ -29,7 +29,9 @@ struct SceneViewTier
 // string identities into the three dense int32 namespaces (object / geometry /
 // node) and appends rows straight into one minipq parquet writer per table,
 // each already open at its final {baseName}.<group>.<table>.parquet path with
-// Zstd compression — the bundle-spec (schema_version 5) wire format.
+// Zstd compression — the bundle-spec (schema_version 1.0.0) wire format. The
+// version is not spelled out per table: it comes from bundlespec::kSchemaVersion
+// in the vendored header, so re-vendoring moves it in one place.
 //
 // minipq (Libs/minipq) is the parquet engine: an in-tree, dependency-free
 // writer sized to exactly the bundle subset, statically compiled into the

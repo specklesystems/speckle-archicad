@@ -203,8 +203,9 @@ namespace
 
 // One minipq::Table per bundle file, each open at its final
 // {baseName}.<group>.<table>.parquet path from construction on. Table shapes
-// follow speckle-bundle-spec (schema_version 5); the vocab/catalog tables
-// mirror what the SDK's EnvelopeWriter actually writes into a bundle.
+// follow speckle-bundle-spec, pinned in Libs/bundlespec (see its README for the
+// commit); the vocab/catalog tables mirror what the SDK's EnvelopeWriter actually
+// writes into a bundle. Spec-owned shapes carry a SpecFields arity guard.
 struct BundleTables
 {
     // Geometry blobs dominate bundle size — flush them by bytes so a large model
