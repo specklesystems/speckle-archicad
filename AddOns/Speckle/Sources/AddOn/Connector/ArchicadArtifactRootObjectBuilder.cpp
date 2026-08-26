@@ -141,7 +141,7 @@ namespace
         // the rest as collections — so this standardizes vocabulary without moving topology.
         if (isTopLevel && !obj.layerInfo.id.empty())
         {
-            const int layerK = writer.AddCollection(obj.layerInfo.id, obj.layerInfo.name, nullptr, "Layer");
+            const int layerK = writer.AddContainer(obj.layerInfo.id, obj.layerInfo.name, nullptr, "Layer");
             writer.InCollection(objK, layerK, 0);
         }
 

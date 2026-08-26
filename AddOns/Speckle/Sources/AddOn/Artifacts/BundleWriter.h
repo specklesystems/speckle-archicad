@@ -74,7 +74,9 @@ public:
     int AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness,
                     const int* emissive = nullptr);
     int AddLevel(const std::string& levelKey, const std::string& name, double elevation);
-    int AddCollection(const std::string& collectionKey, const std::string& name, const int* parentK, const std::string& subtype);
+    // The one CONTAINER adder — subtype is the discriminator ("Layer", "Group", …) and is
+    // part of the intern identity, so a layer and a group that happen to share a key stay
+    // distinct nodes. parentK nests it via def_ref (null for a root).
     int AddContainer(const std::string& containerKey, const std::string& name, const int* parentK, const std::string& subtype);
 
     // Instancing nodes. A DEFINITION is shared geometry (linked via DEFINES); an INSTANCE
@@ -90,10 +92,8 @@ public:
     void Defines(int definitionK, int geometryK, int ord);
     void DisplayInstance(int objectK, int instanceK, int ord);
     void HasMaterial(int geometryK, int materialK);
-    void HasColor(int srcK, int colorK);
     void OnLevel(int objectK, int levelK);
     void InCollection(int objectK, int collectionK, int ord);
-    void InModel(int objectK, int modelK, int ord);
 
     // Authored group membership -> CONTAINER(subtype "Group"). A SEPARATE axis from
     // InCollection (the layer scene-tree, single-valued on receive): an object keeps its

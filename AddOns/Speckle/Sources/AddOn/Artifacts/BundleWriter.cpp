@@ -613,23 +613,10 @@ int BundleWriter::AddLevel(const std::string& levelKey, const std::string& name,
     return k;
 }
 
-int BundleWriter::AddCollection(const std::string& collectionKey, const std::string& name, const int* parentK, const std::string& subtype)
-{
-    bool isNew;
-    const int k = InternNode("coll:" + collectionKey, isNew);
-    if (isNew)
-    {
-        AppendNodeRow(
-            _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
-            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-    }
-    return k;
-}
-
 int BundleWriter::AddContainer(const std::string& containerKey, const std::string& name, const int* parentK, const std::string& subtype)
 {
     bool isNew;
-    const int k = InternNode("cont:" + containerKey, isNew);
+    const int k = InternNode("cont:" + subtype + ":" + containerKey, isNew);
     if (isNew)
     {
         AppendNodeRow(
@@ -681,10 +668,8 @@ void BundleWriter::Subelement(int parentObjectK, int childObjectK, int ord) { Ad
 void BundleWriter::Defines(int definitionK, int geometryK, int ord) { AddRelation(bundlespec::Rel::DEFINES, definitionK, geometryK, ord); }
 void BundleWriter::DisplayInstance(int objectK, int instanceK, int ord) { AddRelation(bundlespec::Rel::DISPLAY_INSTANCE, objectK, instanceK, ord); }
 void BundleWriter::HasMaterial(int geometryK, int materialK) { AddRelation(bundlespec::Rel::HAS_MATERIAL, geometryK, materialK, 0); }
-void BundleWriter::HasColor(int srcK, int colorK) { AddRelation(bundlespec::Rel::HAS_COLOR, srcK, colorK, 0); }
 void BundleWriter::OnLevel(int objectK, int levelK) { AddRelation(bundlespec::Rel::ON_LEVEL, objectK, levelK, 0); }
 void BundleWriter::InCollection(int objectK, int collectionK, int ord) { AddRelation(bundlespec::Rel::IN_COLLECTION, objectK, collectionK, ord); }
-void BundleWriter::InModel(int objectK, int modelK, int ord) { AddRelation(bundlespec::Rel::IN_MODEL, objectK, modelK, ord); }
 void BundleWriter::InGroup(int objectK, int groupK, int ord) { AddRelation(bundlespec::Rel::IN_GROUP, objectK, groupK, ord); }
 void BundleWriter::InRoom(int objectK, int roomK, int ord) { AddRelation(bundlespec::Rel::IN_ROOM, objectK, roomK, ord); }
 void BundleWriter::Bounds(int boundingObjectK, int roomObjectK, int ord) { AddRelation(bundlespec::Rel::BOUNDS, boundingObjectK, roomObjectK, ord); }
