@@ -10,6 +10,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <optional>
 #include <random>
 #include <set>
 #include <sstream>
@@ -436,8 +437,25 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             case 1: displayByObj[row.src].push_back(row.dst); break;
             case 2: solidByObj[row.src].push_back(row.dst); break;
             case 4: definesByDef[row.src].push_back(row.dst); break;
-            case 5: materialByGeom[row.src] = row.dst; break;
-            case 6: colorByGeom[row.src] = row.dst; break;
+            // HAS_MATERIAL / HAS_COLOR carry a namespace tag in ord for PRE-SPLIT bundles
+            // (ENG-8822/8849): ord==1 means the src is an object (a placement paint), not a
+            // geometry. Filing those by geometry K would be actively wrong, not merely lossy
+            // — object and geometry are separate dense K spaces both starting at 0, so a
+            // misfiled edge lands on whichever unrelated mesh shares the number. ord==0 or
+            // absent is a genuine geometry src. Rels 26/27 are the same two edges in their
+            // post-split spelling and share these maps: one map, two vintages.
+            case 5:
+                if (row.ord == 1)
+                    materialByObj[row.src] = row.dst;
+                else
+                    materialByGeom[row.src] = row.dst;
+                break;
+            case 6:
+                if (row.ord == 1)
+                    colorByObj[row.src] = row.dst;
+                else
+                    colorByGeom[row.src] = row.dst;
+                break;
             case 8: instancesByObj[row.src].push_back(row.dst); break;
             case 9: childInstancesByDef[row.src].push_back(row.dst); break;
             case 10: containerByObj[row.src] = row.dst; break;
@@ -464,8 +482,19 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         double roughness = 1.0;
         int emissive = 0; // packed ARGB; 0 = no emission (spec writes NULL for it)
     };
+    // A COLOR node is a bare display colour — argb + opacity, no PBR channels.
+    struct ColorNode
+    {
+        int argb = 0;
+        double opacity = 1.0;
+    };
     std::map<int, InstanceNode> instanceNodes;
     std::map<int, MaterialNode> materialNodes;
+    std::map<int, ColorNode> colorNodes;
+    // CONTAINER rows that carry argb directly. Managed producers stamped layer colour
+    // there before NODE_HAS_COLOR (29) existed; the spec says consumers prefer the edge
+    // and keep this as the fallback for older bundles.
+    std::map<int, int> containerArgb;
     {
         ParquetFile f(
             nodesPath,
@@ -488,10 +517,27 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 emissiveCol = minipq::i32(batch, f.optCols[0]);
             for (std::int64_t r = 0; r < batch.num_rows(); r++)
             {
-                const int kind = kindCol.Value(r); // INSTANCE=2, MATERIAL=3
-                if (kind != 2 && kind != 3)
+                // INSTANCE=2, MATERIAL=3, COLOR=4, CONTAINER=7
+                const int kind = kindCol.Value(r);
+                if (kind != 2 && kind != 3 && kind != 4 && kind != 7)
                     continue;
                 const int id = idCol.Value(r);
+                if (kind == 4)
+                {
+                    ColorNode node;
+                    if (!argbCol.IsNull(r))
+                        node.argb = argbCol.Value(r);
+                    if (!opacityCol.IsNull(r))
+                        node.opacity = opacityCol.Value(r);
+                    colorNodes[id] = node;
+                    continue;
+                }
+                if (kind == 7)
+                {
+                    if (!argbCol.IsNull(r))
+                        containerArgb[id] = argbCol.Value(r);
+                    continue;
+                }
                 if (kind == 2)
                 {
                     InstanceNode node;
@@ -547,6 +593,32 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         }
     }
 
+    // Compat for bundles written before the ord namespace tag: an object-sourced
+    // HAS_COLOR/HAS_MATERIAL edge landed untagged and is indistinguishable from a
+    // geometry-sourced one. Recover it ONLY where the geometry reading is provably
+    // impossible — the src is not a geometry K but IS an object K — so a tagged or
+    // colliding bundle is never second-guessed. A src that collides with a real geometry
+    // stays put: guessing would be a coin flip, and the wrong guess paints an unrelated
+    // mesh. Mirrors the SDK's RecoverUntaggedObjectColors.
+    {
+        auto recover = [&](std::map<int, int>& byGeom, std::map<int, int>& byObj)
+        {
+            std::vector<int> misfiled;
+            for (const auto& kv : byGeom)
+            {
+                if (geometryBlobs.count(kv.first) == 0 && appIdByObj.count(kv.first) != 0)
+                    misfiled.push_back(kv.first);
+            }
+            for (const int k : misfiled)
+            {
+                byObj[k] = byGeom[k];
+                byGeom.erase(k);
+            }
+        };
+        recover(colorByGeom, colorByObj);
+        recover(materialByGeom, materialByObj);
+    }
+
     // ── 3. assemble per-object meshes and write XMLs ─────────────────────────
     // Objects with a DISPLAY or DISPLAY_INSTANCE edge are bakeable; everything
     // else (levels-only rows, data-only objects) is silently skipped — same
@@ -584,6 +656,104 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             batchFolders.push_back(p.string());
         }
         return batchFolders[index];
+    };
+
+    // One resolved surface appearance, flattened from whichever ladder tier won.
+    struct ResolvedAppearance
+    {
+        // Cache key: the winning node's K, or -(containerK + 2) for the CONTAINER-argb
+        // fallback, which has no node of its own. Node Ks share one dense space across
+        // kinds, so a node K identifies a MATERIAL and a COLOR unambiguously.
+        int key = -1;
+        std::string name;
+        int argb = 0;
+        double opacity = 1.0;
+        double roughness = 1.0;
+        int emissive = 0;
+    };
+
+    // The spec's two appearance ladders, which run in DELIBERATELY OPPOSITE directions:
+    //
+    //   material  geometry (5) > object (26) > container (28)      FILL — geometry owns it,
+    //                                                             the object only fills a gap
+    //   colour    object (27) > geometry (6) > container (29)      OVERRIDE — the object wins
+    //
+    // Material is intrinsic, colour is presentational; rel 27's catalog text spells the
+    // inversion out and warns against "fixing" it. Container is the weakest tier of both,
+    // reached through the object's IN_COLLECTION edge (per rel 28's own wording).
+    //
+    // Folding the two onto ONE GDL surface is this receiver's own call, because Archicad
+    // bakes a single surface per mesh while hosts that have both concepts (Rhino:
+    // ObjectColor + render material) keep them apart — so there is no cross-producer rule
+    // to copy. Material wins when one resolves: it carries the full PBR set and maps 1:1
+    // onto a GDL surface, where a COLOR node is argb + opacity only, and the colour rel's
+    // own use cases (clash highlighting, status tinting) are not what a library-part bake
+    // is for. Colour therefore serves the case that was silently grey before: bundles from
+    // AutoCAD/dgn/SketchUp, which mostly carry colour and no material at all.
+    auto resolveAppearance = [&](int objK, int geometryK) -> std::optional<ResolvedAppearance>
+    {
+        const int containerK = containerByObj.count(objK) ? containerByObj.at(objK) : -1;
+
+        auto lookup = [](const std::map<int, int>& m, int k) -> int
+        { auto it = k < 0 ? m.end() : m.find(k); return it == m.end() ? -1 : it->second; };
+
+        int materialK = lookup(materialByGeom, geometryK);
+        if (materialK < 0)
+            materialK = lookup(materialByObj, objK);
+        if (materialK < 0)
+            materialK = lookup(materialByNode, containerK);
+
+        if (materialK >= 0)
+        {
+            auto mat = materialNodes.find(materialK);
+            if (mat != materialNodes.end())
+            {
+                ResolvedAppearance out;
+                out.key = materialK;
+                out.name = mat->second.name;
+                out.argb = mat->second.argb;
+                out.opacity = mat->second.opacity;
+                out.roughness = mat->second.roughness;
+                out.emissive = mat->second.emissive;
+                return out;
+            }
+            // Edge pointing at a node that is absent or not a MATERIAL — fall through to
+            // colour rather than treating the bundle as appearance-less.
+        }
+
+        int colorK = lookup(colorByObj, objK);
+        if (colorK < 0)
+            colorK = lookup(colorByGeom, geometryK);
+        if (colorK < 0)
+            colorK = lookup(colorByNode, containerK);
+
+        if (colorK >= 0)
+        {
+            auto colour = colorNodes.find(colorK);
+            if (colour != colorNodes.end())
+            {
+                ResolvedAppearance out;
+                out.key = colorK;
+                out.argb = colour->second.argb;
+                out.opacity = colour->second.opacity;
+                return out; // name left empty — the caller mints "Speckle Material <k>"
+            }
+        }
+
+        // Last resort: layer colour stamped straight onto the CONTAINER row, which is how
+        // managed producers carried it before NODE_HAS_COLOR existed.
+        if (containerK >= 0)
+        {
+            auto argb = containerArgb.find(containerK);
+            if (argb != containerArgb.end())
+            {
+                ResolvedAppearance out;
+                out.key = -(containerK + 2);
+                out.argb = argb->second;
+                return out;
+            }
+        }
+        return std::nullopt;
     };
 
     // Recursively expand an INSTANCE node into (geometryK, worldTransform) pairs.
@@ -709,38 +879,34 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                         mi.transform.TransformPoint(decoded.vertices[i], decoded.vertices[i + 1], decoded.vertices[i + 2]);
                 }
 
-                // Material: HAS_MATERIAL geometry → MATERIAL node; default light gray.
+                // Appearance: the two ladders above, flattened onto one GDL surface;
+                // default light gray when nothing resolves.
                 std::string materialName = defaultMaterialName;
-                auto matRel = materialByGeom.find(mi.geometryK);
-                if (matRel != materialByGeom.end())
+                if (auto appearance = resolveAppearance(objK, mi.geometryK))
                 {
-                    auto mat = materialNodes.find(matRel->second);
-                    if (mat != materialNodes.end())
+                    auto& def = usedMaterials[appearance->key];
+                    if (def.name.empty())
                     {
-                        auto& def = usedMaterials[matRel->second];
-                        if (def.name.empty())
+                        std::string rawName = appearance->name.empty()
+                            ? ("Speckle Material " + std::to_string(appearance->key))
+                            : appearance->name;
+                        def.name = GdlLibpartXml::SanitizeName(rawName);
+                        const int argb = appearance->argb;
+                        def.r = ((argb >> 16) & 0xFF) / 255.0;
+                        def.g = ((argb >> 8) & 0xFF) / 255.0;
+                        def.b = (argb & 0xFF) / 255.0;
+                        def.transparent = 1.0 - appearance->opacity;
+                        def.shining = static_cast<int>((1.0 - appearance->roughness) * 100);
+                        const int emissive = appearance->emissive;
+                        if (emissive != 0)
                         {
-                            std::string rawName = mat->second.name.empty()
-                                ? ("Speckle Material " + std::to_string(matRel->second))
-                                : mat->second.name;
-                            def.name = GdlLibpartXml::SanitizeName(rawName);
-                            const int argb = mat->second.argb;
-                            def.r = ((argb >> 16) & 0xFF) / 255.0;
-                            def.g = ((argb >> 8) & 0xFF) / 255.0;
-                            def.b = (argb & 0xFF) / 255.0;
-                            def.transparent = 1.0 - mat->second.opacity;
-                            def.shining = static_cast<int>((1.0 - mat->second.roughness) * 100);
-                            const int emissive = mat->second.emissive;
-                            if (emissive != 0)
-                            {
-                                def.hasEmission = true;
-                                def.emissionR = ((emissive >> 16) & 0xFF) / 255.0;
-                                def.emissionG = ((emissive >> 8) & 0xFF) / 255.0;
-                                def.emissionB = (emissive & 0xFF) / 255.0;
-                            }
+                            def.hasEmission = true;
+                            def.emissionR = ((emissive >> 16) & 0xFF) / 255.0;
+                            def.emissionG = ((emissive >> 8) & 0xFF) / 255.0;
+                            def.emissionB = (emissive & 0xFF) / 255.0;
                         }
-                        materialName = def.name;
                     }
+                    materialName = def.name;
                 }
                 if (materialName == defaultMaterialName)
                     usedDefaultMaterial = true;
