@@ -129,13 +129,19 @@ namespace
             writer.OnLevel(objK, levelK);
         }
 
-        // Layer membership -> CONTAINER(subtype "Collection") + IN_COLLECTION, the authored
+        // Layer membership -> CONTAINER(subtype "Layer") + IN_COLLECTION, the authored
         // scene-tree axis. Archicad layers are flat, so the container never gets a parent.
         // Children inherit the parent's layer (openings take their host's), so only top-level
         // objects carry the edge — same rule as ON_LEVEL above.
+        //
+        // "Layer", not "Collection": an Archicad layer IS a CAD layer, and Layer is the
+        // canonical subtype for one across producers (Rhino, AutoCAD/Civil3D, dgnextract,
+        // SketchUp; dwgextract was flipped off "Collection" for this in ENG-9244). Receivers
+        // are subtype-tolerant for the tree — they exclude Model/Network/MEP System and treat
+        // the rest as collections — so this standardizes vocabulary without moving topology.
         if (isTopLevel && !obj.layerInfo.id.empty())
         {
-            const int layerK = writer.AddCollection(obj.layerInfo.id, obj.layerInfo.name, nullptr, "Collection");
+            const int layerK = writer.AddCollection(obj.layerInfo.id, obj.layerInfo.name, nullptr, "Layer");
             writer.InCollection(objK, layerK, 0);
         }
 
