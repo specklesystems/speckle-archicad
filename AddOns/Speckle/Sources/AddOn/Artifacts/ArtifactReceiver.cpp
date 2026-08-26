@@ -756,15 +756,29 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         return std::nullopt;
     };
 
+    // PLACES (24) reversed: INSTANCE node K -> the member object that places it. A
+    // definition member that is itself a placement deliberately carries no
+    // DISPLAY_INSTANCE (that rel is strictly a top-level render contract, ENG-8782), so
+    // PLACES is the only way back from the node plane to the member's object identity —
+    // and therefore to its object-plane appearance and its IN_COLLECTION [ENG-9110].
+    std::map<int, int> memberObjByInstance;
+    for (const auto& kv : placementByObj)
+        memberObjByInstance[kv.second] = kv.first;
+
     // Recursively expand an INSTANCE node into (geometryK, worldTransform) pairs.
+    // ownerObjK is the object whose object-plane appearance applies to this geometry:
+    // the placing object at the top level, or the nearest enclosing member object once
+    // PLACES identifies one.
     struct MeshInstance
     {
         int geometryK;
         Mat4 transform;
         bool hasTransform;
+        int ownerObjK;
     };
-    std::function<void(int, const Mat4&, bool, int, std::vector<MeshInstance>&)> expandInstance =
-        [&](int instK, const Mat4& parent, bool parentHasTransform, int depth, std::vector<MeshInstance>& out)
+    std::function<void(int, const Mat4&, bool, int, int, std::vector<MeshInstance>&)> expandInstance =
+        [&](int instK, const Mat4& parent, bool parentHasTransform, int depth, int ownerObjK,
+            std::vector<MeshInstance>& out)
     {
         if (depth > 64)
             return; // nesting backstop
@@ -772,6 +786,11 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         if (it == instanceNodes.end() || it->second.defRef < 0)
             return;
         const InstanceNode& inst = it->second;
+
+        // A member object placing this instance takes over as the appearance owner for
+        // everything inside it — the placement chain the FILL semantics resolve down.
+        auto member = memberObjByInstance.find(instK);
+        const int owner = member != memberObjByInstance.end() ? member->second : ownerObjK;
 
         Mat4 combined = inst.transform;
         bool hasTransform = !inst.transform.isIdentity;
@@ -785,13 +804,13 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         if (geoms != definesByDef.end())
         {
             for (const int geomK : geoms->second)
-                out.push_back({ geomK, combined, hasTransform });
+                out.push_back({ geomK, combined, hasTransform, owner });
         }
         auto children = childInstancesByDef.find(inst.defRef);
         if (children != childInstancesByDef.end())
         {
             for (const int childK : children->second)
-                expandInstance(childK, combined, hasTransform, depth + 1, out);
+                expandInstance(childK, combined, hasTransform, depth + 1, owner, out);
         }
     };
 
@@ -818,7 +837,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             if (direct != displayByObj.end())
             {
                 for (const int geomK : direct->second)
-                    meshInstances.push_back({ geomK, Mat4{}, false });
+                    meshInstances.push_back({ geomK, Mat4{}, false, objK });
             }
             // SOLID (2) is a FALLBACK here, never a preference — the deliberate inverse of
             // the spec's "receive prefers the solid over its meshes", which presumes a
@@ -836,14 +855,14 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 if (solids != solidByObj.end())
                 {
                     for (const int geomK : solids->second)
-                        meshInstances.push_back({ geomK, Mat4{}, false });
+                        meshInstances.push_back({ geomK, Mat4{}, false, objK });
                 }
             }
             auto placed = instancesByObj.find(objK);
             if (placed != instancesByObj.end())
             {
                 for (const int instK : placed->second)
-                    expandInstance(instK, Mat4{}, false, 0, meshInstances);
+                    expandInstance(instK, Mat4{}, false, 0, objK, meshInstances);
             }
 
             std::vector<GdlLibpartXml::XmlMesh> xmlMeshes;
@@ -882,7 +901,7 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
                 // Appearance: the two ladders above, flattened onto one GDL surface;
                 // default light gray when nothing resolves.
                 std::string materialName = defaultMaterialName;
-                if (auto appearance = resolveAppearance(objK, mi.geometryK))
+                if (auto appearance = resolveAppearance(mi.ownerObjK, mi.geometryK))
                 {
                     auto& def = usedMaterials[appearance->key];
                     if (def.name.empty())
