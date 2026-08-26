@@ -220,7 +220,7 @@ struct BundleTables
         , nodes(File(dir, base, "envelope.nodes"),
                 { I32("id"), I32("kind"), Str("name"), I32("def_ref"), Str("transform"), Str("units"),
                   Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"),
-                  I32("emissive"), F64("ior"), F64("elevation") })
+                  I32("emissive"), F64("ior"), F64("elevation"), Str("gh_topology") })
         , relations(File(dir, base, "envelope.relations"), { I32("rel"), I32("src"), I32("dst"), I32("ord") })
         , sceneViews(File(dir, base, "envelope.scene_views"),
                      { I32("view"), Str("name"), Bool("is_default"), I32("ord"), Str("source"), Str("ref") })
@@ -540,6 +540,10 @@ static void AppendNodeRow(
     PutIntOpt(nodes, col::nodes::emissive, emissive);
     nodes.putDouble(col::nodes::ior, Opt(ior));
     nodes.putDouble(col::nodes::elevation, Opt(elevation));
+    // gh_topology carries a Grasshopper collection's source topology string. No
+    // Archicad equivalent, so always NULL — but the column must be present: minipq
+    // needs one put per column per row, and the spec requires spec columns to exist.
+    nodes.putStrNull(col::nodes::gh_topology);
     nodes.endRow();
 }
 
