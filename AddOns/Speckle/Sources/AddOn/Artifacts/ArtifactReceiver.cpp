@@ -556,6 +556,10 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
         bakeableObjects.insert(kv.first);
     for (const auto& kv : instancesByObj)
         bakeableObjects.insert(kv.first);
+    // SOLID-only objects are candidates too — see the solid fallback below. An object
+    // with both edges is already here via DISPLAY.
+    for (const auto& kv : solidByObj)
+        bakeableObjects.insert(kv.first);
 
     processWindow.SetNextProcessPhase("Generating objects", static_cast<int>(bakeableObjects.size()));
 
@@ -645,6 +649,25 @@ ArtifactReceiver::Result ArtifactReceiver::Receive(
             {
                 for (const int geomK : direct->second)
                     meshInstances.push_back({ geomK, Mat4{}, false });
+            }
+            // SOLID (2) is a FALLBACK here, never a preference — the deliberate inverse of
+            // the spec's "receive prefers the solid over its meshes", which presumes a
+            // consumer that can read the raw encoding. A SOLID blob is raw, non-SGEO
+            // content (a Rhino Brep/Extrusion/SubD stored verbatim, geometries.type "3dm");
+            // the SDK gates it on ArtifactReceiveOptions.PreferSolids, true for Rhino and
+            // false for Revit "which can't import 3dm". Archicad can't either — it bakes
+            // GDL from decoded triangles — so preferring the solid would decode nothing and
+            // silently drop the object's geometry. We take the display meshes, and consult
+            // the solid only when there are none, for the case where a producer happened to
+            // mesh-encode it (TryDecodeMesh rejects the raw blobs below either way).
+            if (meshInstances.empty())
+            {
+                auto solids = solidByObj.find(objK);
+                if (solids != solidByObj.end())
+                {
+                    for (const int geomK : solids->second)
+                        meshInstances.push_back({ geomK, Mat4{}, false });
+                }
             }
             auto placed = instancesByObj.find(objK);
             if (placed != instancesByObj.end())
