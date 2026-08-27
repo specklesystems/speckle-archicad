@@ -5,7 +5,7 @@
 
 namespace bundlespec {
 
-constexpr int kSchemaVersion = 5;
+constexpr const char* kSchemaVersion = "1.0.0";
 
 enum class Rel : int {
   DISPLAY = 1,
@@ -26,6 +26,12 @@ enum class Rel : int {
   CONNECTS_TO = 21,
   HOSTED_ON = 22,
   BOUNDS = 23,
+  PLACES = 24,
+  DEFINES_MEMBER = 25,
+  OBJECT_HAS_MATERIAL = 26,
+  OBJECT_HAS_COLOR = 27,
+  NODE_HAS_MATERIAL = 28,
+  NODE_HAS_COLOR = 29,
 };
 
 enum class NodeKind : int {
@@ -44,11 +50,11 @@ struct NodeKindRow { int id; const char* name; const char* subtype_values; };
 // (live + reserved; retired ids are omitted but never reused).
 static const RelTypeRow kRelTypes[] = {
   {1, "DISPLAY", "object", "geometry", "live"},
-  {2, "SOLID", "object", "geometry", "reserved"},
+  {2, "SOLID", "object", "geometry", "live"},
   {3, "SUBELEMENT", "object", "object", "live"},
   {4, "DEFINES", "node", "geometry", "live"},
-  {5, "HAS_MATERIAL", "geometry|instance", "node", "live"},
-  {6, "HAS_COLOR", "geometry|object", "node", "live"},
+  {5, "HAS_MATERIAL", "geometry", "node", "live"},
+  {6, "HAS_COLOR", "geometry", "node", "live"},
   {7, "ON_LEVEL", "object", "node", "live"},
   {8, "DISPLAY_INSTANCE", "object", "node", "live"},
   {9, "DEFINES_INSTANCE", "node", "node", "live"},
@@ -61,6 +67,12 @@ static const RelTypeRow kRelTypes[] = {
   {21, "CONNECTS_TO", "object", "object", "live"},
   {22, "HOSTED_ON", "object", "object", "live"},
   {23, "BOUNDS", "object", "object", "live"},
+  {24, "PLACES", "object", "node", "live"},
+  {25, "DEFINES_MEMBER", "node", "object", "live"},
+  {26, "OBJECT_HAS_MATERIAL", "object", "node", "live"},
+  {27, "OBJECT_HAS_COLOR", "object", "node", "live"},
+  {28, "NODE_HAS_MATERIAL", "node", "node", "live"},
+  {29, "NODE_HAS_COLOR", "node", "node", "live"},
 };
 static const NodeKindRow kNodeKinds[] = {
   {1, "DEFINITION", nullptr},
@@ -68,7 +80,7 @@ static const NodeKindRow kNodeKinds[] = {
   {3, "MATERIAL", nullptr},
   {4, "COLOR", nullptr},
   {5, "LEVEL", nullptr},
-  {7, "CONTAINER", "Collection,Model,MEP System,Network,Group"},
+  {7, "CONTAINER", "Collection,Layer,Folder,Model,MEP System,Network,Group"},
 };
 
 }  // namespace bundlespec

@@ -165,6 +165,24 @@ namespace
     minipq::Field Bool(const char* name) { return { name, minipq::T::BOOL, minipq::Enc::PLAIN }; }
     minipq::Field Bin(const char* name) { return { name, minipq::T::BIN, minipq::Enc::PLAIN }; }
 
+    // Arity guard for the tables whose shape the spec owns. minipq takes a plain
+    // vector<Field>, so nothing otherwise ties the hand-written field list to the
+    // generated column indices the put calls use — and the two drifting apart is the
+    // Jul-29 empty-nodes incident exactly (emissive/ior inserted ahead of elevation,
+    // writers kept the stale ordinal, every nodes row silently dropped fleet-wide).
+    // Naming the count makes a spec insertion a build break here rather than a bundle
+    // that validates and renders nothing. The other native producers get this for free
+    // by constructing arrow schemas from bundle_schemas.h; this is the minipq analogue.
+    template <int SpecColumnCount, typename... F>
+    std::vector<minipq::Field> SpecFields(F&&... fields)
+    {
+        static_assert(
+            sizeof...(F) == SpecColumnCount,
+            "BundleWriter table field list is out of sync with bundle_cols.h — re-vendor "
+            "Libs/bundlespec and add/remove the column here (and its put in the row writer)");
+        return { std::forward<F>(fields)... };
+    }
+
     // Nullable-column helpers (minipq needs an explicit put per column per row).
     void PutStrOpt(minipq::Table& t, int col, const std::string* v)
     {
@@ -185,8 +203,9 @@ namespace
 
 // One minipq::Table per bundle file, each open at its final
 // {baseName}.<group>.<table>.parquet path from construction on. Table shapes
-// follow speckle-bundle-spec (schema_version 5); the vocab/catalog tables
-// mirror what the SDK's EnvelopeWriter actually writes into a bundle.
+// follow speckle-bundle-spec, pinned in Libs/bundlespec (see its README for the
+// commit); the vocab/catalog tables mirror what the SDK's EnvelopeWriter actually
+// writes into a bundle. Spec-owned shapes carry a SpecFields arity guard.
 struct BundleTables
 {
     // Geometry blobs dominate bundle size — flush them by bytes so a large model
@@ -212,32 +231,52 @@ struct BundleTables
     minipq::Table objectType;
 
     BundleTables(const std::filesystem::path& dir, const std::string& base)
-        : objects(File(dir, base, "eav.objects"), { I32("object_index"), Str("application_id") })
-        , paths(File(dir, base, "eav.paths"), { I32("path_index"), Str("path") })
+        : objects(File(dir, base, "eav.objects"),
+                  SpecFields<col::objects::columnCount>(I32("object_index"), Str("application_id")))
+        , paths(File(dir, base, "eav.paths"),
+                SpecFields<col::paths::columnCount>(I32("path_index"), Str("path")))
         , eav(File(dir, base, "eav.eav"),
-              { I32("object_index"), I32("path_index"), Str("value_string"), F64("value_double"),
-                Bool("value_boolean"), Str("unit"), Str("internal_definition_name") })
+              SpecFields<col::eav::columnCount>(
+                  I32("object_index"), I32("path_index"), Str("value_string"), F64("value_double"),
+                  Bool("value_boolean"), Str("unit"), Str("internal_definition_name")))
         , nodes(File(dir, base, "envelope.nodes"),
-                { I32("id"), I32("kind"), Str("name"), I32("def_ref"), Str("transform"), Str("units"),
-                  Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"),
-                  I32("emissive"), F64("ior"), F64("elevation") })
-        , relations(File(dir, base, "envelope.relations"), { I32("rel"), I32("src"), I32("dst"), I32("ord") })
+                SpecFields<col::nodes::columnCount>(
+                    I32("id"), I32("kind"), Str("name"), I32("def_ref"), Str("transform"), Str("units"),
+                    Str("subtype"), I32("argb"), F64("opacity"), F64("metalness"), F64("roughness"),
+                    I32("emissive"), F64("ior"), F64("elevation"), Str("gh_topology")))
+        , relations(File(dir, base, "envelope.relations"),
+                    SpecFields<col::relations::columnCount>(I32("rel"), I32("src"), I32("dst"), I32("ord")))
         , sceneViews(File(dir, base, "envelope.scene_views"),
-                     { I32("view"), Str("name"), Bool("is_default"), I32("ord"), Str("source"), Str("ref") })
+                     SpecFields<col::scene_views::columnCount>(
+                         I32("view"), Str("name"), Bool("is_default"), I32("ord"), Str("source"), Str("ref")))
         , geometries(File(dir, base, "geometries"),
-                     { I32("geometryIndex"), Bin("content"), Str("id"), Str("type") },
+                     SpecFields<col::geometries::columnCount>(
+                         I32("geometryIndex"), Bin("content"), Str("id"), Str("type")),
                      200000, GEOMETRY_FLUSH_BYTES)
+        // schema_version is a VARCHAR carrying the spec's semver ("1.0.0"), not an int;
+        // migrated_from_schema_version stays an int (the legacy object-model vintage, a
+        // different number). No reference_point_* columns: the spec moved that record to
+        // the optional eav.model file, which this producer does not write (see below).
         , meta(File(dir, base, "envelope.meta"),
-               { I32("schema_version"), Str("produced_by"), Str("reference_point_kind"), Str("reference_point_offset"),
-                 Str("producer_version"), Str("sdk_name"), Str("sdk_version"), I32("migrated_from_schema_version") })
+               { Str("schema_version"), Str("produced_by"), Str("producer_version"),
+                 Str("sdk_name"), Str("sdk_version"), I32("migrated_from_schema_version") })
+        // No SpecFields guard on meta / rel_types / node_kinds: the spec excludes all
+        // three (plus bundle_files) from its column codegen, so there is no columnCount
+        // to assert against. Their shape is the projection of the catalog a producer
+        // ships, not a spec-owned table — we carry two columns more than the SDK and
+        // the native extractors do (status, subtype_values), which readers resolve by
+        // name and the validator tolerates as extras.
         , relTypes(File(dir, base, "envelope.rel_types"),
                    { I32("rel"), Str("name"), Str("src_ns"), Str("dst_ns"), Str("status") })
         , nodeKinds(File(dir, base, "envelope.node_kinds"), { I32("kind"), Str("name"), Str("subtype_values") })
-        , types(File(dir, base, "eav.types"), { I32("type_index"), Str("type_key") })
+        , types(File(dir, base, "eav.types"),
+                SpecFields<col::types::columnCount>(I32("type_index"), Str("type_key")))
         , typeEav(File(dir, base, "eav.type_eav"),
-                  { I32("type_index"), I32("path_index"), Str("value_string"), F64("value_double"),
-                    Bool("value_boolean"), Str("unit"), Str("internal_definition_name") })
-        , objectType(File(dir, base, "eav.object_type"), { I32("object_index"), I32("type_index") })
+                  SpecFields<col::type_eav::columnCount>(
+                      I32("type_index"), I32("path_index"), Str("value_string"), F64("value_double"),
+                      Bool("value_boolean"), Str("unit"), Str("internal_definition_name")))
+        , objectType(File(dir, base, "eav.object_type"),
+                     SpecFields<col::object_type::columnCount>(I32("object_index"), I32("type_index")))
     {
     }
 
@@ -294,22 +333,25 @@ BundleWriter::~BundleWriter() = default;
 void BundleWriter::WriteVocabTables()
 {
     // meta + rel/kind vocab, from the vendored generated spec (Libs/bundlespec).
-    _tables->meta.putInt(0, bundlespec::kSchemaVersion);
+    // These three tables are excluded from the spec's column codegen (they are the
+    // catalog, not model data), so their ordinals are hand-written here — as they are
+    // in the SDK's EnvelopeWriter and the native extractors' envelope_catalog.h.
+    _tables->meta.putStr(0, bundlespec::kSchemaVersion);
     _tables->meta.putStr(1, "archicad"); // producer slug, as rvextract/nwextract/teklaextract
-    // reference_point_kind/_offset stay NULL: we convert at the internal origin and
-    // never re-base geometry, which is precisely what NULL means in the spec.
-    _tables->meta.putStrNull(2);
-    _tables->meta.putStrNull(3);
     if (_producerVersion.empty())
-        _tables->meta.putStrNull(4);
+        _tables->meta.putStrNull(2);
     else
-        _tables->meta.putStr(4, _producerVersion);
+        _tables->meta.putStr(2, _producerVersion);
     // No Speckle SDK in this path — the C++ connector writes bundles directly and the
     // embedded frontend does the upload, so there is no SDK name/version to record.
-    _tables->meta.putStrNull(5);
-    _tables->meta.putStrNull(6);
-    _tables->meta.putIntNull(7); // nothing migrated: authored at the current schema
+    _tables->meta.putStrNull(3);
+    _tables->meta.putStrNull(4);
+    _tables->meta.putIntNull(5); // nothing migrated: authored at the current schema
     _tables->meta.endRow();
+    // No reference-point record: we convert at the internal origin and never re-base
+    // geometry. The spec's home for it is now model-scoped eav rows in the optional
+    // eav.model file (referencePoint.kind/.transform/.units); no rows means internal
+    // origin, so a producer that never re-bases writes no file at all.
 
     for (const auto& r : bundlespec::kRelTypes)
     {
@@ -533,6 +575,10 @@ static void AppendNodeRow(
     PutIntOpt(nodes, col::nodes::emissive, emissive);
     nodes.putDouble(col::nodes::ior, Opt(ior));
     nodes.putDouble(col::nodes::elevation, Opt(elevation));
+    // gh_topology carries a Grasshopper collection's source topology string. No
+    // Archicad equivalent, so always NULL — but the column must be present: minipq
+    // needs one put per column per row, and the spec requires spec columns to exist.
+    nodes.putStrNull(col::nodes::gh_topology);
     nodes.endRow();
 }
 
@@ -567,23 +613,10 @@ int BundleWriter::AddLevel(const std::string& levelKey, const std::string& name,
     return k;
 }
 
-int BundleWriter::AddCollection(const std::string& collectionKey, const std::string& name, const int* parentK, const std::string& subtype)
-{
-    bool isNew;
-    const int k = InternNode("coll:" + collectionKey, isNew);
-    if (isNew)
-    {
-        AppendNodeRow(
-            _tables->nodes, k, static_cast<int>(bundlespec::NodeKind::CONTAINER),
-            &name, parentK, nullptr, nullptr, &subtype, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-    }
-    return k;
-}
-
 int BundleWriter::AddContainer(const std::string& containerKey, const std::string& name, const int* parentK, const std::string& subtype)
 {
     bool isNew;
-    const int k = InternNode("cont:" + containerKey, isNew);
+    const int k = InternNode("cont:" + subtype + ":" + containerKey, isNew);
     if (isNew)
     {
         AppendNodeRow(
@@ -635,10 +668,8 @@ void BundleWriter::Subelement(int parentObjectK, int childObjectK, int ord) { Ad
 void BundleWriter::Defines(int definitionK, int geometryK, int ord) { AddRelation(bundlespec::Rel::DEFINES, definitionK, geometryK, ord); }
 void BundleWriter::DisplayInstance(int objectK, int instanceK, int ord) { AddRelation(bundlespec::Rel::DISPLAY_INSTANCE, objectK, instanceK, ord); }
 void BundleWriter::HasMaterial(int geometryK, int materialK) { AddRelation(bundlespec::Rel::HAS_MATERIAL, geometryK, materialK, 0); }
-void BundleWriter::HasColor(int srcK, int colorK) { AddRelation(bundlespec::Rel::HAS_COLOR, srcK, colorK, 0); }
 void BundleWriter::OnLevel(int objectK, int levelK) { AddRelation(bundlespec::Rel::ON_LEVEL, objectK, levelK, 0); }
 void BundleWriter::InCollection(int objectK, int collectionK, int ord) { AddRelation(bundlespec::Rel::IN_COLLECTION, objectK, collectionK, ord); }
-void BundleWriter::InModel(int objectK, int modelK, int ord) { AddRelation(bundlespec::Rel::IN_MODEL, objectK, modelK, ord); }
 void BundleWriter::InGroup(int objectK, int groupK, int ord) { AddRelation(bundlespec::Rel::IN_GROUP, objectK, groupK, ord); }
 void BundleWriter::InRoom(int objectK, int roomK, int ord) { AddRelation(bundlespec::Rel::IN_ROOM, objectK, roomK, ord); }
 void BundleWriter::Bounds(int boundingObjectK, int roomObjectK, int ord) { AddRelation(bundlespec::Rel::BOUNDS, boundingObjectK, roomObjectK, ord); }

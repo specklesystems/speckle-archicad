@@ -54,6 +54,15 @@ inline constexpr int type = 3;
 inline constexpr int columnCount = 4;
 }  // namespace bundlespec::col::geometries
 
+namespace bundlespec::col::model {
+inline constexpr int path = 0;
+inline constexpr int value_string = 1;
+inline constexpr int value_double = 2;
+inline constexpr int value_boolean = 3;
+inline constexpr int unit = 4;
+inline constexpr int columnCount = 5;
+}  // namespace bundlespec::col::model
+
 namespace bundlespec::col::nodes {
 inline constexpr int id = 0;
 inline constexpr int kind = 1;
@@ -69,7 +78,8 @@ inline constexpr int roughness = 10;
 inline constexpr int emissive = 11;
 inline constexpr int ior = 12;
 inline constexpr int elevation = 13;
-inline constexpr int columnCount = 14;
+inline constexpr int gh_topology = 14;
+inline constexpr int columnCount = 15;
 }  // namespace bundlespec::col::nodes
 
 namespace bundlespec::col::object_type {
@@ -89,6 +99,22 @@ inline constexpr int path_index = 0;
 inline constexpr int path = 1;
 inline constexpr int columnCount = 2;
 }  // namespace bundlespec::col::paths
+
+namespace bundlespec::col::property_set_definitions {
+inline constexpr int set_name = 0;
+inline constexpr int set_key = 1;
+inline constexpr int set_description = 2;
+inline constexpr int field_name = 3;
+inline constexpr int field_bucket_id = 4;
+inline constexpr int data_type = 5;
+inline constexpr int default_string = 6;
+inline constexpr int default_double = 7;
+inline constexpr int default_boolean = 8;
+inline constexpr int unit = 9;
+inline constexpr int description = 10;
+inline constexpr int applies_to = 11;
+inline constexpr int columnCount = 12;
+}  // namespace bundlespec::col::property_set_definitions
 
 namespace bundlespec::col::relations {
 inline constexpr int rel = 0;
