@@ -2,11 +2,14 @@
 #include "InvalidMethodNameException.h"
 #include "ArchiCadApiException.h"
 #include "Connector.h"
-#include "HostObjectBuilder.h"
 #include "UserCancelledException.h"
 #include "LibpartPlacer.h"
+#include "ArtifactReceiver.h"
+#include "WinHttpClient.h"
 
-#include <windows.h>
+#include "APIEnvir.h"
+#include "ACAPinc.h"
+
 #include <string>
 #include <iostream>
 #include <filesystem>
@@ -17,7 +20,7 @@ ReceiveBridge::ReceiveBridge(IBrowserAdapter* browser)
 {
     receiveBinding = std::make_unique<Binding>(
         "receiveBinding",
-        std::vector<std::string>{ "Receive", "AfterGetObjects", "afterGsmConverter" },
+        std::vector<std::string>{ "Receive" },
         browser,
         this
     );
@@ -28,14 +31,6 @@ void ReceiveBridge::RunMethod(const RunMethodEventArgs& args)
     if (args.methodName == "Receive")
     {
         Receive(args);
-    }
-    else if (args.methodName == "afterGetObjects")
-    {
-        AfterGetObjects(args);
-    }
-    else if (args.methodName == "afterGsmConverter")
-    {
-        AfterGsmConverter(args);
     }
     else
     {
@@ -83,6 +78,42 @@ static bool ClearDirectory(const std::string& path)
     }
 }
 
+static std::string RemoveInvalidChars(const std::string& input)
+{
+    std::string output;
+    const std::string invalidChars = "<>:\"/\\|?*";
+
+    for (char c : input)
+    {
+        output += (invalidChars.find(c) == std::string::npos) ? c : '-';
+    }
+
+    return output;
+}
+
+static void DeletePreviouslyBakedElements(const std::vector<std::string>& bakedObjectIds)
+{
+    if (bakedObjectIds.empty())
+        return;
+
+    GS::Array<API_Guid> elementsToDelete;
+    for (const auto& elemId : bakedObjectIds)
+    {
+        elementsToDelete.Push(APIGuidFromString(elemId.c_str()));
+    }
+
+    GSErrCode err = ACAPI_CallUndoableCommand("Delete elements",
+        [&]() -> GSErrCode
+        {
+            return ACAPI_Element_Delete(elementsToDelete);
+        });
+
+    if (err != NoError)
+    {
+        std::cerr << "Failed to clean up elements" << std::endl;
+    }
+}
+
 void ReceiveBridge::Receive(const RunMethodEventArgs& args)
 {
     if (args.data.size() < 1)
@@ -92,126 +123,66 @@ void ReceiveBridge::Receive(const RunMethodEventArgs& args)
     ReceiverModelCard card = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
 
     std::string xmlConverterPath = CONNECTOR.GetHostToSpeckleConverter().GetApplicationFolder() + "\\LP_XMLConverter.exe";
-
-    nlohmann::json receiveArgs;
-    receiveArgs["modelId"] = card.modelId;
-    receiveArgs["projectId"] = card.projectId;
-    receiveArgs["accountId"] = card.accountId;
-    receiveArgs["modelCardId"] = card.modelCardId;
-    receiveArgs["selectedVersionId"] = card.selectedVersionId;
-
-    // Check if the LP_XMLConverter.exe file exists
-    if (fs::exists(xmlConverterPath))
+    if (!fs::exists(xmlConverterPath))
     {
-        receiveArgs["xmlConverterPath"] = xmlConverterPath;
-        receiveArgs["endpointVersion"] = "v1";
-        args.eventSource->Send("receiveByDesktopService", receiveArgs);
-    }
-    else
-    {
-        // falling back to receive by browser
-        args.eventSource->Send("receiveByBrowser", receiveArgs);
-    }
-}
-
-static std::string RemoveInvalidChars(const std::string& input)
-{
-    std::string output;
-    const std::string invalidChars = "<>:\"/\\|?*";
-
-    for (char c : input) 
-    {
-        output += (invalidChars.find(c) == std::string::npos) ? c : '-';
+        throw std::runtime_error(
+            "LP_XMLConverter.exe was not found next to Archicad (" + xmlConverterPath +
+            ") — it is required to receive models.");
     }
 
-    return output;
-}
+    std::string token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(card.accountId);
 
-void ReceiveBridge::AfterGsmConverter(const RunMethodEventArgs& args)
-{
-    if (args.data.size() < 3)
-        throw std::invalid_argument("Too few arguments when calling " + args.methodName);
+    // Phases: download, read, generate, convert + LibpartPlacer's register + place.
+    CONNECTOR.GetProcessWindow().Init("Receive", 6);
 
-    std::string modelCardId = args.data[0].get<std::string>();
-    ReceiverModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
-
-    // cleaning up previously placed elements
-    if (modelCard.bakedObjectIds.size() > 0)
-    {
-        GS::Array<API_Guid> elementsToDelete;
-        for (const auto& elemId : modelCard.bakedObjectIds)
-        {
-            elementsToDelete.Push(APIGuidFromString(elemId.c_str()));
-        }
-
-        GSErrCode err = ACAPI_CallUndoableCommand("Delete elements",
-            [&]() -> GSErrCode {
-                return ACAPI_Element_Delete(elementsToDelete);
-            });
-
-        if (err != NoError)
-        {
-            std::cout << "Failed to clean up elements";
-        }
-    }
-
-    std::string xmlFolderPath = args.data[2].get<std::string>();
-    std::string gsmFolderPath = xmlFolderPath + "\\_output";
-
-    std::ostringstream oss;
-    oss << "Project " << modelCard.projectName << " - Model " << modelCard.modelName;
-    std::string baseGroupName = oss.str();
-    baseGroupName = RemoveInvalidChars(baseGroupName);
-
-    int processPhases = 2;
-    CONNECTOR.GetProcessWindow().Init("Receive", processPhases);
-
-    LibpartPlacer libpartPlacer(baseGroupName);
-    auto libpartIndices = libpartPlacer.RegisterLibpartsBatched(gsmFolderPath);
-    int toPlace = static_cast<int>(libpartIndices.size());
-    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Placing Elements", toPlace);
-    libpartPlacer.PlaceLibparts(libpartIndices);
-    CONNECTOR.GetProcessWindow().Close();
-    ClearDirectory(xmlFolderPath);
-
-    modelCard.bakedObjectIds = libpartPlacer.bakedObjectIds;
-
-    nlohmann::json res{};
-    res["modelCardId"] = modelCardId;
-    res["bakedObjectIds"] = libpartPlacer.bakedObjectIds;
-    res["conversionResults"] = libpartPlacer.conversionResults;
-
-    args.eventSource->Send("setModelReceiveResult", res);
-}
-
-// this is the fallback case when we cannot receive via desktop service
-void ReceiveBridge::AfterGetObjects(const RunMethodEventArgs& args)
-{
-    if (args.data.size() < 3)
-        throw std::invalid_argument("Too few arguments when calling " + args.methodName);
-
-    std::string modelCardId = args.data[0].get<std::string>();
-    ReceiverModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsReceiverModelCard();
-
-    HostObjectBuilderResult buildResult{};
-
+    std::string workingDir;
     try
     {
-        nlohmann::json receivedData = args.data[2];
-        HostObjectBuilder hostObjectBuilder{};
-        buildResult = hostObjectBuilder.Build(receivedData, modelCard.projectName, modelCard.modelName);
+        auto http = std::make_shared<WinHttpClient>();
+        ArtifactReceiver receiver(http, card.serverUrl, token);
+
+        const std::string versionId =
+            receiver.ResolveVersionId(card.projectId, card.modelId, card.selectedVersionId);
+
+        ArtifactReceiver::Result received = receiver.Receive(
+            card.projectId, card.modelId, versionId, xmlConverterPath, CONNECTOR.GetProcessWindow());
+        workingDir = received.rootDir;
+
+        // Replace the previous bake, then register + place the fresh GSMs.
+        DeletePreviouslyBakedElements(card.bakedObjectIds);
+
+        std::string baseGroupName =
+            RemoveInvalidChars("Project " + card.projectName + " - Model " + card.modelName);
+
+        LibpartPlacer libpartPlacer(baseGroupName);
+        auto libpartIndices = libpartPlacer.RegisterLibpartsBatched(received.gsmFolder);
+        int toPlace = static_cast<int>(libpartIndices.size());
+        CONNECTOR.GetProcessWindow().SetNextProcessPhase("Placing Elements", toPlace);
+        libpartPlacer.PlaceLibparts(libpartIndices);
+        CONNECTOR.GetProcessWindow().Close();
+
+        ClearDirectory(workingDir);
+
+        card.bakedObjectIds = libpartPlacer.bakedObjectIds;
+
+        nlohmann::json res{};
+        res["modelCardId"] = modelCardId;
+        res["bakedObjectIds"] = libpartPlacer.bakedObjectIds;
+        res["conversionResults"] = received.conversionResults;
+        args.eventSource->Send("setModelReceiveResult", res);
     }
     catch (const UserCancelledException&)
     {
+        CONNECTOR.GetProcessWindow().Close();
+        if (!workingDir.empty())
+            ClearDirectory(workingDir);
         args.eventSource->Send("triggerCancel", modelCardId);
     }
-
-    modelCard.bakedObjectIds = buildResult.bakedObjectIds;
-
-    nlohmann::json res{};
-    res["modelCardId"] = modelCardId;
-    res["bakedObjectIds"] = buildResult.bakedObjectIds;
-    res["conversionResults"] = buildResult.conversionResults;
-
-    args.eventSource->Send("setModelReceiveResult", res);
+    catch (...)
+    {
+        CONNECTOR.GetProcessWindow().Close();
+        if (!workingDir.empty())
+            ClearDirectory(workingDir);
+        throw; // Binding::RunMethod turns this into a toast
+    }
 }

@@ -15,6 +15,7 @@ public static class Consts
         new(
             "archicad",
             [
+                // The .apx is self-contained (parquet IO via the statically linked Libs/minipq + Libs/zstd).
                 new("archicad27", "build/27/INT/Release", "*.apx"),
                 new("archicad28", "build/28/INT/Release", "*.apx"),
                 new("archicad29", "build/29/INT/Release", "*.apx"),

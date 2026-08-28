@@ -17,5 +17,4 @@ struct ReceiverModelCard
     std::vector<std::string> bakedObjectIds;
 };
 
-void to_json(nlohmann::json& j, const ReceiverModelCard& c);
 void from_json(const nlohmann::json& j, ReceiverModelCard& card);

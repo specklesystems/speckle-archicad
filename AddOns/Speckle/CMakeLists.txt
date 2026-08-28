@@ -177,30 +177,54 @@ set (UtilsFolder Sources/AddOn/Utils)
 file (GLOB UtilsFiles ${UtilsFolder}/*.h ${UtilsFolder}/*.cpp)
 source_group ("Utils" FILES ${UtilsFiles})
 
+set (ArtifactsFolder Sources/AddOn/Artifacts)
+file (GLOB ArtifactsFiles ${ArtifactsFolder}/*.h ${ArtifactsFolder}/*.cpp)
+source_group ("Artifacts" FILES ${ArtifactsFiles})
+
+set (NetworkFolder Sources/AddOn/Network)
+file (GLOB NetworkFiles ${NetworkFolder}/*.h ${NetworkFolder}/*.cpp)
+source_group ("Network" FILES ${NetworkFiles})
+
+set (DiagnosticsFolder Sources/AddOn/Diagnostics)
+file (GLOB DiagnosticsFiles ${DiagnosticsFolder}/*.h ${DiagnosticsFolder}/*.cpp)
+source_group ("Diagnostics" FILES ${DiagnosticsFiles})
+
+set (AuthFolder Sources/AddOn/Auth)
+file (GLOB AuthFiles ${AuthFolder}/*.h ${AuthFolder}/*.cpp)
+source_group ("Auth" FILES ${AuthFiles})
+
 if (WIN32)
-	add_library (${SPECKLE_ADDON_LIB} SHARED 
-		${AddOnFiles} 
-		${BrowserFiles} 
-		${ConnectorFiles} 
-		${BridgesFiles}
-		${ConverterFiles}
-		${SpeckleToHostFiles}
-		${HostToSpeckleFiles}
-		${DataTypesFiles} 
-		${StorageFiles}
-		${UtilsFiles})
-else ()
-	add_library (${SPECKLE_ADDON_LIB} MODULE 
-		${AddOnFiles} 
-		${BrowserFiles} 
+	add_library (${SPECKLE_ADDON_LIB} SHARED
+		${AddOnFiles}
+		${BrowserFiles}
 		${ConnectorFiles}
 		${BridgesFiles}
 		${ConverterFiles}
 		${SpeckleToHostFiles}
 		${HostToSpeckleFiles}
-		${DataTypesFiles} 
+		${DataTypesFiles}
 		${StorageFiles}
-		${UtilsFiles})
+		${UtilsFiles}
+		${ArtifactsFiles}
+		${NetworkFiles}
+		${DiagnosticsFiles}
+		${AuthFiles})
+else ()
+	add_library (${SPECKLE_ADDON_LIB} MODULE
+		${AddOnFiles}
+		${BrowserFiles}
+		${ConnectorFiles}
+		${BridgesFiles}
+		${ConverterFiles}
+		${SpeckleToHostFiles}
+		${HostToSpeckleFiles}
+		${DataTypesFiles}
+		${StorageFiles}
+		${UtilsFiles}
+		${ArtifactsFiles}
+		${NetworkFiles}
+		${DiagnosticsFiles}
+		${AuthFiles})
 endif ()
 
 set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES OUTPUT_NAME ${SPECKLE_ADDON_NAME})
@@ -228,6 +252,10 @@ target_include_directories (${SPECKLE_ADDON_LIB} PUBLIC
 		${DataTypesFolder}
 		${StorageFolder}
 		${UtilsFolder}
+		${ArtifactsFolder}
+		${NetworkFolder}
+		${DiagnosticsFolder}
+		${AuthFolder}
 		${AC_API_DEVKIT_DIR}/Support/Inc
 		${LIB_INCLUDE_DIRS}
 )
@@ -264,8 +292,11 @@ set_target_properties(${SPECKLE_ADDON_RESOURCES} PROPERTIES FOLDER Resources)
 
 set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT_INT\\Archicad 29\\Archicad.exe")
 
-# other libs
-target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite sha md5)
+# other libs (minipq/zstd are statically compiled in — the .apx is self-contained)
+target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite sha md5 minipq)
+if (WIN32)
+	target_link_libraries(${SPECKLE_ADDON_LIB} winhttp)
+endif ()
 
 #compile definitions
 SetCompilerParams(${SPECKLE_ADDON_LIB})

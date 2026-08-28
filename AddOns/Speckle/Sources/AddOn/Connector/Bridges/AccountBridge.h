@@ -16,4 +16,6 @@ private:
 
     void GetAccounts(const RunMethodEventArgs& args);
     void RemoveAccount(const RunMethodEventArgs& args);
+    void AddAccount(const RunMethodEventArgs& args);
+    void AuthenticateAccount(const RunMethodEventArgs& args);
 };

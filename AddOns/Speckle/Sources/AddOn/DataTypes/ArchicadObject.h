@@ -1,9 +1,12 @@
 #pragma once
 
 #include "json.hpp"
-#include "Mesh.h"
+#include "EavLeaf.h"
 #include "ElementBody.h"
 #include "ArchicadLevel.h"
+#include "ArchicadLayer.h"
+#include "ArchicadRoomTopology.h"
+#include "ObjectInstance.h"
 
 struct ArchicadObject
 {
@@ -13,9 +16,26 @@ struct ArchicadObject
     std::string speckle_type = "Objects.Data.DataObject:Objects.Data.ArchicadObject";
     std::string applicationId = "";
     ElementBody displayValue;
-    nlohmann::json properties;
+    EavLeaves properties; // pre-flattened EAV rows (no nested json tree)
     std::vector<ArchicadObject> elements;
     ArchicadLevel levelInfo;
-};
+    ArchicadLayer layerInfo;
 
-void to_json(nlohmann::json& j, const ArchicadObject& elem);
+    // Guid of the element this one is hosted on (door/window -> wall, skylight ->
+    // roof/shell). Empty when not an opening. Resolved to a HOSTED_ON edge after the
+    // main emit loop, once it is known whether the host was itself converted.
+    std::string hostElementId = "";
+
+    // Guid of the group the element belongs to; empty when ungrouped. A SEPARATE,
+    // overlapping axis from layerInfo — an element keeps its layer AND its group.
+    std::string groupId = "";
+
+    // Zone occupancy/boundary (zones) or the two zones an opening connects (openings).
+    // Empty for every other element type.
+    ArchicadRoomTopology roomInfo;
+
+    // Populated (valid == true) only for GDL/library-part "Object" leaves that were
+    // extracted as an instance. When valid, displayValue is left empty and the object
+    // is emitted as an INSTANCE of a shared DEFINITION rather than baked geometry.
+    ObjectInstance instance;
+};

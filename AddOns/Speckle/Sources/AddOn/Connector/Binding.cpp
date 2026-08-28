@@ -37,24 +37,6 @@ void Binding::Send(const std::string& methodName, const nlohmann::json& data)
 	EmitResponseReady(methodName, methodId);
 }
 
-void Binding::SendByBrowser(const std::string& sendMethodId, const nlohmann::json& data)
-{
-	Send("sendByBrowser", data);
-	ResponseReady(sendMethodId);
-}
-
-void Binding::SendBatchViaBrowser(const std::string& sendMethodId, const nlohmann::json& data)
-{
-	Send("sendBatchViaBrowser", data);
-	ResponseReady(sendMethodId);
-}
-
-void Binding::CreateVersionViaBrowser(const std::string& sendMethodId, const nlohmann::json& data)
-{
-	Send("createVersionViaBrowser", data);
-	ResponseReady(sendMethodId);
-}
-
 nlohmann::json Binding::GetResult(const std::string& methodId)
 {
 	try

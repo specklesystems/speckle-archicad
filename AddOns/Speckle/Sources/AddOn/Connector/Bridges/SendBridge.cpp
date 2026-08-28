@@ -1,22 +1,17 @@
 #include "SendBridge.h"
-#include "SendViaBrowserArgs.h"
-#include "RootObject.h"
-#include "Material.h"
 #include "Connector.h"
-#include "RootObjectBuilder.h"
 #include "InvalidMethodNameException.h"
-#include "ArchiCadApiException.h"
-#include "BaseObjectSerializer.h"
-#include "AfterSendObjectsArgs.h"
 #include "UserCancelledException.h"
 #include "SendSetting.h"
+#include "SendConversionResult.h"
+#include "ArchicadArtifactRootObjectBuilder.h"
 
 
 SendBridge::SendBridge(IBrowserAdapter* browser)
 {
     sendBinding = std::make_unique<Binding>(
         "sendBinding",
-        std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send", "AfterSendObjects" },
+        std::vector<std::string>{ "GetSendFilters", "GetSendSettings", "Send" },
         browser,
         this
     );
@@ -35,10 +30,6 @@ void SendBridge::RunMethod(const RunMethodEventArgs& args)
     else if (args.methodName == "Send")
     {
         Send(args);
-    }
-    else if (args.methodName == "afterSendObjects")
-    {
-        AfterSendObjects(args);
     }
     else
     {
@@ -64,7 +55,7 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
         layerFilter.availableCategories.push_back({ layer.name, layer.id });
     }
 
-    // CNX-2007 
+    // CNX-2007
     // ACAPI_Navigator_SearchNavigatorItem API function crashes Archicad with specific files
     // temp remove view filters until we find a workaround or an API fix is released
     /*ArchicadViewsFilter viewsFilter;
@@ -79,11 +70,11 @@ void SendBridge::GetSendFilters(const RunMethodEventArgs& args)
 
 void SendBridge::GetSendSettings(const RunMethodEventArgs& args)
 {
-    SendSetting sendPropertiesSetting{ 
-        "sendProperties" , 
+    SendSetting sendPropertiesSetting{
+        "sendProperties" ,
         "Include Object Properties (disable for better performance)",
-        "boolean", 
-        true 
+        "boolean",
+        true
     };
     args.eventSource->SetResult(args.methodId, { sendPropertiesSetting });
 }
@@ -111,47 +102,25 @@ void SendBridge::Send(const RunMethodEventArgs& args)
 
     std::string modelCardId = args.data[0].get<std::string>();
     SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
-    
-    CONNECTOR.GetProcessWindow().Init("Sending...", 1);
 
-    SendViaBrowserArgs sendArgs{};
-    sendArgs.modelCardId = modelCard.modelCardId;
-    sendArgs.projectId = modelCard.projectId;
-    sendArgs.modelId = modelCard.modelId;
-    sendArgs.serverUrl = modelCard.serverUrl;
-    sendArgs.accountId = modelCard.accountId;
-    sendArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
-    
-    CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();   
+    // Phase plan for the whole send (titles shown in the process window):
+    //   1. Preparing 3D view      (here — ShowIn3D can trigger a long 3D regeneration)
+    //   2. Preparing upload       (builder — ingestion create)
+    //   3. Converting elements    (builder — one tick per element)
+    //   4. Writing bundle         (builder — one tick per parquet table)
+    //   5. Uploading              (uploader — KiB-granular, fed per streamed chunk)
+    //   6. Creating version       (uploader — server-side complete)
+    CONNECTOR.GetProcessWindow().Init("Sending to Speckle", 6);
+    CONNECTOR.GetProcessWindow().SetNextProcessPhase("Preparing 3D view", 1);
+
+    CONNECTOR.GetSpeckleToHostConverter().ShowIn3D();
     auto layerStatesStart = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
-    
-    try
-    {
-        nlohmann::json sendObj;
-        RootObjectBuilder rootObjectBuilder{};
-        bool includeProperties = GetSendPropertiesSetting(modelCard);
-        auto root = rootObjectBuilder.GetRootObject(modelCard.sendFilter.GetSelectedObjectIds(), conversionResultCache, includeProperties);
-        BaseObjectSerializer serializer{};
-        auto rootObjectId = serializer.Serialize(root);
-        auto batches = serializer.BatchObjects(10);
 
-        sendArgs.referencedObjectId = rootObjectId;
+    bool includeProperties = GetSendPropertiesSetting(modelCard);
 
-        int i = 1;
-        int batchSize = static_cast<int>(batches.size());
-        for (const auto& b : batches)
-        {
-            sendArgs.batch = b;
-            sendArgs.currentBatch = i;
-            i++;
-            sendArgs.totalBatch = batchSize;
-            args.eventSource->SendBatchViaBrowser(args.methodId, sendArgs);
-        }
-    }
-    catch (const UserCancelledException&)
-    {
-        args.eventSource->Send("triggerCancel", sendArgs.modelCardId);
-    }
+    // Speckle 4.0: write the parquet artefact bundle locally and upload it natively
+    // (sign -> presigned PUT -> complete).
+    SendViaArtifacts(args, modelCard, includeProperties);
 
     // restore hidden layers after send (in case user sent with LayerFilter)
     auto layerStatesEnd = CONNECTOR.GetHostToSpeckleConverter().GetLayers();
@@ -168,26 +137,34 @@ void SendBridge::Send(const RunMethodEventArgs& args)
     CONNECTOR.GetProcessWindow().Close();
 }
 
-void SendBridge::AfterSendObjects(const RunMethodEventArgs& args)
+void SendBridge::SendViaArtifacts(const RunMethodEventArgs& args, SenderModelCard& modelCard, bool includeProperties)
 {
-    if (args.data.size() < 2)
-        throw std::invalid_argument("Too few arguments when calling " + args.methodName);
+    std::string token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
 
-    std::string modelCardId = args.data[0].get<std::string>();
-    SenderModelCard modelCard = CONNECTOR.GetModelCardDatabase().GetModelCard(modelCardId).AsSenderModelCard();
+    try
+    {
+        ArchicadArtifactRootObjectBuilder builder;
+        std::vector<SendConversionResult> conversionResults;
+        NativeSendResult result = builder.BuildAndUpload(
+            modelCard.sendFilter.GetSelectedObjectIds(),
+            includeProperties,
+            modelCard.serverUrl,
+            token,
+            modelCard.projectId,
+            modelCard.modelId,
+            conversionResults);
 
-    AfterSendObjectsArgs afterSendObjectsArgs{};
-    afterSendObjectsArgs.modelCardId = modelCard.modelCardId;
-    afterSendObjectsArgs.projectId = modelCard.projectId;
-    afterSendObjectsArgs.modelId = modelCard.modelId;
-    afterSendObjectsArgs.serverUrl = modelCard.serverUrl;
-    afterSendObjectsArgs.accountId = modelCard.accountId;
-    afterSendObjectsArgs.token = CONNECTOR.GetAccountDatabase().GetTokenByAccountId(modelCard.accountId);
-    std::string referencedObjectId = args.data[1].get<std::string>();
-    afterSendObjectsArgs.referencedObjectId = referencedObjectId;
-    afterSendObjectsArgs.sendConversionResults = nlohmann::json::array();
-    afterSendObjectsArgs.sendConversionResults = conversionResultCache;
+        // Resolve the UI's Send() call and report the created version + conversion results.
+        args.eventSource->SetResult(args.methodId, nlohmann::json::object());
 
-    args.eventSource->CreateVersionViaBrowser(args.methodId, afterSendObjectsArgs);
-    conversionResultCache.clear();
+        nlohmann::json res{};
+        res["modelCardId"] = modelCard.modelCardId;
+        res["versionId"] = result.versionId;
+        res["sendConversionResults"] = conversionResults;
+        args.eventSource->Send("setModelSendResult", res);
+    }
+    catch (const UserCancelledException&)
+    {
+        args.eventSource->Send("triggerCancel", modelCard.modelCardId);
+    }
 }

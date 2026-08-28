@@ -1,5 +1,4 @@
 #include "BrowserPalette.h"
-//#include "DummyBrowserAdapter.h"
 #include "ArchiCadBrowserAdapter.h"
 
 static const GS::Guid	paletteGuid ("{B8461D5C-DB5C-45EB-9047-3303212F04AD}");
@@ -24,7 +23,6 @@ BrowserPalette::BrowserPalette () :
 	Attach (*this);
 	BeginEventProcessing ();
 	browserAdapter = std::make_unique<ArchiCadBrowserAdapter>(&dgBrowser);
-	//browserAdapter = std::make_unique<DummyBrowserAdapter>();
 }
 
 BrowserPalette::~BrowserPalette ()
@@ -115,28 +113,6 @@ GSErrCode ACENV	BrowserPalette::PaletteControlCallBack (Int32, API_PaletteMessag
 				break;
 			GetInstance ().Hide ();
 			break;
-
-		/*
-		case APIPalMsg_HidePalette_Begin:
-			if (HasInstance () && GetInstance ().IsVisible ())
-				GetInstance ().Hide ();
-			break;
-
-		case APIPalMsg_HidePalette_End:
-			if (HasInstance () && !GetInstance ().IsVisible ())
-				GetInstance ().Show ();
-			break;
-
-		case APIPalMsg_DisableItems_Begin:
-			if (HasInstance () && GetInstance ().IsVisible ())
-				GetInstance ().DisableItems ();
-			break;
-
-		case APIPalMsg_DisableItems_End:
-			if (HasInstance () && GetInstance ().IsVisible ())
-				GetInstance ().EnableItems ();
-			break;
-		*/
 
 		case APIPalMsg_IsPaletteVisible:
 			*(reinterpret_cast<bool*> (param)) = HasInstance () && GetInstance ().IsVisible ();

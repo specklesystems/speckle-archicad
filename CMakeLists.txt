@@ -67,12 +67,15 @@ function (SetCompilerParams target)
 endfunction ()
 
 
-set(LIB_INCLUDE_DIRS 
+set(LIB_INCLUDE_DIRS
 		${CMAKE_SOURCE_DIR}/Libs/json/include
 		${CMAKE_SOURCE_DIR}/Libs/spdlog/include
 		${CMAKE_SOURCE_DIR}/Libs/sqlite/include
 		${CMAKE_SOURCE_DIR}/Libs/sha/include
-		${CMAKE_SOURCE_DIR}/Libs/md5/include)
+		${CMAKE_SOURCE_DIR}/Libs/md5/include
+		${CMAKE_SOURCE_DIR}/Libs/minipq/include
+		${CMAKE_SOURCE_DIR}/Libs/zstd
+		${CMAKE_SOURCE_DIR}/Libs/bundlespec/include)
 set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/${AC_ADDON_LANGUAGE}")
 
 #Libs
@@ -81,8 +84,11 @@ add_subdirectory(Libs/spdlog)
 add_subdirectory(Libs/sqlite)
 add_subdirectory(Libs/sha)
 add_subdirectory(Libs/md5)
+add_subdirectory(Libs/zstd)
+add_subdirectory(Libs/minipq)
 
 # AddOns
 add_subdirectory(AddOns/Speckle)
 
-set_target_properties(json spdlog sqlite sha md5 PROPERTIES FOLDER Libs)
+# (minipq is an INTERFACE target — no FOLDER grouping needed)
+set_target_properties(json spdlog sqlite sha md5 zstd PROPERTIES FOLDER Libs)

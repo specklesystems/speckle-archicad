@@ -82,7 +82,7 @@ namespace
 		return composites;
 	}
 
-	nlohmann::json GetCompositeStructure(const API_Guid& apiGuid, const API_AttributeIndex& compositeIndex)
+	nlohmann::json GetCompositeStructure(const API_Guid& apiGuid, const API_AttributeIndex& compositeIndex, const WorkingUnits& workingUnits)
 	{
 		auto composites = GetElementCompositeQuantities(apiGuid);
 		auto thicknesses = GetSkinThicknesses(compositeIndex);
@@ -100,38 +100,40 @@ namespace
 
 			double thickness = (i < thicknesses.size()) ? thicknesses[i] : 0.0;
 
+			// {name, value, units} parameter dicts: the EAV flattener turns each into
+			// one typed row with the units column set (Revit-parity), instead of a
+			// sibling "units" data row.
 			structure[materialName]["material"] = c.materialName;
-			structure[materialName]["volume"] = c.volume;
-			structure[materialName]["thickness"] = thickness;
-			structure[materialName]["units"] = "Meter";
+			structure[materialName]["volume"] = { { "name", "volume" }, { "value", c.volume }, { "units", workingUnits.calculatedVolumeUnits } };
+			structure[materialName]["thickness"] = { { "name", "thickness" }, { "value", thickness }, { "units", workingUnits.calculatedLengthUnits } };
 			i++;
 		}
 
 		return structure;
 	}
 
-	nlohmann::json GetWallCompositeStructure(const API_Element& apiElem)
+	nlohmann::json GetWallCompositeStructure(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
-		return apiElem.wall.modelElemStructureType == API_CompositeStructure 
-			? GetCompositeStructure(apiElem.header.guid, apiElem.wall.composite) : nlohmann::json{};
+		return apiElem.wall.modelElemStructureType == API_CompositeStructure
+			? GetCompositeStructure(apiElem.header.guid, apiElem.wall.composite, workingUnits) : nlohmann::json{};
 	}
 
-	nlohmann::json GetSlabCompositeStructure(const API_Element& apiElem)
+	nlohmann::json GetSlabCompositeStructure(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
-		return apiElem.slab.modelElemStructureType == API_CompositeStructure 
-			? GetCompositeStructure(apiElem.header.guid, apiElem.slab.composite) : nlohmann::json{};
+		return apiElem.slab.modelElemStructureType == API_CompositeStructure
+			? GetCompositeStructure(apiElem.header.guid, apiElem.slab.composite, workingUnits) : nlohmann::json{};
 	}
 
-	nlohmann::json GetRoofCompositeStructure(const API_Element& apiElem)
+	nlohmann::json GetRoofCompositeStructure(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
-		return apiElem.roof.shellBase.modelElemStructureType == API_CompositeStructure 
-			? GetCompositeStructure(apiElem.header.guid, apiElem.roof.shellBase.composite) : nlohmann::json{};
+		return apiElem.roof.shellBase.modelElemStructureType == API_CompositeStructure
+			? GetCompositeStructure(apiElem.header.guid, apiElem.roof.shellBase.composite, workingUnits) : nlohmann::json{};
 	}
 
-	nlohmann::json GetShellCompositeStructure(const API_Element& apiElem)
+	nlohmann::json GetShellCompositeStructure(const API_Element& apiElem, const WorkingUnits& workingUnits)
 	{
-		return apiElem.shell.shellBase.modelElemStructureType == API_CompositeStructure 
-			? GetCompositeStructure(apiElem.header.guid, apiElem.shell.shellBase.composite) : nlohmann::json{};
+		return apiElem.shell.shellBase.modelElemStructureType == API_CompositeStructure
+			? GetCompositeStructure(apiElem.header.guid, apiElem.shell.shellBase.composite, workingUnits) : nlohmann::json{};
 	}
 }
 
@@ -143,13 +145,13 @@ nlohmann::json HostToSpeckleConverter::GetElementCompositeStructure(const std::s
 	switch (apiElem.header.type.typeID)
 	{
 	case API_WallID:
-		return GetWallCompositeStructure(apiElem);
+		return GetWallCompositeStructure(apiElem, workingUnits);
 	case API_SlabID:
-		return GetSlabCompositeStructure(apiElem);
+		return GetSlabCompositeStructure(apiElem, workingUnits);
 	case API_RoofID:
-		return GetRoofCompositeStructure(apiElem);
+		return GetRoofCompositeStructure(apiElem, workingUnits);
 	case API_ShellID:
-		return GetShellCompositeStructure(apiElem);
+		return GetShellCompositeStructure(apiElem, workingUnits);
 
 	default:
 		return {};

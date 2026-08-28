@@ -15,11 +15,6 @@
 
 namespace
 {
-	std::string bool_to_string(bool b)
-	{
-		return b ? "True" : "False";
-	}
-
 	std::string ifc_logical_to_string(int value)
 	{
 		switch (value)
@@ -35,7 +30,10 @@ namespace
 		}
 	}
 
-	std::string GetIfcPropertyValue(const IFCAPI::Value& propertyValue)
+	// Typed: strings stay strings, bools/doubles/ints become real JSON values so
+	// the EAV flattener types them (IfcLogical stays a tri-state string). Also
+	// fixes the historical fall-off-the-end when the variant carried no value.
+	nlohmann::json GetIfcPropertyValue(const IFCAPI::Value& propertyValue)
 	{
 		auto anyValue = propertyValue.GetAnyValue();
 		if (anyValue.has_value())
@@ -43,35 +41,36 @@ namespace
 			auto value = anyValue.value();
 			if (std::holds_alternative<GS::UniString>(value))
 			{
-				return std::get<GS::UniString>(value).ToCStr().Get();
+				return std::string(std::get<GS::UniString>(value).ToCStr().Get());
 			}
 			else if (std::holds_alternative<bool>(value))
 			{
-				return bool_to_string(std::get<bool>(value));
+				return std::get<bool>(value);
 			}
 			else if (std::holds_alternative<double>(value))
 			{
-				return std::to_string(std::get<double>(value));
+				return std::get<double>(value);
 			}
 			else if (std::holds_alternative<Int64>(value))
 			{
-				return std::to_string(std::get<Int64>(value));
+				return std::get<Int64>(value);
 			}
 			else if (std::holds_alternative<IFCAPI::IfcLogical>(value))
 			{
 				return ifc_logical_to_string(static_cast<int>(std::get<IFCAPI::IfcLogical>(value)));
 			}
 		}
+		return nullptr;
 	}
 
-	std::string GetIfcSinglePropertyValue(const IFCAPI::PropertySingleValue& propertySingleValue)
+	nlohmann::json GetIfcSinglePropertyValue(const IFCAPI::PropertySingleValue& propertySingleValue)
 	{
 		return GetIfcPropertyValue(propertySingleValue.GetNominalValue());
 	}
 
-	std::vector<std::string> GetIfcListPropertyValue(const IFCAPI::PropertyListValue& propertyListValue)
+	std::vector<nlohmann::json> GetIfcListPropertyValue(const IFCAPI::PropertyListValue& propertyListValue)
 	{
-		std::vector<std::string> values;
+		std::vector<nlohmann::json> values;
 		for (const auto& val : propertyListValue.GetListValues())
 		{
 			values.push_back(GetIfcPropertyValue(val));
@@ -80,18 +79,21 @@ namespace
 		return values;
 	}
 
-	std::pair<std::string, std::string> GetIfcBoundedPropertyValue(const IFCAPI::PropertyBoundedValue& propertyBoundedValue)
+	// A bounded value is a lower/upper range, not a list — emit it as a keyed object so
+	// the EAV flattener stores each bound as its own row (properties.<pset>.<name>.lower
+	// / .upper) instead of an array, which the property walk would otherwise drop.
+	nlohmann::json GetIfcBoundedPropertyValue(const IFCAPI::PropertyBoundedValue& propertyBoundedValue)
 	{
-		std::pair<std::string, std::string> values;
-		values.first = GetIfcPropertyValue(propertyBoundedValue.GetLowerBoundValue());
-		values.second = GetIfcPropertyValue(propertyBoundedValue.GetUpperBoundValue());
+		nlohmann::json values;
+		values["lower"] = GetIfcPropertyValue(propertyBoundedValue.GetLowerBoundValue());
+		values["upper"] = GetIfcPropertyValue(propertyBoundedValue.GetUpperBoundValue());
 
 		return values;
 	}
 
-	std::vector<std::string> GetIfcEnumeratedPropertyValue(const IFCAPI::PropertyEnumeratedValue& propertyEnumeratedValue)
+	std::vector<nlohmann::json> GetIfcEnumeratedPropertyValue(const IFCAPI::PropertyEnumeratedValue& propertyEnumeratedValue)
 	{
-		std::vector<std::string> values;
+		std::vector<nlohmann::json> values;
 		for (const auto& val : propertyEnumeratedValue.GetEnumerationValues())
 		{
 			values.push_back(GetIfcPropertyValue(val));
@@ -100,17 +102,17 @@ namespace
 		return values;
 	}
 
-	std::map<std::string, std::string> GetIfcTablePropertyValue(const IFCAPI::PropertyTableValue& propertyTableValue)
+	std::map<std::string, nlohmann::json> GetIfcTablePropertyValue(const IFCAPI::PropertyTableValue& propertyTableValue)
 	{
-		std::map<std::string, std::string> values;
+		std::map<std::string, nlohmann::json> values;
 
-		std::vector<std::string> definingValues;
+		std::vector<nlohmann::json> definingValues;
 		for (const auto& val : propertyTableValue.GetDefiningValues())
 		{
 			definingValues.push_back(GetIfcPropertyValue(val));
 		}
 
-		std::vector<std::string> definedValues;
+		std::vector<nlohmann::json> definedValues;
 		for (const auto& val : propertyTableValue.GetDefinedValues())
 		{
 			definedValues.push_back(GetIfcPropertyValue(val));
@@ -119,7 +121,9 @@ namespace
 		size_t count = std::min(definingValues.size(), definedValues.size());
 		for (size_t i = 0; i < count; ++i)
 		{
-			values[definingValues[i]] = definedValues[i];
+			// table keys must be strings; stringify non-string defining values
+			std::string key = definingValues[i].is_string() ? definingValues[i].get<std::string>() : definingValues[i].dump();
+			values[key] = definedValues[i];
 		}
 
 		return values;
@@ -148,10 +152,9 @@ namespace
 		{
 			return GetIfcTablePropertyValue(std::get<IFCAPI::PropertyTableValue>(propertyVariant));
 		}
-		else
-		{
-			// TODO throw
-		}
+		// Unknown property type: json null — the flattener skips null leaves.
+		// (Was: fell off the end, i.e. undefined behavior.)
+		return nullptr;
 	}
 }
 
@@ -192,11 +195,6 @@ nlohmann::json HostToSpeckleConverter::GetElementIfcProperties(const std::string
 
 namespace
 {
-	std::string bool_to_string(bool b)
-	{
-		return b ? "True" : "False";
-	}
-
 	std::string ifc_logical_to_string(int value)
 	{
 		switch (value)
@@ -212,18 +210,20 @@ namespace
 		}
 	}
 
-	std::string GetIfcPropertyValue(const API_IFCPropertyValue& propertyValue)
+	// Typed: strings stay strings, bools/doubles/ints become real JSON values so
+	// the EAV flattener types them (IfcLogical stays a tri-state string).
+	nlohmann::json GetIfcPropertyValue(const API_IFCPropertyValue& propertyValue)
 	{
 		switch (propertyValue.value.primitiveType)
 		{
 		case API_IFCPropertyAnyValueRealType:
-			return std::to_string(propertyValue.value.doubleValue);
+			return propertyValue.value.doubleValue;
 		case API_IFCPropertyAnyValueIntegerType:
-			return std::to_string(propertyValue.value.intValue);
+			return propertyValue.value.intValue;
 		case API_IFCPropertyAnyValueStringType:
-			return propertyValue.value.stringValue.ToCStr().Get();
+			return std::string(propertyValue.value.stringValue.ToCStr().Get());
 		case API_IFCPropertyAnyValueBooleanType:
-			return bool_to_string(propertyValue.value.boolValue);
+			return propertyValue.value.boolValue;
 		case API_IFCPropertyAnyValueLogicalType:
 			return ifc_logical_to_string(static_cast<int>(propertyValue.value.intValue));
 
@@ -232,14 +232,14 @@ namespace
 		}
 	}
 
-	std::string GetIfcSinglePropertyValue(const API_IFCProperty& property)
+	nlohmann::json GetIfcSinglePropertyValue(const API_IFCProperty& property)
 	{
 		return GetIfcPropertyValue(property.singleValue.nominalValue);
 	}
 
-	std::vector<std::string> GetIfcListPropertyValue(const API_IFCProperty& property)
+	std::vector<nlohmann::json> GetIfcListPropertyValue(const API_IFCProperty& property)
 	{
-		std::vector<std::string> values;
+		std::vector<nlohmann::json> values;
 		for (const auto& val : property.listValue.listValues)
 		{
 			values.push_back(GetIfcPropertyValue(val));
@@ -248,18 +248,21 @@ namespace
 		return values;
 	}
 
-	std::pair<std::string, std::string> GetIfcBoundedPropertyValue(const API_IFCProperty& property)
+	// A bounded value is a lower/upper range, not a list — emit it as a keyed object so
+	// the EAV flattener stores each bound as its own row (properties.<pset>.<name>.lower
+	// / .upper) instead of an array, which the property walk would otherwise drop.
+	nlohmann::json GetIfcBoundedPropertyValue(const API_IFCProperty& property)
 	{
-		std::pair<std::string, std::string> values;
-		values.first = GetIfcPropertyValue(property.boundedValue.lowerBoundValue);
-		values.second = GetIfcPropertyValue(property.boundedValue.upperBoundValue);
+		nlohmann::json values;
+		values["lower"] = GetIfcPropertyValue(property.boundedValue.lowerBoundValue);
+		values["upper"] = GetIfcPropertyValue(property.boundedValue.upperBoundValue);
 
 		return values;
 	}
 
-	std::vector<std::string> GetIfcEnumeratedPropertyValue(const API_IFCProperty& property)
+	std::vector<nlohmann::json> GetIfcEnumeratedPropertyValue(const API_IFCProperty& property)
 	{
-		std::vector<std::string> values;
+		std::vector<nlohmann::json> values;
 		for (const auto& val : property.enumeratedValue.enumerationValues)
 		{
 			values.push_back(GetIfcPropertyValue(val));
@@ -268,17 +271,17 @@ namespace
 		return values;
 	}
 
-	std::map<std::string, std::string> GetIfcTablePropertyValue(const API_IFCProperty& property)
+	std::map<std::string, nlohmann::json> GetIfcTablePropertyValue(const API_IFCProperty& property)
 	{
-		std::map<std::string, std::string> values;
+		std::map<std::string, nlohmann::json> values;
 
-		std::vector<std::string> definingValues;
+		std::vector<nlohmann::json> definingValues;
 		for (const auto& val : property.tableValue.definingValues)
 		{
 			definingValues.push_back(GetIfcPropertyValue(val));
 		}
 
-		std::vector<std::string> definedValues;
+		std::vector<nlohmann::json> definedValues;
 		for (const auto& val : property.tableValue.definedValues)
 		{
 			definedValues.push_back(GetIfcPropertyValue(val));
@@ -287,7 +290,9 @@ namespace
 		size_t count = std::min(definingValues.size(), definedValues.size());
 		for (size_t i = 0; i < count; ++i)
 		{
-			values[definingValues[i]] = definedValues[i];
+			// table keys must be strings; stringify non-string defining values
+			std::string key = definingValues[i].is_string() ? definingValues[i].get<std::string>() : definingValues[i].dump();
+			values[key] = definedValues[i];
 		}
 
 		return values;

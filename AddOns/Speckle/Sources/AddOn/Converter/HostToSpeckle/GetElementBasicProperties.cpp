@@ -5,74 +5,65 @@
 #include "CheckError.h"
 #include "SpeckleConversionException.h"
 #include "PropertyDefinitions.h"
-#include "JsonFileWriter.h"
 
 #include <iostream>
+#include <unordered_map>
 
 namespace
 {
-	std::string bool_to_string(bool b)
+	// Typed value from a property variant: real JSON numbers/booleans/strings
+	// (the historical std::to_string/"True" stringification lost the type, which
+	// broke EAV typing downstream and rendered numbers as "0.600000").
+	nlohmann::json GetVariantValue(const API_Variant& variant, API_VariantType valueType)
 	{
-		return b ? "True" : "False";
-	}
-
-	std::string GetSingleCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
-	{
-		API_Property  prop = {};
-		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
-		std::string propertyValue = "";
-
-		switch (propertyDefinition.valueType)
+		switch (valueType)
 		{
 		case API_PropertyStringValueType:
-			propertyValue = prop.value.singleVariant.variant.uniStringValue.ToCStr().Get();
-			break;
+			return std::string(variant.uniStringValue.ToCStr().Get());
 		case API_PropertyIntegerValueType:
-			propertyValue = std::to_string(prop.value.singleVariant.variant.intValue);
-			break;
+			return variant.intValue;
 		case API_PropertyRealValueType:
-			propertyValue = std::to_string(prop.value.singleVariant.variant.doubleValue);
-			break;
+			return variant.doubleValue;
 		case API_PropertyBooleanValueType:
-			propertyValue = bool_to_string(prop.value.singleVariant.variant.boolValue);
-			break;
+			return variant.boolValue;
 
 		default:
 			throw SpeckleConversionException("Invalid property value type");
 		}
+	}
 
-		if (propertyValue.empty())
+	void ThrowIfEmptyString(const nlohmann::json& value)
+	{
+		if (value.is_string() && value.get<std::string>().empty())
 			throw SpeckleConversionException("Property value was empty");
+	}
 
+	// The value getters below operate on an already-fetched API_Property — the
+	// values for all of an element's definitions arrive in ONE bulk
+	// ACAPI_Element_GetPropertyValues call (was: one ACAPI round-trip per
+	// definition per element).
+
+	nlohmann::json GetSingleCollectionTypePropertyValue(const API_Property& prop, const API_PropertyDefinition& propertyDefinition)
+	{
+		nlohmann::json propertyValue = GetVariantValue(prop.value.singleVariant.variant, propertyDefinition.valueType);
+		ThrowIfEmptyString(propertyValue);
 		return propertyValue;
 	}
 
-	std::vector<std::string> GetListCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	std::vector<nlohmann::json> GetListCollectionTypePropertyValue(const API_Property& prop, const API_PropertyDefinition& propertyDefinition)
 	{
-		API_Property  prop = {};
-		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
-		std::vector<std::string> propertyValues;
+		std::vector<nlohmann::json> propertyValues;
 
 		auto variants = prop.value.listVariant.variants;
 
 		for (const auto& variant : variants)
 		{
-			switch (propertyDefinition.valueType)
+			try
 			{
-			case API_PropertyStringValueType:
-				propertyValues.push_back(variant.uniStringValue.ToCStr().Get());
-				break;
-			case API_PropertyIntegerValueType:
-				propertyValues.push_back(std::to_string(variant.intValue));
-				break;
-			case API_PropertyRealValueType:
-				propertyValues.push_back(std::to_string(variant.doubleValue));
-				break;
-			case API_PropertyBooleanValueType:
-				propertyValues.push_back(bool_to_string(variant.boolValue));
-				break;
-
-			default:
+				propertyValues.push_back(GetVariantValue(variant, propertyDefinition.valueType));
+			}
+			catch (const SpeckleConversionException&)
+			{
 				continue;
 			}
 		}
@@ -83,51 +74,25 @@ namespace
 		return propertyValues;
 	}
 
-	std::string GetSingleChoiceEnumerationCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	nlohmann::json GetSingleChoiceEnumerationCollectionTypePropertyValue(const API_Property& prop, const API_PropertyDefinition& propertyDefinition)
 	{
-		API_Property  prop = {};
-		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
-		std::string propertyValue = "";
-
 		auto selectedValueGuid = prop.value.singleVariant.variant.guidValue;
 		for (const auto& variant : propertyDefinition.possibleEnumValues)
 		{
 			if (variant.keyVariant.guidValue == selectedValueGuid)
 			{
-				switch (propertyDefinition.valueType)
-				{
-				case API_PropertyStringValueType:
-					propertyValue = variant.displayVariant.uniStringValue.ToCStr().Get();
-					break;
-				case API_PropertyIntegerValueType:
-					propertyValue = std::to_string(variant.displayVariant.intValue);
-					break;
-				case API_PropertyRealValueType:
-					propertyValue = std::to_string(variant.displayVariant.doubleValue);
-					break;
-				case API_PropertyBooleanValueType:
-					propertyValue = bool_to_string(variant.displayVariant.boolValue);
-					break;
-
-				default:
-					throw SpeckleConversionException("Invalid property value type");
-				}
-
-				break;
+				nlohmann::json propertyValue = GetVariantValue(variant.displayVariant, propertyDefinition.valueType);
+				ThrowIfEmptyString(propertyValue);
+				return propertyValue;
 			}
 		}
 
-		if (propertyValue.empty())
-			throw SpeckleConversionException("Property value was empty");
-
-		return propertyValue;
+		throw SpeckleConversionException("Property value was empty");
 	}
 
-	std::vector<std::string> GetMultipleChoiceEnumerationCollectionTypePropertyValue(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	std::vector<nlohmann::json> GetMultipleChoiceEnumerationCollectionTypePropertyValue(const API_Property& prop, const API_PropertyDefinition& propertyDefinition)
 	{
-		API_Property  prop = {};
-		CHECK_ERROR(ACAPI_Element_GetPropertyValue(elemId, propertyDefinition.guid, prop));
-		std::vector<std::string> propertyValues;
+		std::vector<nlohmann::json> propertyValues;
 		auto variants = prop.value.listVariant.variants;
 
 		for (const auto& variant : propertyDefinition.possibleEnumValues)
@@ -136,22 +101,12 @@ namespace
 			{
 				if (variant.keyVariant.guidValue == selectedVariant.guidValue)
 				{
-					switch (propertyDefinition.valueType)
+					try
 					{
-					case API_PropertyStringValueType:
-						propertyValues.push_back(variant.displayVariant.uniStringValue.ToCStr().Get());
-						break;
-					case API_PropertyIntegerValueType:
-						propertyValues.push_back(std::to_string(variant.displayVariant.intValue));
-						break;
-					case API_PropertyRealValueType:
-						propertyValues.push_back(std::to_string(variant.displayVariant.doubleValue));
-						break;
-					case API_PropertyBooleanValueType:
-						propertyValues.push_back(bool_to_string(variant.displayVariant.boolValue));
-						break;
-
-					default:
+						propertyValues.push_back(GetVariantValue(variant.displayVariant, propertyDefinition.valueType));
+					}
+					catch (const SpeckleConversionException&)
+					{
 						continue;
 					}
 				}
@@ -171,53 +126,117 @@ namespace
 
 	std::string GetPropertyGroupName(const API_PropertyDefinition& propertyDefinition)
 	{
+		// Group names repeat across every element's properties — cache per send.
+		static std::unordered_map<std::string, std::string> cache;
+		static unsigned cachedGeneration = 0;
+		const unsigned generation = ConverterUtils::SendCacheGeneration();
+		if (generation != 0 && generation != cachedGeneration)
+		{
+			cache.clear();
+			cachedGeneration = generation;
+		}
+		const std::string key(reinterpret_cast<const char*>(&propertyDefinition.groupGuid), sizeof(API_Guid));
+		if (generation != 0)
+		{
+			const auto it = cache.find(key);
+			if (it != cache.end())
+				return it->second;
+		}
+
 		API_PropertyGroup group;
 		group.guid = propertyDefinition.groupGuid;
 		CHECK_ERROR(ACAPI_Property_GetPropertyGroup(group));
-		return group.name.ToCStr().Get();
+		std::string name = group.name.ToCStr().Get();
+		if (generation != 0)
+			cache.emplace(key, name);
+		return name;
 	}
 
-	nlohmann::json GetElementPropertyValueAsJson(const API_Guid& elemId, const API_PropertyDefinition& propertyDefinition)
+	nlohmann::json GetElementPropertyValueAsJson(const API_Property& prop, const API_PropertyDefinition& propertyDefinition)
 	{
 		switch (propertyDefinition.collectionType)
 		{
 		case API_PropertySingleCollectionType:
-			return GetSingleCollectionTypePropertyValue(elemId, propertyDefinition);
+			return GetSingleCollectionTypePropertyValue(prop, propertyDefinition);
 		case API_PropertyListCollectionType:
-			return GetListCollectionTypePropertyValue(elemId, propertyDefinition);
+			return GetListCollectionTypePropertyValue(prop, propertyDefinition);
 		case API_PropertySingleChoiceEnumerationCollectionType:
-			return GetSingleChoiceEnumerationCollectionTypePropertyValue(elemId, propertyDefinition);
+			return GetSingleChoiceEnumerationCollectionTypePropertyValue(prop, propertyDefinition);
 		case API_PropertyMultipleChoiceEnumerationCollectionType:
-			return GetMultipleChoiceEnumerationCollectionTypePropertyValue(elemId, propertyDefinition);
+			return GetMultipleChoiceEnumerationCollectionTypePropertyValue(prop, propertyDefinition);
 
 		default:
 			throw SpeckleConversionException("Invalid property collection type.");
 		}
 	}
 
-	nlohmann::json GetElementPropertiesAsJson(const API_Guid& elemId, const std::vector<API_PropertyDefinition>& propertyDefinitions)
+	// Unit label for a measured property. API property values are Archicad-internal
+	// SI (meters and powers thereof), so the labels are the SI names regardless of
+	// the user's display-unit preferences.
+	const char* GetMeasureUnitName(API_PropertyMeasureType measureType)
+	{
+		switch (measureType)
+		{
+		case API_PropertyLengthMeasureType:
+			return "Meter";
+		case API_PropertyAreaMeasureType:
+			return "Square Meter";
+		case API_PropertyVolumeMeasureType:
+			return "Cubic Meter";
+		case API_PropertyAngleMeasureType:
+			return "Radian";
+
+		default:
+			return nullptr;
+		}
+	}
+
+	nlohmann::json GetElementPropertiesAsJson(const API_Guid& elemId, const GS::Array<API_PropertyDefinition>& propertyDefinitions)
 	{
 		nlohmann::json propertyJson;
+		if (propertyDefinitions.IsEmpty())
+			return propertyJson;
 
-		for (const auto& definition : propertyDefinitions)
+		// ONE bulk fetch for every definition of this element.
+		GS::Array<API_Property> properties;
+		CHECK_ERROR(ACAPI_Element_GetPropertyValues(elemId, propertyDefinitions, properties));
+
+		for (const auto& prop : properties)
 		{
+			// Same skip the old per-definition error path produced (not available /
+			// not evaluable for this element).
+			if (prop.status != API_Property_HasValue)
+				continue;
+
+			const API_PropertyDefinition& definition = prop.definition;
 			try
 			{
-				nlohmann::json propertyValue = GetElementPropertyValueAsJson(elemId, definition);
+				nlohmann::json propertyValue = GetElementPropertyValueAsJson(prop, definition);
 				std::string propertyName = GetPropertyName(definition);
 				std::string propertyGroupName = GetPropertyGroupName(definition);
-				propertyJson[propertyGroupName][propertyName] = propertyValue;
 
-				// only for finding property definition ids
-				//std::string propertyId = APIGuidToString(definition.guid).ToCStr().Get();
-				//propertyJson[propertyGroupName][propertyName] = propertyId;
+				// Measured single-real properties ride as {name, value, units} parameter
+				// dicts, which the Speckle EAV flattener stores as one typed row with the
+				// units column set (matching the Revit connector's parameter shape).
+				const char* unitName = GetMeasureUnitName(definition.measureType);
+				if (unitName != nullptr && propertyValue.is_number())
+				{
+					propertyJson[propertyGroupName][propertyName] = {
+						{ "name", propertyName },
+						{ "value", propertyValue },
+						{ "units", unitName }
+					};
+				}
+				else
+				{
+					propertyJson[propertyGroupName][propertyName] = propertyValue;
+				}
 			}
 			catch (const std::exception& ex)
 			{
 				std::cout << ex.what();
 			}
 		}
-		//JsonFileWriter::WriteJsonToFile(propertyJson, "C:\\t\\pro.json");
 		return propertyJson;
 	}
 }
@@ -230,17 +249,13 @@ nlohmann::json HostToSpeckleConverter::GetElementPropertiesByPropertyType(const 
 	GS::Array<API_PropertyDefinition> propertyDefinitions;
 	CHECK_ERROR(ACAPI_Element_GetPropertyDefinitions(apiElem.header.guid, static_cast<API_PropertyDefinitionFilter>(propertyType), propertyDefinitions));
 
-	std::vector<API_PropertyDefinition> definitions;
-	for (const auto& d : propertyDefinitions)
-		definitions.push_back(d);
-
-	return GetElementPropertiesAsJson(apiElem.header.guid, definitions);
+	return GetElementPropertiesAsJson(apiElem.header.guid, propertyDefinitions);
 }
 
 nlohmann::json HostToSpeckleConverter::GetElementBuiltInProperties(const std::string& elemId)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
-	auto definitions = PropertyDefinitions::Instance().GetDefinitions(apiElem.header.type.typeID);
+	const auto& definitions = PropertyDefinitions::Instance().GetDefinitions(apiElem.header.type.typeID);
 
 	return GetElementPropertiesAsJson(apiElem.header.guid, definitions);
 }
