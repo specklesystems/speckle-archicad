@@ -44,7 +44,9 @@ Versioning is **tag-driven**, not GitVersion (GitVersion was removed in `fe9f5e4
 - `.github/workflows/release.yml` builds and then dispatches the `Build Installers` workflow in `specklesystems/connector-installers`. It triggers on:
   - **push to `installer-test/**`** → a *test* installer. Version is synthesized as `v0.0.0.<run_number>`, `is_public_release: false`. To cut one off any branch: `git push origin <branch>:installer-test/<name>`.
   - **push of a `v202*.*.*` tag** (calendar versioning, e.g. `v2026.6.0`) → a *public* installer, `is_public_release: true`. The old `v3.x` tags no longer match the trigger.
-- Known gap: `release.yml` computes `semver`/`fileVersion` as step outputs but never exports them as `SEMVER`/`FILE_VERSION` for the `./build.ps1` step, so the `.apx` resource version is the `0.0.0-localBuild` fallback for both test *and* tagged builds. Only the installer package downstream carries the real version.
+- `release.yml` passes `semver`/`fileVersion` to the `./build.ps1` step as `SEMVER`/`FILE_VERSION` env. They have to be *environment* variables — step outputs alone are invisible to `Program.cs`, and when that link was missing every build silently shipped the `0.0.0-localBuild` fallback in `STR# 5010`.
+- `STR# 5010` (the substituted token) is the connector version the UI shows (`BaseBridge.cpp`) and the `envelope.meta.producer_version` stamped into every artifact bundle (`ArchicadArtifactRootObjectBuilder.cpp`), so a wrong version there is visible server-side, not just cosmetic.
+- Running `./build.ps1` locally rewrites the tracked `AddOn.grc` in place; `git checkout` it afterwards to drop the substitution.
 
 ## Testing
 

@@ -45,6 +45,11 @@ jobs:
 
       - name: Build
         run: ./build.ps1
+        env:
+          # ci-build/Program.cs reads these from the environment; step outputs
+          # alone are not visible to it.
+          SEMVER: ${{ steps.set-version.outputs.semver }}
+          FILE_VERSION: ${{ steps.set-version.outputs.fileVersion }}
 
       - uses: actions/upload-artifact@v7
         with:
