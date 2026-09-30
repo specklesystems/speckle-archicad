@@ -16,7 +16,6 @@ struct ArchicadElementTypeFilter
     std::vector<std::string> selectedCategories;
     std::vector<CategoryData> availableCategories;
 
-    bool SelectsEveryAvailableCategory() const;
     void UpdateSelectedObjectIds();
 };
 

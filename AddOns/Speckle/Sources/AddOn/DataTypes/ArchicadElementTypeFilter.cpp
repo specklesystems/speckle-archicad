@@ -26,11 +26,12 @@ void from_json(const nlohmann::json& j, ArchicadElementTypeFilter& filter)
     filter.availableCategories = j.at("availableCategories").get<std::vector<CategoryData>>();
 }
 
-bool ArchicadElementTypeFilter::SelectsEveryAvailableCategory() const
+static bool SelectsEveryAvailableCategory(const ArchicadElementTypeFilter& filter)
 {
-    return !availableCategories.empty() &&
-        std::all_of(availableCategories.begin(), availableCategories.end(), [&](const CategoryData& category) {
-            return std::find(selectedCategories.begin(), selectedCategories.end(), category.id) != selectedCategories.end();
+    const auto& selected = filter.selectedCategories;
+    return !filter.availableCategories.empty() &&
+        std::all_of(filter.availableCategories.begin(), filter.availableCategories.end(), [&](const CategoryData& category) {
+            return std::find(selected.begin(), selected.end(), category.id) != selected.end();
         });
 }
 
@@ -41,6 +42,6 @@ void ArchicadElementTypeFilter::UpdateSelectedObjectIds()
 
     // A card stores the categories it was offered, so one that selected all of them keeps
     // meaning "every type" when a category is added later (ENG-10269: Lamp).
-    const auto categories = SelectsEveryAvailableCategory() ? converter.GetElementTypeList() : selectedCategories;
+    const auto categories = SelectsEveryAvailableCategory(*this) ? converter.GetElementTypeList() : selectedCategories;
     selectedObjectIds = converter.GetElementList(categories);
 }

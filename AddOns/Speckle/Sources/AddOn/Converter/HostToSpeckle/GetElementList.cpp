@@ -4,10 +4,15 @@
 #include "ACAPinc.h"
 #include "CheckError.h"
 #include <algorithm>
-#include <utility>
+
+struct ElementTypeCategory
+{
+    std::string name;
+    std::vector<API_ElemTypeID> types;
+};
 
 // composite elements are converted as groups
-static const std::vector<std::pair<std::string, std::vector<API_ElemTypeID>>> elementTypeCategories = {
+static const std::vector<ElementTypeCategory> elementTypeCategories = {
     {"Wall", {API_WallID}},
     {"Column", {API_ColumnID, API_ColumnSegmentID}},
     {"Beam", {API_BeamID, API_BeamSegmentID}},
@@ -35,8 +40,8 @@ static const std::vector<std::pair<std::string, std::vector<API_ElemTypeID>>> el
 static const std::vector<API_ElemTypeID>* FindElementTypes(const std::string& category)
 {
     auto it = std::find_if(elementTypeCategories.begin(), elementTypeCategories.end(),
-        [&](const auto& entry) { return entry.first == category; });
-    return it != elementTypeCategories.end() ? &it->second : nullptr;
+        [&](const ElementTypeCategory& entry) { return entry.name == category; });
+    return it != elementTypeCategories.end() ? &it->types : nullptr;
 }
 
 std::vector<std::string> HostToSpeckleConverter::GetElementList(const std::vector<std::string>& elementTypes)
@@ -74,9 +79,9 @@ std::vector<std::string> HostToSpeckleConverter::GetElementListByLayer(const std
 {
     std::vector<std::string> elementList;
 
-    for (const auto& [category, types] : elementTypeCategories)
+    for (const auto& category : elementTypeCategories)
     {
-        for (const auto& t : types)
+        for (const auto& t : category.types)
         {
             try
             {
@@ -112,9 +117,9 @@ std::vector<std::string> HostToSpeckleConverter::GetElementListByLayer(const std
 std::vector<std::string> HostToSpeckleConverter::GetElementTypeList()
 {
     std::vector<std::string> names;
-    for (const auto& [name, types] : elementTypeCategories)
+    for (const auto& category : elementTypeCategories)
     {
-        names.push_back(name);
+        names.push_back(category.name);
     }
     return names;
 }
