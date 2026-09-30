@@ -44,6 +44,13 @@ static const std::vector<API_ElemTypeID>* FindElementTypes(const std::string& ca
     return it != elementTypeCategories.end() ? &it->types : nullptr;
 }
 
+// Marker symbols of sections, elevations, details, worksheets and changes are API_ObjectID
+// sub-elements with no name or geometry; only independent Objects are placed library parts (ENG-10270).
+static API_ElemFilterFlags GetElemListFilter(API_ElemTypeID type)
+{
+    return type == API_ObjectID ? APIFilt_IsIndependent : APIFilt_None;
+}
+
 std::vector<std::string> HostToSpeckleConverter::GetElementList(const std::vector<std::string>& elementTypes)
 {	
     std::vector<std::string> elementList;
@@ -57,7 +64,7 @@ std::vector<std::string> HostToSpeckleConverter::GetElementList(const std::vecto
                 try
                 {
                     GS::Array<API_Guid> elemGuids;
-                    CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids));
+                    CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids, GetElemListFilter(t)));
                     for (const auto& apiGuid : elemGuids)
                     {
                         std::string guid = APIGuidToString(apiGuid).ToCStr().Get();
@@ -86,7 +93,7 @@ std::vector<std::string> HostToSpeckleConverter::GetElementListByLayer(const std
             try
             {
                 GS::Array<API_Guid> elemGuids;
-                CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids));
+                CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids, GetElemListFilter(t)));
                 for (const auto& apiGuid : elemGuids)
                 {
                     API_Element element = {};
