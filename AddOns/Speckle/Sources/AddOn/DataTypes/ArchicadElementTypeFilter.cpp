@@ -1,5 +1,6 @@
 #include "ArchicadElementTypeFilter.h"
 #include "Connector.h"
+#include <algorithm>
 
 void to_json(nlohmann::json& j, const ArchicadElementTypeFilter& filter)
 {
@@ -25,8 +26,21 @@ void from_json(const nlohmann::json& j, ArchicadElementTypeFilter& filter)
     filter.availableCategories = j.at("availableCategories").get<std::vector<CategoryData>>();
 }
 
+bool ArchicadElementTypeFilter::SelectsEveryAvailableCategory() const
+{
+    return !availableCategories.empty() &&
+        std::all_of(availableCategories.begin(), availableCategories.end(), [&](const CategoryData& category) {
+            return std::find(selectedCategories.begin(), selectedCategories.end(), category.id) != selectedCategories.end();
+        });
+}
+
 void ArchicadElementTypeFilter::UpdateSelectedObjectIds()
 {
     // TODO CONNECTOR singleton should not be used in a DataType
-    selectedObjectIds = CONNECTOR.GetHostToSpeckleConverter().GetElementList(selectedCategories);
+    auto& converter = CONNECTOR.GetHostToSpeckleConverter();
+
+    // A card stores the categories it was offered, so one that selected all of them keeps
+    // meaning "every type" when a category is added later (ENG-10269: Lamp).
+    const auto categories = SelectsEveryAvailableCategory() ? converter.GetElementTypeList() : selectedCategories;
+    selectedObjectIds = converter.GetElementList(categories);
 }
