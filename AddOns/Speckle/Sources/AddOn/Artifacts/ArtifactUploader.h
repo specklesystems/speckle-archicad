@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "IHttpClient.h"
@@ -37,8 +38,8 @@ public:
         const std::string& connectorVersion);
 
     // GraphQL IngestionUpdateProgress. Best-effort: a failed update never fails the send.
-    // progress is a 0..1 fraction; negative = unknown.
-    void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage, double progress);
+    // progress is a 0..1 fraction.
+    void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage, std::optional<double> progress);
 
     // sign -> PUT each file (collecting ETags) -> complete. files maps basename -> local path.
     // rootId is the synthetic "binary-{versionId}". Returns the (authoritative) versionId.

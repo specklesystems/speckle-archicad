@@ -303,7 +303,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     }
 
     // The ingestion idles out after 600s without an update, so every phase from here on
-    // also heartbeats it — the 5s throttle of SendOperation.SendViaArtifacts (ENG-10294).
+    // also heartbeats it (ENG-10294).
     IngestionProgressWindow processWindow(hostProcessWindow, uploader, ingestion.ingestionId, std::chrono::seconds(5));
 
     ArtefactSessionLog session("Archicad", projectId, ingestion.versionId);

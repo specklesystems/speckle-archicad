@@ -82,7 +82,22 @@ IngestionInfo ArtifactUploader::CreateIngestion(
     json variables;
     variables["input"] = input;
 
-    json data = json::parse(GraphQl(query, variables.dump()));
+    std::string response;
+    try
+    {
+        response = GraphQl(query, variables.dump());
+    }
+    catch (const std::runtime_error& e)
+    {
+        // Servers that predate SourceDataInput.connectorVersion reject the whole mutation
+        // for carrying it; the version is telemetry, so the send goes ahead without it.
+        if (connectorVersion.empty() || std::string(e.what()).find("connectorVersion") == std::string::npos)
+            throw;
+        variables["input"]["sourceData"].erase("connectorVersion");
+        response = GraphQl(query, variables.dump());
+    }
+
+    json data = json::parse(response);
     json ingestion = data["data"]["data"]["data"];
 
     IngestionInfo info;
@@ -205,7 +220,7 @@ std::string ArtifactUploader::UploadFiles(
     return versionId;
 }
 
-void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std::string& progressMessage, double progress)
+void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std::string& progressMessage, std::optional<double> progress)
 {
     const std::string query =
         std::string("mutation IngestionUpdateProgress($input: ModelIngestionUpdateInput!) { "
@@ -217,7 +232,7 @@ void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std:
         { "ingestionId", ingestionId },
         { "projectId", _projectId },
         { "progressMessage", progressMessage },
-        { "progress", progress < 0 ? json(nullptr) : json(progress) },
+        { "progress", progress ? json(*progress) : json(nullptr) },
     };
     try
     {

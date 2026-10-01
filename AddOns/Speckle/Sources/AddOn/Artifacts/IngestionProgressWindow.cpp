@@ -1,6 +1,7 @@
 #include "IngestionProgressWindow.h"
 
 #include <algorithm>
+#include <optional>
 
 #include "ArtifactUploader.h"
 
@@ -51,8 +52,9 @@ void IngestionProgressWindow::Report(int value)
     if (std::chrono::steady_clock::now() - _lastUpdatedAt < _updateInterval)
         return;
 
-    const double progress =
-        _phaseMax > 0 ? std::clamp(static_cast<double>(value) / _phaseMax, 0.0, 1.0) : -1.0;
+    std::optional<double> progress;
+    if (_phaseMax > 0)
+        progress = std::clamp(static_cast<double>(value) / _phaseMax, 0.0, 1.0);
     _uploader.UpdateProgress(_ingestionId, _phaseTitle, progress);
 
     // Stamped after the synchronous request: a slow server then stretches the gap

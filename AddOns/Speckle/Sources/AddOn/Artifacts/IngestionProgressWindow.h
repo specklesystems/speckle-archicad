@@ -7,9 +7,8 @@
 
 class ArtifactUploader;
 
-// The C++ counterpart of the SDK's AggregateProgress(IngestionProgressManager, uiProgress):
-// forwards every call to the host process window and reports the same phase + fraction to
-// the ingestion, throttled to one update per interval.
+// Decorates the host process window so the phases it shows also heartbeat the ingestion,
+// which the server reaps once it has been idle past its timeout (ENG-10294).
 class IngestionProgressWindow : public IProcessWindow
 {
 public:
