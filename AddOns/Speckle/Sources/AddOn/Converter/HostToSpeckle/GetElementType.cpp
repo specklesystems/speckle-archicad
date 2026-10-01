@@ -9,7 +9,5 @@
 std::string HostToSpeckleConverter::GetElementType(const std::string& elemId)
 {
 	auto apiElem = ConverterUtils::GetElement(elemId);
-	auto elemType = apiElem.header.type.typeID;
-
-	return ElementTypeToStringConverter::ElementTypeToString(elemType);
+	return ElementTypeToStringConverter::ElementTypeToString(apiElem.header.type);
 }
