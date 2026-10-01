@@ -9,6 +9,7 @@
 struct NativeSendResult
 {
     std::string versionId;
+    std::string ingestionId;
     int objectCount = 0;
 };
 

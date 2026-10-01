@@ -154,12 +154,15 @@ void SendBridge::SendViaArtifacts(const RunMethodEventArgs& args, SenderModelCar
             modelCard.modelId,
             conversionResults);
 
-        // Resolve the UI's Send() call and report the created version + conversion results.
+        // `complete` only signals "upload done" — the server creates the version after
+        // datgen, so the UI gets the ingestion id to subscribe on, like
+        // SendOperation.SendViaArtifacts (ENG-10294).
         args.eventSource->SetResult(args.methodId, nlohmann::json::object());
 
         nlohmann::json res{};
         res["modelCardId"] = modelCard.modelCardId;
         res["versionId"] = result.versionId;
+        res["ingestionId"] = result.ingestionId;
         res["sendConversionResults"] = conversionResults;
         args.eventSource->Send("setModelSendResult", res);
     }

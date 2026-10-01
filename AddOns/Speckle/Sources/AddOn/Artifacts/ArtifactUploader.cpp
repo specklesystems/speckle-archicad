@@ -56,7 +56,8 @@ IngestionInfo ArtifactUploader::CreateIngestion(
     const std::string& modelId,
     const std::string& progressMessage,
     const std::string& sourceApplicationSlug,
-    const std::string& sourceApplicationVersion)
+    const std::string& sourceApplicationVersion,
+    const std::string& connectorVersion)
 {
     // Mirrors Speckle.Sdk ModelIngestionResource.Create (mutation IngestionCreate).
     const std::string query =
@@ -74,6 +75,8 @@ IngestionInfo ArtifactUploader::CreateIngestion(
         { "fileName", nullptr },
         { "fileSizeBytes", nullptr },
     };
+    if (!connectorVersion.empty())
+        input["sourceData"]["connectorVersion"] = connectorVersion;
     input["maxIdleTimeoutSeconds"] = 600;
 
     json variables;
@@ -200,6 +203,30 @@ std::string ArtifactUploader::UploadFiles(
         }
     }
     return versionId;
+}
+
+void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std::string& progressMessage, double progress)
+{
+    const std::string query =
+        std::string("mutation IngestionUpdateProgress($input: ModelIngestionUpdateInput!) { "
+                    "data: projectMutations { data: modelIngestionMutations { data: updateProgress(input: $input) { ") +
+        INGESTION_FIELDS + " } } } }";
+
+    json variables;
+    variables["input"] = {
+        { "ingestionId", ingestionId },
+        { "projectId", _projectId },
+        { "progressMessage", progressMessage },
+        { "progress", progress < 0 ? json(nullptr) : json(progress) },
+    };
+    try
+    {
+        GraphQl(query, variables.dump());
+    }
+    catch (...)
+    {
+        // Best-effort: a dropped heartbeat must never fail the send.
+    }
 }
 
 void ArtifactUploader::FailWithError(const std::string& ingestionId, const std::string& errorReason)
