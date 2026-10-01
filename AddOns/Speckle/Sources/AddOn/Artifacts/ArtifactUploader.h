@@ -60,6 +60,7 @@ public:
 
 private:
     std::string GraphQl(const std::string& query, const std::string& variablesJson);
+    void GraphQlBestEffort(const std::string& query, const std::string& variablesJson) noexcept;
 
     std::shared_ptr<IHttpClient> _http;
     std::string _serverUrl; // no trailing slash

@@ -22,6 +22,8 @@
 
 namespace
 {
+    constexpr std::chrono::seconds INGESTION_HEARTBEAT_INTERVAL{ 5 };
+
     // Mutable state threaded through the emit walk.
     //
     // Beyond the interning caches it collects the object->object edges that CANNOT be
@@ -277,9 +279,8 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     ArtifactUploader uploader(http, serverUrl, token, projectId);
     IProcessWindow& hostProcessWindow = CONNECTOR.GetProcessWindow();
 
-    // The same STR# 5010 resource BaseBridge::GetConnectorVersion reports to the UI.
-    // CI substitutes the real version at build time; in a local build the placeholder
-    // survives, and a placeholder is worse than no answer, so it is left out.
+    // CI substitutes the real version into STR# 5010 at build time; in a local build the
+    // placeholder survives, and a placeholder is worse than no answer, so it is left out.
     std::string connectorVersion = CONNECTOR.GetHostToSpeckleConverter().GetResourceString(5010);
     if (connectorVersion == "connector_build_num")
         connectorVersion.clear();
@@ -302,9 +303,9 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             "the Speckle 4.0 artefact upload path requires the v2 data endpoints.");
     }
 
-    // The ingestion idles out after 600s without an update, so every phase from here on
-    // also heartbeats it (ENG-10294).
-    IngestionProgressWindow processWindow(hostProcessWindow, uploader, ingestion.ingestionId, std::chrono::seconds(5));
+    // The server reaps an ingestion that goes idle past its timeout, so every phase from
+    // here on also heartbeats it (ENG-10294).
+    IngestionProgressWindow processWindow(hostProcessWindow, uploader, ingestion.ingestionId, INGESTION_HEARTBEAT_INTERVAL);
 
     ArtefactSessionLog session("Archicad", projectId, ingestion.versionId);
 

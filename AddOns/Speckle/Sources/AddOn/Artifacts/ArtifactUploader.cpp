@@ -25,6 +25,15 @@ namespace
 
     // The ModelIngestion GraphQL selection shared by every mutation we call.
     constexpr const char* INGESTION_FIELDS = "id modelId projectId versionId cancellationRequested";
+
+    constexpr int INGESTION_MAX_IDLE_TIMEOUT_SECONDS = 600;
+
+    std::string IngestionMutation(const std::string& operationName, const std::string& inputType, const std::string& field)
+    {
+        return "mutation " + operationName + "($input: " + inputType + "!) { "
+               "data: projectMutations { data: modelIngestionMutations { data: " + field + "(input: $input) { " +
+               INGESTION_FIELDS + " } } } }";
+    }
 }
 
 ArtifactUploader::ArtifactUploader(
@@ -52,6 +61,19 @@ std::string ArtifactUploader::GraphQl(const std::string& query, const std::strin
     return parsed["data"].dump();
 }
 
+void ArtifactUploader::GraphQlBestEffort(const std::string& query, const std::string& variablesJson) noexcept
+{
+    try
+    {
+        GraphQl(query, variablesJson);
+    }
+    catch (...)
+    {
+        // Progress and closing mutations report on a send; they must never fail it
+        // or mask the error that is already propagating.
+    }
+}
+
 IngestionInfo ArtifactUploader::CreateIngestion(
     const std::string& modelId,
     const std::string& progressMessage,
@@ -60,10 +82,7 @@ IngestionInfo ArtifactUploader::CreateIngestion(
     const std::string& connectorVersion)
 {
     // Mirrors Speckle.Sdk ModelIngestionResource.Create (mutation IngestionCreate).
-    const std::string query =
-        std::string("mutation IngestionCreate($input: ModelIngestionCreateInput!) { "
-                    "data: projectMutations { data: modelIngestionMutations { data: create(input: $input) { ") +
-        INGESTION_FIELDS + " } } } }";
+    const std::string query = IngestionMutation("IngestionCreate", "ModelIngestionCreateInput", "create");
 
     json input;
     input["modelId"] = modelId;
@@ -77,7 +96,7 @@ IngestionInfo ArtifactUploader::CreateIngestion(
     };
     if (!connectorVersion.empty())
         input["sourceData"]["connectorVersion"] = connectorVersion;
-    input["maxIdleTimeoutSeconds"] = 600;
+    input["maxIdleTimeoutSeconds"] = INGESTION_MAX_IDLE_TIMEOUT_SECONDS;
 
     json variables;
     variables["input"] = input;
@@ -90,7 +109,8 @@ IngestionInfo ArtifactUploader::CreateIngestion(
     catch (const std::runtime_error& e)
     {
         // Servers that predate SourceDataInput.connectorVersion reject the whole mutation
-        // for carrying it; the version is telemetry, so the send goes ahead without it.
+        // for carrying it; the version is telemetry, so the send goes ahead without it
+        // (ENG-10294).
         if (connectorVersion.empty() || std::string(e.what()).find("connectorVersion") == std::string::npos)
             throw;
         variables["input"]["sourceData"].erase("connectorVersion");
@@ -222,11 +242,6 @@ std::string ArtifactUploader::UploadFiles(
 
 void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std::string& progressMessage, std::optional<double> progress)
 {
-    const std::string query =
-        std::string("mutation IngestionUpdateProgress($input: ModelIngestionUpdateInput!) { "
-                    "data: projectMutations { data: modelIngestionMutations { data: updateProgress(input: $input) { ") +
-        INGESTION_FIELDS + " } } } }";
-
     json variables;
     variables["input"] = {
         { "ingestionId", ingestionId },
@@ -234,23 +249,13 @@ void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std:
         { "progressMessage", progressMessage },
         { "progress", progress ? json(*progress) : json(nullptr) },
     };
-    try
-    {
-        GraphQl(query, variables.dump());
-    }
-    catch (...)
-    {
-        // Best-effort: a dropped heartbeat must never fail the send.
-    }
+    GraphQlBestEffort(
+        IngestionMutation("IngestionUpdateProgress", "ModelIngestionUpdateInput", "updateProgress"),
+        variables.dump());
 }
 
 void ArtifactUploader::FailWithError(const std::string& ingestionId, const std::string& errorReason)
 {
-    const std::string query =
-        std::string("mutation IngestionFail($input: ModelIngestionFailedInput!) { "
-                    "data: projectMutations { data: modelIngestionMutations { data: failWithError(input: $input) { ") +
-        INGESTION_FIELDS + " } } } }";
-
     json variables;
     variables["input"] = {
         { "ingestionId", ingestionId },
@@ -258,35 +263,18 @@ void ArtifactUploader::FailWithError(const std::string& ingestionId, const std::
         { "errorReason", errorReason },
         { "errorStacktrace", nullptr },
     };
-    try
-    {
-        GraphQl(query, variables.dump());
-    }
-    catch (...)
-    {
-        // Best-effort: failing the ingestion must never mask the original error.
-    }
+    GraphQlBestEffort(IngestionMutation("IngestionFail", "ModelIngestionFailedInput", "failWithError"), variables.dump());
 }
 
 void ArtifactUploader::FailWithCancel(const std::string& ingestionId, const std::string& cancellationMessage)
 {
-    const std::string query =
-        std::string("mutation IngestionCancel($input: ModelIngestionCancelledInput!) { "
-                    "data: projectMutations { data: modelIngestionMutations { data: failWithCancel(input: $input) { ") +
-        INGESTION_FIELDS + " } } } }";
-
     json variables;
     variables["input"] = {
         { "ingestionId", ingestionId },
         { "projectId", _projectId },
         { "cancellationMessage", cancellationMessage },
     };
-    try
-    {
-        GraphQl(query, variables.dump());
-    }
-    catch (...)
-    {
-        // Best-effort.
-    }
+    GraphQlBestEffort(
+        IngestionMutation("IngestionCancel", "ModelIngestionCancelledInput", "failWithCancel"),
+        variables.dump());
 }
