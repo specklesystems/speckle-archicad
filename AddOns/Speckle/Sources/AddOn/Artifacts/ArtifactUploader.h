@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "IHttpClient.h"
@@ -33,7 +34,12 @@ public:
         const std::string& modelId,
         const std::string& progressMessage,
         const std::string& sourceApplicationSlug,
-        const std::string& sourceApplicationVersion);
+        const std::string& sourceApplicationVersion,
+        const std::string& connectorVersion);
+
+    // GraphQL IngestionUpdateProgress. Best-effort: a failed update never fails the send.
+    // progress is a 0..1 fraction.
+    void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage, std::optional<double> progress);
 
     // sign -> PUT each file (collecting ETags) -> complete. files maps basename -> local path.
     // rootId is the synthetic "binary-{versionId}". Returns the (authoritative) versionId.
@@ -54,6 +60,7 @@ public:
 
 private:
     std::string GraphQl(const std::string& query, const std::string& variablesJson);
+    void GraphQlBestEffort(const std::string& query, const std::string& variablesJson) noexcept;
 
     std::shared_ptr<IHttpClient> _http;
     std::string _serverUrl; // no trailing slash
