@@ -22,6 +22,12 @@ namespace GdlLibpartXml
         double transparent = 0.0;             // 1 - opacity
         int shining = 0;                      // (1 - roughness) * 100
         int transparencyAttenuation = 0;
+        // Emission [0..1]. Any non-zero channel switches DEFINE MATERIAL from the
+        // simple form (type 1) to the general one (type 0), the only type that
+        // accepts emission parameters.
+        bool hasEmission = false;
+        double emissionR = 0.0, emissionG = 0.0, emissionB = 0.0;
+        double emissionAttenuation = 1.0;     // GDL range [0..65.5]
     };
 
     // Mesh in final coordinates (meters, world space). Faces use the Speckle

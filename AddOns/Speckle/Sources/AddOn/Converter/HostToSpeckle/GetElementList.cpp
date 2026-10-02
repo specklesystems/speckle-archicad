@@ -3,16 +3,23 @@
 #include "APIEnvir.h"
 #include "ACAPinc.h"
 #include "CheckError.h"
-#include <unordered_map>
+#include <algorithm>
+
+struct ElementTypeCategory
+{
+    std::string name;
+    std::vector<API_ElemTypeID> types;
+};
 
 // composite elements are converted as groups
-static const std::unordered_map<std::string, std::vector<API_ElemTypeID>> stringToElementTypesMap = {
+static const std::vector<ElementTypeCategory> elementTypeCategories = {
     {"Wall", {API_WallID}},
     {"Column", {API_ColumnID, API_ColumnSegmentID}},
     {"Beam", {API_BeamID, API_BeamSegmentID}},
     {"Window", {API_WindowID}},
     {"Door", {API_DoorID}},
     {"Object", {API_ObjectID}},
+    {"Lamp", {API_LampID}},
     {"Slab", {API_SlabID}},
     {"Roof", {API_RoofID}},
     {"Mesh", {API_MeshID}},
@@ -30,22 +37,34 @@ static const std::unordered_map<std::string, std::vector<API_ElemTypeID>> string
     {"Opening", {API_OpeningID}},
 };
 
+static const std::vector<API_ElemTypeID>* FindElementTypes(const std::string& category)
+{
+    auto it = std::find_if(elementTypeCategories.begin(), elementTypeCategories.end(),
+        [&](const ElementTypeCategory& entry) { return entry.name == category; });
+    return it != elementTypeCategories.end() ? &it->types : nullptr;
+}
+
+// Marker symbols of sections, elevations, details, worksheets and changes are API_ObjectID
+// sub-elements with no name or geometry; only independent Objects are placed library parts (ENG-10270).
+static API_ElemFilterFlags GetElemListFilter(API_ElemTypeID type)
+{
+    return type == API_ObjectID ? APIFilt_IsIndependent : APIFilt_None;
+}
+
 std::vector<std::string> HostToSpeckleConverter::GetElementList(const std::vector<std::string>& elementTypes)
 {	
     std::vector<std::string> elementList;
 
     for (const auto& elementType : elementTypes)
     {
-        auto it = stringToElementTypesMap.find(elementType);
-        if (it != stringToElementTypesMap.end())
+        if (const auto* types = FindElementTypes(elementType))
         {
-            auto types = it->second;
-            for (const auto& t : types)
+            for (const auto& t : *types)
             {
                 try
                 {
                     GS::Array<API_Guid> elemGuids;
-                    CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids));
+                    CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids, GetElemListFilter(t)));
                     for (const auto& apiGuid : elemGuids)
                     {
                         std::string guid = APIGuidToString(apiGuid).ToCStr().Get();
@@ -67,39 +86,34 @@ std::vector<std::string> HostToSpeckleConverter::GetElementListByLayer(const std
 {
     std::vector<std::string> elementList;
 
-    for (const auto& elementType : GetElementTypeList())
+    for (const auto& category : elementTypeCategories)
     {
-        auto it = stringToElementTypesMap.find(elementType);
-        if (it != stringToElementTypesMap.end())
+        for (const auto& t : category.types)
         {
-            auto types = it->second;
-            for (const auto& t : types)
+            try
             {
-                try
+                GS::Array<API_Guid> elemGuids;
+                CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids, GetElemListFilter(t)));
+                for (const auto& apiGuid : elemGuids)
                 {
-                    GS::Array<API_Guid> elemGuids;
-                    CHECK_ERROR(ACAPI_Element_GetElemList(t, &elemGuids));
-                    for (const auto& apiGuid : elemGuids)
-                    {
-                        API_Element element = {};
-                        element.header.guid = apiGuid;
+                    API_Element element = {};
+                    element.header.guid = apiGuid;
 
-                        if (ACAPI_Element_GetHeader(&element.header) == NoError)
+                    if (ACAPI_Element_GetHeader(&element.header) == NoError)
+                    {
+                        std::string layerIndex = element.header.layer.ToUniString().ToCStr().Get();
+
+                        if (std::find(layerIndices.begin(), layerIndices.end(), layerIndex) != layerIndices.end())
                         {
-                            std::string layerIndex = element.header.layer.ToUniString().ToCStr().Get();
-                            
-                            if (std::find(layerIndices.begin(), layerIndices.end(), layerIndex) != layerIndices.end())
-                            {
-                                std::string guid = APIGuidToString(apiGuid).ToCStr().Get();
-                                elementList.push_back(guid);
-                            }
+                            std::string guid = APIGuidToString(apiGuid).ToCStr().Get();
+                            elementList.push_back(guid);
                         }
                     }
                 }
-                catch (const std::exception&)
-                {
-                    // continue
-                }
+            }
+            catch (const std::exception&)
+            {
+                // continue
             }
         }
     }
@@ -109,8 +123,10 @@ std::vector<std::string> HostToSpeckleConverter::GetElementListByLayer(const std
 
 std::vector<std::string> HostToSpeckleConverter::GetElementTypeList()
 {
-    return {
-        "Wall", "Column", "Beam", "Window", "Door", "Object", "Slab", "Roof", "Mesh",
-        "Zone", "CurtainWall", "Shell", "Skylight", "Morph", "Stair", "Railing", "Opening"
-    };
+    std::vector<std::string> names;
+    for (const auto& category : elementTypeCategories)
+    {
+        names.push_back(category.name);
+    }
+    return names;
 }

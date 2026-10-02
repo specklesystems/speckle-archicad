@@ -36,13 +36,8 @@ namespace
         std::unordered_map<std::string, int> objectKByAppId; // every emitted object, by applicationId
 
         // (hosted element guid, host element guid) — door/window -> wall, skylight -> roof/shell.
-        // Emitted as SUBELEMENT host->hosted; see EmitDeferredTopology.
+        // Emitted as HOSTED_ON hosted->host; see EmitDeferredTopology.
         std::vector<std::pair<std::string, std::string>> hostedPairs;
-
-        // Next SUBELEMENT ordinal per parent object K. Shared by the child walk and the
-        // deferred hosting pass so a curtain wall that also hosts a door does not hand out
-        // the same ordinal twice.
-        std::unordered_map<int, int> nextSubelementOrd;
 
         // (zone guid, its spatial relations) and (opening guid, the two zones it connects).
         std::vector<std::pair<std::string, ArchicadRoomTopology>> zoneTopology;
@@ -58,8 +53,10 @@ namespace
 
         Material material = CONNECTOR.GetHostToSpeckleConverter().GetModelMaterial(materialIndex);
         const int argb = static_cast<int>(material.diffuse);
+        const int emissive = static_cast<int>(material.emissive);
         const int k = writer.AddMaterial(
-            std::to_string(materialIndex), material.name, argb, material.opacity, material.metalness, material.roughness);
+            std::to_string(materialIndex), material.name, argb, material.opacity, material.metalness, material.roughness,
+            material.emissive != 0 ? &emissive : nullptr);
         cache.emplace(materialIndex, k);
         return k;
     }
@@ -132,13 +129,19 @@ namespace
             writer.OnLevel(objK, levelK);
         }
 
-        // Layer membership -> CONTAINER(subtype "Collection") + IN_COLLECTION, the authored
+        // Layer membership -> CONTAINER(subtype "Layer") + IN_COLLECTION, the authored
         // scene-tree axis. Archicad layers are flat, so the container never gets a parent.
         // Children inherit the parent's layer (openings take their host's), so only top-level
         // objects carry the edge — same rule as ON_LEVEL above.
+        //
+        // "Layer", not "Collection": an Archicad layer IS a CAD layer, and Layer is the
+        // canonical subtype for one across producers (Rhino, AutoCAD/Civil3D, dgnextract,
+        // SketchUp; dwgextract was flipped off "Collection" for this in ENG-9244). Receivers
+        // are subtype-tolerant for the tree — they exclude Model/Network/MEP System and treat
+        // the rest as collections — so this standardizes vocabulary without moving topology.
         if (isTopLevel && !obj.layerInfo.id.empty())
         {
-            const int layerK = writer.AddCollection(obj.layerInfo.id, obj.layerInfo.name, nullptr, "Collection");
+            const int layerK = writer.AddContainer(obj.layerInfo.id, obj.layerInfo.name, nullptr, "Layer");
             writer.InCollection(objK, layerK, 0);
         }
 
@@ -178,10 +181,13 @@ namespace
         }
 
         // Nested children (beam/column segments, curtain wall parts) -> SUBELEMENT edges.
+        // OWNERSHIP only: hosted openings are a different relation, emitted as HOSTED_ON by
+        // EmitDeferredTopology, so this loop is the sole source of a parent's ordinals.
+        int childOrd = 0;
         for (const auto& child : obj.elements)
         {
             const int childK = EmitObject(writer, ctx, child, false);
-            writer.Subelement(objK, childK, ctx.nextSubelementOrd[objK]++);
+            writer.Subelement(objK, childK, childOrd++);
         }
 
         return objK;
@@ -201,22 +207,26 @@ namespace
             return it == ctx.objectKByAppId.end() ? nullptr : &it->second;
         };
 
-        // Hosting -> SUBELEMENT, directed HOST -> HOSTED, matching the Revit connector
-        // (RevitArtifactRootObjectBuilder.EmitElementTopology does
-        // pipeline.Subelement(parentK, elementK) for FamilyInstance.Host ?? .SuperComponent).
+        // Hosting -> HOSTED_ON, directed HOSTED -> HOST [ENG-9224]. PLACEMENT, not ownership:
+        // an opening is placed ON a wall rather than being a component of it. SUBELEMENT stays
+        // reserved for real parent/child ownership (the beam/column/curtain-wall parts emitted
+        // by the child walk above).
         //
-        // The spec has a dedicated HOSTED_ON (22) whose semantics fit better — an opening is
-        // placed ON a wall rather than being a component of it — but NO connector emits it,
-        // and the .NET receive side has no map for it. A door reading as a wall's child in
-        // every client beats a semantically purer edge that nothing consumes. Direction
-        // matters: the viewer labels SUBELEMENT by direction ("children" outgoing from the
-        // wall, "host" incoming on the door), which HOSTED_ON's reversed src/dst would invert.
+        // This is the same split the .NET connectors settled on in ENG-9081 — Revit resolves
+        // SuperComponent -> Subelement(owner, element) and Host -> HostedOn(element, host) in
+        // PlacementTopology.Resolve, with ownership winning when an element has both. Archicad
+        // needs no such precedence: GetElementHost only reports an owner for window/door/
+        // skylight, and those never appear as ArchicadObject::elements children, so the two
+        // relations cover disjoint sets of elements.
+        //
+        // Note the REVERSED argument order against Subelement(parent, child, ord): HostedOn
+        // takes the hosted element first.
         for (const auto& [hostedAppId, hostAppId] : ctx.hostedPairs)
         {
             const int* hosted = resolve(hostedAppId);
             const int* host = resolve(hostAppId);
             if (hosted != nullptr && host != nullptr)
-                writer.Subelement(*host, *hosted, ctx.nextSubelementOrd[*host]++);
+                writer.HostedOn(*hosted, *host);
         }
 
         for (const auto& [zoneAppId, topology] : ctx.zoneTopology)
@@ -289,7 +299,16 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     {
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
-        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId);
+
+        // Connector version for envelope.meta.producer_version — the same STR# 5010
+        // resource BaseBridge::GetConnectorVersion reports to the UI. CI substitutes
+        // the real version at build time; in a local build the placeholder survives,
+        // and a placeholder is worse than no answer, so it becomes NULL.
+        std::string producerVersion = CONNECTOR.GetHostToSpeckleConverter().GetResourceString(5010);
+        if (producerVersion == "connector_build_num")
+            producerVersion.clear();
+
+        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId, producerVersion);
 
         // 2. Collect + emit in one pass (ACAPI main thread). The SendCacheScope
         //    keeps per-send invariants (3D model + GUID index, stories, attribute

@@ -29,7 +29,9 @@ struct SceneViewTier
 // string identities into the three dense int32 namespaces (object / geometry /
 // node) and appends rows straight into one minipq parquet writer per table,
 // each already open at its final {baseName}.<group>.<table>.parquet path with
-// Zstd compression — the bundle-spec (schema_version 5) wire format.
+// Zstd compression — the bundle-spec (schema_version 1.0.0) wire format. The
+// version is not spelled out per table: it comes from bundlespec::kSchemaVersion
+// in the vendored header, so re-vendoring moves it in one place.
 //
 // minipq (Libs/minipq) is the parquet engine: an in-tree, dependency-free
 // writer sized to exactly the bundle subset, statically compiled into the
@@ -39,7 +41,8 @@ class BundleWriter
 {
 public:
     // outputDir must exist or be creatable; baseName is the server-pre-allocated versionId.
-    BundleWriter(const std::string& outputDir, const std::string& baseName);
+    // producerVersion lands in envelope.meta.producer_version; empty writes NULL.
+    BundleWriter(const std::string& outputDir, const std::string& baseName, const std::string& producerVersion = "");
     ~BundleWriter();
 
     BundleWriter(const BundleWriter&) = delete;
@@ -65,9 +68,15 @@ public:
         const std::string& typeName = "mesh");
 
     // ── node namespace (value entities) ───────────────────────────────
-    int AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness);
+    // emissive: packed ARGB emission colour, or nullptr for none. The spec treats
+    // NULL as "no emission" and expects producers to normalize black RGB to NULL,
+    // so pass nullptr rather than 0x000000 for an unlit surface.
+    int AddMaterial(const std::string& materialKey, const std::string& name, int argb, double opacity, double metalness, double roughness,
+                    const int* emissive = nullptr);
     int AddLevel(const std::string& levelKey, const std::string& name, double elevation);
-    int AddCollection(const std::string& collectionKey, const std::string& name, const int* parentK, const std::string& subtype);
+    // The one CONTAINER adder — subtype is the discriminator ("Layer", "Group", …) and is
+    // part of the intern identity, so a layer and a group that happen to share a key stay
+    // distinct nodes. parentK nests it via def_ref (null for a root).
     int AddContainer(const std::string& containerKey, const std::string& name, const int* parentK, const std::string& subtype);
 
     // Instancing nodes. A DEFINITION is shared geometry (linked via DEFINES); an INSTANCE
@@ -83,10 +92,8 @@ public:
     void Defines(int definitionK, int geometryK, int ord);
     void DisplayInstance(int objectK, int instanceK, int ord);
     void HasMaterial(int geometryK, int materialK);
-    void HasColor(int srcK, int colorK);
     void OnLevel(int objectK, int levelK);
     void InCollection(int objectK, int collectionK, int ord);
-    void InModel(int objectK, int modelK, int ord);
 
     // Authored group membership -> CONTAINER(subtype "Group"). A SEPARATE axis from
     // InCollection (the layer scene-tree, single-valued on receive): an object keeps its
@@ -99,6 +106,12 @@ public:
 
     // A room-bounding element -> the ZONE object it bounds (the zone footprint).
     void Bounds(int boundingObjectK, int roomObjectK, int ord);
+
+    // PLACEMENT: the hosted element -> what it is placed on (door/window -> wall,
+    // skylight -> roof/shell). NOT Subelement, which is ownership, and note the REVERSED
+    // argument order: the hosted element is src, the host is dst (matching the .NET
+    // façade's HostedOn(hosted, host)).
+    void HostedOn(int hostedObjectK, int hostObjectK);
 
     // Object -> object connectivity, DIRECTED src->dst. `scope` tags which connectivity
     // graph the edge belongs to — CONNECTS_TO uses ord as a SCOPE, not an ordinal
@@ -129,6 +142,7 @@ private:
 
     std::string _outputDir;
     std::string _baseName;
+    std::string _producerVersion;
 
     // One minipq::Table per bundle file (opaque here so minipq.h stays out of this header).
     std::unique_ptr<BundleTables> _tables;

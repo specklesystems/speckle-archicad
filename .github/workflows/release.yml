@@ -8,7 +8,7 @@ name: Build and Deploy Archicad
 on:
   push:
     branches: ["installer-test/**"]
-    tags: ["v202*.*.*"]
+    tags: ["202[0-9].*.*"] # unprefixed CalVer, v-prefix dropped at 2026.9 (ENG-9392)
 
 jobs:
   build-windows:
@@ -31,10 +31,10 @@ jobs:
         run: |
           TAG=${{ github.ref_name }}
           if [[ "${{ github.ref }}" != refs/tags/* ]]; then
-            TAG="v0.0.0.${{ github.run_number }}"
+            TAG="0.0.0.${{ github.run_number }}"
           fi
-          SEMVER="${TAG#v}"
-          FILE_VERSION=$(echo "$TAG" | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          SEMVER="$TAG"
+          FILE_VERSION=$(echo "$TAG" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
           FILE_VERSION="$FILE_VERSION.${{ github.run_number }}"
 
           echo "semver=$SEMVER" >> "$GITHUB_OUTPUT"
@@ -45,6 +45,11 @@ jobs:
 
       - name: Build
         run: ./build.ps1
+        env:
+          # ci-build/Program.cs reads these from the environment; step outputs
+          # alone are not visible to it.
+          SEMVER: ${{ steps.set-version.outputs.semver }}
+          FILE_VERSION: ${{ steps.set-version.outputs.fileVersion }}
 
       - uses: actions/upload-artifact@v7
         with:
