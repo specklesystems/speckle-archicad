@@ -1,6 +1,7 @@
 #include "APIdefs.h"
 #include "ElementTypeToStringConverter.h"
-#include <iostream>
+#include "ACAPI/MEPAdapter.hpp"
+#include <unordered_map>
 
 static const std::unordered_map<API_ElemTypeID, std::string> elementTypeToStringMap = {
     {API_ZombieElemID, "ZombieElem"},
@@ -89,4 +90,70 @@ std::string ElementTypeToStringConverter::ElementTypeToString(API_ElemTypeID typ
         return it->second;
     }
     return "Unknown Element Type";
+}
+
+const std::map<API_Guid, std::string>& ElementTypeToStringConverter::GetMepElementTypes()
+{
+    using namespace ACAPI::MEP;
+    static const std::map<API_Guid, std::string> types = {
+#if defined(AC27)
+        {VentilationRoutingID, "DuctRoute"},
+        {PipingRoutingID, "PipeRoute"},
+        {CableCarrierRoutingID, "CableCarrierRoute"},
+#else
+        {VentilationRoutingElementID, "DuctRoute"},
+        {PipingRoutingElementID, "PipeRoute"},
+        {CableCarrierRoutingElementID, "CableCarrierRoute"},
+#endif
+        {VentilationFittingID, "DuctFitting"},
+        {PipingFittingID, "PipeFitting"},
+        {CableCarrierFittingID, "CableCarrierFitting"},
+        {VentilationBranchID, "DuctBranch"},
+        {PipingBranchID, "PipeBranch"},
+        {CableCarrierBranchID, "CableCarrierBranch"},
+        {VentilationTerminalID, "DuctTerminal"},
+        {PipingTerminalID, "PipeTerminal"},
+        {VentilationAccessoryID, "DuctAccessory"},
+        {PipingAccessoryID, "PipeAccessory"},
+        {EquipmentID, "Equipment"},
+        {VentilationRoutingSegmentID, "DuctRoutingSegment"},
+        {PipingRoutingSegmentID, "PipeRoutingSegment"},
+        {CableCarrierRoutingSegmentID, "CableCarrierRoutingSegment"},
+        {VentilationRoutingNodeID, "DuctRoutingNode"},
+        {PipingRoutingNodeID, "PipeRoutingNode"},
+        {CableCarrierRoutingNodeID, "CableCarrierRoutingNode"},
+        {VentilationRigidSegmentID, "DuctSegment"},
+        {PipingRigidSegmentID, "PipeSegment"},
+        {CableCarrierRigidSegmentID, "CableCarrierSegment"},
+#if defined(AC29)
+        {VentilationElbowID, "DuctElbow"},
+        {PipingElbowID, "PipeElbow"},
+        {CableCarrierElbowID, "CableCarrierElbow"},
+#else
+        {VentilationBendID, "DuctElbow"},
+        {PipingBendID, "PipeElbow"},
+        {CableCarrierBendID, "CableCarrierElbow"},
+#endif
+        {VentilationTransitionID, "DuctTransition"},
+        {PipingTransitionID, "PipeTransition"},
+        {CableCarrierTransitionID, "CableCarrierTransition"},
+        {VentilationFlexibleSegmentID, "DuctFlexibleSegment"},
+#if !defined(AC27)
+        {PipingFlexibleSegmentID, "PipeFlexibleSegment"},
+        {VentilationTakeOffID, "DuctTakeOff"},
+#endif
+    };
+    return types;
+}
+
+std::string ElementTypeToStringConverter::ElementTypeToString(const API_ElemType& type)
+{
+    if (type.typeID == API_ExternalElemID)
+    {
+        const auto& types = GetMepElementTypes();
+        auto it = types.find(type.classID);
+        if (it != types.end())
+            return it->second;
+    }
+    return ElementTypeToString(type.typeID);
 }
