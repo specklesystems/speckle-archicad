@@ -292,8 +292,13 @@ if (WIN32)
 else ()
 	find_library (CocoaFramework Cocoa)
 	find_library (FoundationFramework Foundation)
+	if (ARCHICAD_VERSION STREQUAL "26")
+		set(ACAPI_STATIC_LIBRARY "${AC_API_DEVKIT_DIR}/Support/Lib/Mactel/libACAP_STAT.a")
+	else ()
+		set(ACAPI_STATIC_LIBRARY "${AC_API_DEVKIT_DIR}/Support/Lib/libACAP_STAT.a")
+	endif ()
 	target_link_libraries (${SPECKLE_ADDON_LIB}
-		"${AC_API_DEVKIT_DIR}/Support/Lib/libACAP_STAT.a"
+		"${ACAPI_STATIC_LIBRARY}"
 		${CocoaFramework}
 		${FoundationFramework}
 	)
@@ -342,3 +347,10 @@ endif ()
 
 #compile definitions
 SetCompilerParams(${SPECKLE_ADDON_LIB})
+if (APPLE AND ARCHICAD_VERSION STREQUAL "26")
+	# ENG-10361: SDK 26 still references random_shuffle, removed from C++17.
+	target_compile_definitions(${SPECKLE_ADDON_LIB} PRIVATE
+		_LIBCPP_ENABLE_CXX17_REMOVED_RANDOM_SHUFFLE)
+	target_compile_options(${SPECKLE_ADDON_LIB} PRIVATE
+		"-include" "${AddOnSourcesFolderAbsolute}/Archicad26Compat.h")
+endif ()

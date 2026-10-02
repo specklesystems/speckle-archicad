@@ -245,9 +245,14 @@ ArchicadLevel ConverterUtils::GetStoryLevel(short floorInd)
 
 std::string ConverterUtils::GetAttributeName(API_AttributeIndex attributeIndex, API_AttrTypeID attributeType)
 {
+#if defined(AC26)
+    const std::uint32_t index = static_cast<std::uint32_t>(attributeIndex);
+#else
+    const std::uint32_t index = static_cast<std::uint32_t>(attributeIndex.ToInt32_Deprecated());
+#endif
     const std::uint64_t key =
         (static_cast<std::uint64_t>(attributeType) << 32) |
-        static_cast<std::uint32_t>(attributeIndex.ToInt32_Deprecated());
+        index;
     if (g_cacheActive)
     {
         const auto it = g_attributeNames.find(key);

@@ -20,10 +20,18 @@ ArchicadLayer HostToSpeckleConverter::GetElementLayer(const std::string& elemId)
 
 	// APIInvalidAttributeIndex == 0. Non-groupable / layerless elements land here and
 	// simply get no IN_COLLECTION edge.
+#if defined(AC26)
+	if (layerIndex <= 0)
+#else
 	if (!layerIndex.IsPositive())
+#endif
 		return layer;
 
+#if defined(AC26)
+	layer.id = std::to_string(layerIndex);
+#else
 	layer.id = layerIndex.ToUniString().ToCStr().Get();
+#endif
 	layer.name = ConverterUtils::GetAttributeName(layerIndex, API_LayerID);
 	return layer;
 }

@@ -2,7 +2,7 @@
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/SpeckleSystems?style=social)](https://twitter.com/SpeckleSystems) [![Community forum users](https://img.shields.io/discourse/users?server=https%3A%2F%2Fdiscourse.speckle.works&style=flat-square&logo=discourse&logoColor=white)](https://discourse.speckle.works) [![website](https://img.shields.io/badge/https://-speckle.systems-royalblue?style=flat-square)](https://speckle.systems) [![docs](https://img.shields.io/badge/docs-speckle.guide-orange?style=flat-square&logo=read-the-docs&logoColor=white)](https://speckle.guide/dev/)
 
-This repository contains Speckle's native C++ connector for Archicad 27, 28, and 29. It embeds Speckle's web UI in an Archicad palette and converts model geometry and metadata through the Archicad C++ API.
+This repository contains Speckle's native C++ connector for Archicad 26–29 on macOS and 27–29 on Windows. It embeds Speckle's web UI in an Archicad palette and converts model geometry and metadata through the Archicad C++ API.
 
 The connector builds on Windows and macOS. macOS builds are universal (`arm64` and `x86_64`) by default and support macOS 12.6 or newer.
 
@@ -21,8 +21,7 @@ Build a release bundle for the installed Archicad major version:
 
 ```bash
 ./build.sh 27 Release
-# or: ./build.sh 28 Release
-# or: ./build.sh 29 Release
+# or: ./build.sh 26 Release / 28 Release / 29 Release
 ```
 
 The script downloads the matching official Graphisoft macOS DevKit on first use. DevKits are cached under `.cache/archicad-devkits`. The output is:
@@ -40,14 +39,14 @@ AC_API_DEVKIT_DIR=/path/to/devkit ./build.sh 27 Debug
 # Faster local Apple Silicon-only build
 SPECKLE_MAC_ARCHITECTURES=arm64 ./build.sh 27 Debug
 
-# Use an already downloaded DuckDB directory containing libduckdb.dylib
-SPECKLE_DUCKDB_ROOT=/path/to/duckdb ./build.sh 27 Release
+# Choose the compiler job count, default 2
+SPECKLE_BUILD_JOBS=4 ./build.sh 27 Release
 
 # Sign with an Apple Developer ID instead of the default ad-hoc signature
 SPECKLE_CODESIGN_IDENTITY="Developer ID Application: Example Corp (TEAMID)" ./build.sh 27 Release
 ```
 
-The build embeds `libduckdb.dylib` in the bundle and signs the finished bundle. Distribution outside local development still requires an appropriate Developer ID signature and Apple notarization.
+The build compiles minipq and zstd into the bundle and signs the finished bundle. Distribution outside local development still requires an appropriate Developer ID signature and Apple notarization.
 
 ### Build on Windows
 

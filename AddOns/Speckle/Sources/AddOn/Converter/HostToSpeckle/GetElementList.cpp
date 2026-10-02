@@ -101,7 +101,11 @@ std::vector<std::string> HostToSpeckleConverter::GetElementListByLayer(const std
 
                     if (ACAPI_Element_GetHeader(&element.header) == NoError)
                     {
+#if defined(AC26)
+                        std::string layerIndex = std::to_string(element.header.layer);
+#else
                         std::string layerIndex = element.header.layer.ToUniString().ToCStr().Get();
+#endif
 
                         if (std::find(layerIndices.begin(), layerIndices.end(), layerIndex) != layerIndices.end())
                         {

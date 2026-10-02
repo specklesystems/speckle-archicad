@@ -9,6 +9,24 @@
 
 namespace
 {
+	bool HasMaterialOverride(const API_OverriddenAttribute& material)
+	{
+#if defined(AC26)
+		return material.overridden;
+#else
+		return material.hasValue;
+#endif
+	}
+
+	API_AttributeIndex GetMaterialOverrideIndex(const API_OverriddenAttribute& material)
+	{
+#if defined(AC26)
+		return material.attributeIndex;
+#else
+		return material.value;
+#endif
+	}
+
 	std::string GetMaterialName(API_AttributeIndex materialId)
 	{
 		return ConverterUtils::GetAttributeName(materialId, API_MaterialID);
@@ -101,19 +119,19 @@ namespace
 			SetQuantity(quantities, materialName, totalSurface, elementQuantity.wall.volume, workingUnits);
 		}
 
-		if (apiElem.wall.sidMat.hasValue)
+		if (HasMaterialOverride(apiElem.wall.sidMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.wall.sidMat.value), elementQuantity.wall.surface3, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.wall.sidMat)), elementQuantity.wall.surface3, workingUnits);
 		}
 
-		if (apiElem.wall.refMat.hasValue)
+		if (HasMaterialOverride(apiElem.wall.refMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.wall.refMat.value), elementQuantity.wall.surface1, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.wall.refMat)), elementQuantity.wall.surface1, workingUnits);
 		}
 
-		if (apiElem.wall.oppMat.hasValue)
+		if (HasMaterialOverride(apiElem.wall.oppMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.wall.oppMat.value), elementQuantity.wall.surface2, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.wall.oppMat)), elementQuantity.wall.surface2, workingUnits);
 		}
 
 		return quantities;
@@ -140,19 +158,19 @@ namespace
 			SetQuantity(quantities, materialName, totalSurface, elementQuantity.slab.volume, workingUnits);
 		}
 
-		if (apiElem.slab.topMat.hasValue)
+		if (HasMaterialOverride(apiElem.slab.topMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.slab.topMat.value), elementQuantity.slab.topSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.slab.topMat)), elementQuantity.slab.topSurface, workingUnits);
 		}
 
-		if (apiElem.slab.botMat.hasValue)
+		if (HasMaterialOverride(apiElem.slab.botMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.slab.botMat.value), elementQuantity.slab.bottomSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.slab.botMat)), elementQuantity.slab.bottomSurface, workingUnits);
 		}
 
-		if (apiElem.slab.sideMat.hasValue)
+		if (HasMaterialOverride(apiElem.slab.sideMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.slab.sideMat.value), elementQuantity.slab.edgeSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.slab.sideMat)), elementQuantity.slab.edgeSurface, workingUnits);
 		}
 
 		return quantities;
@@ -183,53 +201,53 @@ namespace
 		// then the hasValue will return true even if the Beam is set as profiled structure
 		if (apiElem.beamSegment.assemblySegmentData.modelElemStructureType == API_BasicStructure)
 		{
-			if (apiElem.beamSegment.topMaterial.hasValue)
+			if (HasMaterialOverride(apiElem.beamSegment.topMaterial))
 			{
-				AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.topMaterial.value), elementQuantity.beamSegment.topSurface, workingUnits);
+				AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.beamSegment.topMaterial)), elementQuantity.beamSegment.topSurface, workingUnits);
 			}
 
-			if (apiElem.beamSegment.bottomMaterial.hasValue)
+			if (HasMaterialOverride(apiElem.beamSegment.bottomMaterial))
 			{
-				AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.bottomMaterial.value), elementQuantity.beamSegment.bottomSurface, workingUnits);
+				AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.beamSegment.bottomMaterial)), elementQuantity.beamSegment.bottomSurface, workingUnits);
 			}
 
-			if (apiElem.beamSegment.rightMaterial.hasValue)
+			if (HasMaterialOverride(apiElem.beamSegment.rightMaterial))
 			{
-				AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.rightMaterial.value), elementQuantity.beamSegment.rightSurface, workingUnits);
+				AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.beamSegment.rightMaterial)), elementQuantity.beamSegment.rightSurface, workingUnits);
 			}
 		}
 
-		if (apiElem.beamSegment.leftMaterial.hasValue)
+		if (HasMaterialOverride(apiElem.beamSegment.leftMaterial))
 		{
 			double leftSurface = elementQuantity.beamSegment.leftSurface;
 #if defined(AC27)
 			if (apiElem.beamSegment.assemblySegmentData.modelElemStructureType == API_ProfileStructure)
 			{
 				// AC27 hack to get the extrusion surface
-				// in AC 27 only apiElem.beamSegment.leftMaterial.hasValue will be true if we have a profiled structure
+				// in AC 27 only HasMaterialOverride(apiElem.beamSegment.leftMaterial) will be true if we have a profiled structure
 				leftSurface = elementQuantity.beamSegment.topSurface + elementQuantity.beamSegment.bottomSurface + elementQuantity.beamSegment.leftSurface + elementQuantity.beamSegment.rightSurface;
 			}
 #endif
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.leftMaterial.value), leftSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.beamSegment.leftMaterial)), leftSurface, workingUnits);
 		}
 
-		if (apiElem.beamSegment.endsMaterial.hasValue)
+		if (HasMaterialOverride(apiElem.beamSegment.endsMaterial))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.endsMaterial.value), elementQuantity.beamSegment.endSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.beamSegment.endsMaterial)), elementQuantity.beamSegment.endSurface, workingUnits);
 		}
 #if defined(AC29)
-		if (apiElem.beamSegment.extrusionMaterial.hasValue)
+		if (HasMaterialOverride(apiElem.beamSegment.extrusionMaterial))
 		{
 			double extrusionSurface = elementQuantity.beamSegment.topSurface + elementQuantity.beamSegment.bottomSurface + elementQuantity.beamSegment.leftSurface + elementQuantity.beamSegment.rightSurface;
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.extrusionMaterial.value), extrusionSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.beamSegment.extrusionMaterial)), extrusionSurface, workingUnits);
 		}
 #endif
 
 #if defined(AC28)
-		if (apiElem.beamSegment.extrusionMaterial.hasValue)
+		if (HasMaterialOverride(apiElem.beamSegment.extrusionMaterial))
 		{
 			double extrusionSurface = elementQuantity.beamSegment.topSurface + elementQuantity.beamSegment.bottomSurface + elementQuantity.beamSegment.leftSurface + elementQuantity.beamSegment.rightSurface;
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.beamSegment.extrusionMaterial.value), extrusionSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.beamSegment.extrusionMaterial)), extrusionSurface, workingUnits);
 		}
 #endif
 
@@ -278,14 +296,14 @@ namespace
 			SetQuantity(quantities, materialName, sideSurface + topAndBottomSurface, volume, workingUnits);
 		}
 
-		if (apiElem.columnSegment.extrusionSurfaceMaterial.hasValue)
+		if (HasMaterialOverride(apiElem.columnSegment.extrusionSurfaceMaterial))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.columnSegment.extrusionSurfaceMaterial.value), sideSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.columnSegment.extrusionSurfaceMaterial)), sideSurface, workingUnits);
 		}
 
-		if (apiElem.columnSegment.endsMaterial.hasValue)
+		if (HasMaterialOverride(apiElem.columnSegment.endsMaterial))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.columnSegment.endsMaterial.value), topAndBottomSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.columnSegment.endsMaterial)), topAndBottomSurface, workingUnits);
 		}
 
 		return quantities;
@@ -311,19 +329,19 @@ namespace
 			SetQuantity(quantities, materialName, elementQuantity.roof.contourArea, elementQuantity.roof.volume, workingUnits);
 		}
 
-		if (apiElem.roof.shellBase.topMat.hasValue)
+		if (HasMaterialOverride(apiElem.roof.shellBase.topMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.roof.shellBase.topMat.value), elementQuantity.roof.topSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.roof.shellBase.topMat)), elementQuantity.roof.topSurface, workingUnits);
 		}
 
-		if (apiElem.roof.shellBase.botMat.hasValue)
+		if (HasMaterialOverride(apiElem.roof.shellBase.botMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.roof.shellBase.botMat.value), elementQuantity.roof.bottomSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.roof.shellBase.botMat)), elementQuantity.roof.bottomSurface, workingUnits);
 		}
 
-		if (apiElem.roof.shellBase.sidMat.hasValue)
+		if (HasMaterialOverride(apiElem.roof.shellBase.sidMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.roof.shellBase.sidMat.value), elementQuantity.roof.edgeSurface, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.roof.shellBase.sidMat)), elementQuantity.roof.edgeSurface, workingUnits);
 		}
 
 		return quantities;
@@ -349,19 +367,19 @@ namespace
 			SetQuantity(quantities, materialName, elementQuantity.shell.floorplanArea, elementQuantity.shell.volume, workingUnits);
 		}
 
-		if (apiElem.shell.shellBase.topMat.hasValue)
+		if (HasMaterialOverride(apiElem.shell.shellBase.topMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.shell.shellBase.topMat.value), elementQuantity.shell.grossOppositeSurf, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.shell.shellBase.topMat)), elementQuantity.shell.grossOppositeSurf, workingUnits);
 		}
 
-		if (apiElem.shell.shellBase.botMat.hasValue)
+		if (HasMaterialOverride(apiElem.shell.shellBase.botMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.shell.shellBase.botMat.value), elementQuantity.shell.grossReferenceSurf, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.shell.shellBase.botMat)), elementQuantity.shell.grossReferenceSurf, workingUnits);
 		}
 
-		if (apiElem.shell.shellBase.sidMat.hasValue)
+		if (HasMaterialOverride(apiElem.shell.shellBase.sidMat))
 		{
-			AddSurfaceQuantity(quantities, GetMaterialName(apiElem.shell.shellBase.sidMat.value), elementQuantity.shell.grossEdgeSurf, workingUnits);
+			AddSurfaceQuantity(quantities, GetMaterialName(GetMaterialOverrideIndex(apiElem.shell.shellBase.sidMat)), elementQuantity.shell.grossEdgeSurf, workingUnits);
 		}
 
 		return quantities;

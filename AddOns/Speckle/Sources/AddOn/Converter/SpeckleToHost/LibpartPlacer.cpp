@@ -7,7 +7,9 @@
 #include <SpeckleConversionException.h>
 #include <iostream>
 #include <Connector.h>
+#if !defined(AC26)
 #include <ACAPI_Environment.h>
+#endif
 
 #include <thread>
 #include <chrono>

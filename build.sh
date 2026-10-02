@@ -12,9 +12,9 @@ ARCHICAD_VERSION="${1:-27}"
 BUILD_TYPE="${2:-Release}"
 
 case "$ARCHICAD_VERSION" in
-  27|28|29) ;;
+  26|27|28|29) ;;
   *)
-    echo "Unsupported Archicad version: $ARCHICAD_VERSION (expected 27, 28, or 29)" >&2
+    echo "Unsupported Archicad version: $ARCHICAD_VERSION (expected 26, 27, 28, or 29)" >&2
     exit 2
     ;;
 esac
@@ -36,6 +36,6 @@ cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -G "Unix Makefiles" \
   -DCMAKE_OSX_ARCHITECTURES="$MAC_ARCHITECTURES" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=12.6
 
-cmake --build "$BUILD_DIR" --parallel
+cmake --build "$BUILD_DIR" --parallel "${SPECKLE_BUILD_JOBS:-2}"
 
 echo "Built: $BUILD_DIR/INT/$BUILD_TYPE/Speckle.bundle"
