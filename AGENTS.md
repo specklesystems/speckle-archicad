@@ -1,17 +1,116 @@
 # speckle-archicad
 
-Speckle connector for Archicad.
+Speckle connector for Archicad: a native C++20 Archicad Add-On (`.apx`) that embeds Speckle's shared
+DUI3 web UI (loaded from `https://dui.speckle.systems/`) in an Archicad palette and bridges that
+JavaScript UI to Archicad API calls that read/write model geometry, properties and metadata.
+Supported Archicad versions: **27, 28, 29** (`ci-build/Consts.cs`). Windows is the primary and only
+CI-built platform; the code has mac branches.
+
+```
+AddOns/Speckle/Sources/
+  AddOn/            the C++ implementation — nearly all work happens here
+    AddOnMain.cpp   Archicad add-on callbacks (Initialize, RegisterInterface, CheckEnvironment, FreeData)
+    Connector/      Connector singleton, Binding, databases, Bridges/, artifact root builder
+    Converter/      HostToSpeckle/ and SpeckleToHost/, one file per conversion concern
+    Artifacts/      parquet bundle send/receive: BundleWriter, SgeoEncoder, ArtifactUploader, ArtifactReceiver
+    Auth/           in-connector OAuth (OAuthFlow, LoopbackListener, CryptoUtils/PKCE, AccountFactory)
+    Browser/        IBrowserAdapter keeps DG::Browser out of binding logic; ArchiCad (real) / Dummy (no-op) impls
+    Network/ Storage/ DataTypes/ Diagnostics/ Utils/
+  AddOnResources/   .grc/.rc2 resources, images, Tools/*.py compilers; RINT/AddOn.grc = name + injected version
+ci-build/           Bullseye build orchestrator (Program.cs, Consts.cs) run by build.ps1 and CI
+Libs/               acapi27|28|29 DevKits (Support/ only), json, spdlog, sqlite, sha, md5, zstd, minipq, bundlespec
+```
+
+## Procedures (skills)
+
+- `/build-addon` — one-version Debug build (`generate_project_NN.bat` → `build_NN/archicad-speckle.slnx`,
+  VS 2026, v142 for 27/28, v143 for 29) or the CI-style `./build.ps1`; toolchain; gotchas.
+- `/cut-installer` — test installer via an `installer-test/<name>` push, public release via an
+  unprefixed CalVer tag (`2026.9.0`); how `SEMVER`/`FILE_VERSION` reach the `.apx`.
+- `/research-archicad-api` — before using an Archicad API new to this codebase: primary sources only
+  (`ARCHICAD_API_RESOURCES.md`), never recollection; the surface changed noticeably 24→29.
+
+## Architecture
+
+**Entry point.** `AddOnMain.cpp` on `Initialize`: constructs the `Connector` singleton, registers the
+menu handler that toggles the `BrowserPalette`, initializes the `BrowserBridge`, loads the UI URL, and
+wires Archicad notifications (`ProjectOpened`, `ProjectClosed`, `SelectionChanged`) to bridge callbacks.
+
+**Two singletons.** `Connector` (`Connector/Connector.{h,cpp}`, macro `CONNECTOR`) owns the backend
+services behind interfaces constructed in `InitConnector()`: `IAccountDatabase`, `IJsonObjectDatabase`,
+`IModelCardDatabase`, `IHostToSpeckleConverter`, `ISpeckleToHostConverter`, `HostAppEvents`,
+`IProcessWindow`. `BrowserBridge` (`Connector/Bridges/BrowserBridge.{h,cpp}`, macro `BROWSERBRIDGE`)
+owns all the bridges and the `IBrowserAdapter`.
+
+**Bridge / Binding (JS ↔ C++)** — the core mechanism, mirroring Speckle's DUI3 binding model. Each
+bridge (`AccountBridge`, `BaseBridge`, `ConfigBridge`, `SelectionBridge`, `SendBridge`,
+`ReceiveBridge`, `TestBridge`) implements `IBridge::RunMethod(RunMethodEventArgs&)` and owns a
+`Binding` (`Connector/Binding.{h,cpp}`), which registers a JS object name + method names with the
+browser, routes incoming JS calls to `RunMethod`, resolves them with `SetResult`, and pushes events
+back with `Send` (`setModelSendResult`, `triggerCancel`, …). `RunMethod` is a manual
+`if (args.methodName == "...")` dispatch; unknown names throw `InvalidMethodNameException`. **To add
+a UI-callable method:** append its name to the `Binding`'s method-name vector in the bridge
+constructor, add the `else if` branch in `RunMethod`, implement the handler. The JS-facing names are a
+shared contract with the DUI3 frontend — never rename unilaterally.
+
+**Send (Archicad → Speckle).** Speckle 4.0 artifact send: C++ writes a parquet bundle locally and
+uploads it natively; the frontend relays no object data. `SendBridge::Send` shows the 3D view, reads
+`sendProperties` off the model card, then `SendViaArtifacts` runs
+`ArchicadArtifactRootObjectBuilder::BuildAndUpload`: convert the selected element IDs via
+`HostToSpeckleConverter`, write the tables with `Artifacts/BundleWriter` (meshes via `SgeoEncoder`,
+`Libs/minipq` as parquet engine, `Libs/bundlespec` for the schema), then `ArtifactUploader` does sign →
+presigned PUT → complete with the `IAccountDatabase` token. `versionId` + per-element
+`SendConversionResult`s reach the UI via `setModelSendResult`; `UserCancelledException` becomes
+`triggerCancel`; progress is six named `IProcessWindow` phases; layer visibility the send changed is
+restored afterwards.
+
+**Receive (Speckle → Archicad).** `ReceiveBridge` + `Artifacts/ArtifactReceiver` download the
+version's parquet bundle, read it with the in-tree minipq reader, decode the SGEO meshes, write one
+GDL `<Symbol>` XML per object and convert them to `.gsm` via `LP_XMLConverter`; `LibpartPlacer`
+(`Converter/SpeckleToHost/`) registers and places the produced library parts.
+
+**Converters.** `Converter/HostToSpeckle/` and `Converter/SpeckleToHost/` — one file per concern
+(`GetElementBody.cpp`, `GetElementProperties.cpp`, `GetLayers.cpp`, `LibpartPlacer.cpp`, …) behind
+`IHostToSpeckleConverter` / `ISpeckleToHostConverter`. Element-type and property mapping work lives here.
+
+**Data model.** `DataTypes/`: plain structs with `nlohmann::json` (de)serialization — model cards
+(`SenderModelCard`/`ReceiverModelCard`), send filters (selection, element type, layer, views; what
+`GetSendFilters` returns controls what gets sent), geometry/model data (`Mesh`, `ElementBody`,
+`Material`, `ObjectInstance`, levels, layers, room topology), UI config, conversion results.
+
+**Persistence.** `ModelCardDatabase` — sender/receiver model cards, persisted into the Archicad
+document via `IDataStorage`/`ArchiCadDataStorage` (survives save/open; reloaded on `ProjectOpened`).
+`SqliteJsonObjectDatabase` — SQLite-backed keyed JSON store (`Libs/sqlite`) for the DUI3 config the UI
+reads/writes: `"Archicad"` (connector config), `"accounts"`, `"workspaces"`. `AccountDatabase` —
+accounts and tokens from the shared local Speckle DB `%APPDATA%\Speckle\Accounts.db`; `Auth/` lets
+the connector add an account itself (`AccountBridge::AddAccount` / `AuthenticateAccount`) instead of
+depending on Speckle Manager.
+
+## Build and release facts
+
+- No C++ unit-test suite. PR CI (`pr.yml`) and `release.yml` both run `./build.ps1`; `build.sh` is dead.
+- Versioning is tag-driven (`/cut-installer`). The `build` target substitutes `SEMVER` into
+  `AddOnResources/RINT/AddOn.grc` (`STR# 5010`) — the version the UI shows and the
+  `envelope.meta.producer_version` of every bundle, so a wrong value is visible server-side. Running
+  `build.ps1` locally rewrites that tracked file; `git checkout` it afterwards.
+- `CMakeLists.txt` detects the DevKit major from `ACAPinc.h` and defines `AC27`/`AC28`/`AC29`.
+
+## Conventions
+
+- Interfaces are header-only `I*.h` abstract classes; singleton getters throw `std::runtime_error` if
+  a dependency was not initialized. New backend services follow the interface +
+  `Connector`-owned-`unique_ptr` pattern so they can be swapped/mocked.
+- Version-specific Archicad API differences are gated on `AC27`/`AC28`/`AC29`.
+- Bundled third-party libs are CMake subdirectories grouped under a `Libs` solution folder; don't
+  vendor duplicates. `minipq` (in-tree parquet writer/reader, zstd-only dependency) and `zstd` compile
+  statically into the `.apx`; `Libs/minipq/README.md` documents provenance and local modifications.
 
 ## Agent config (ADR-0008)
 
-Tracked sources: this file, repo-local `agents/skills/` and `agents/mcp/`
-(when the repo has any), the hooks `.claude/settings.json` +
-`.codex/hooks.json`, and omp's `.omp/extensions/atlas-sync.js`.
-`.claude/skills/`, `.agents/skills/`, `.mcp.json`, `.codex/config.toml` and
-the block below are written by `../atlas/scripts/sync-agents.py` (session
-start, `mise run agents-sync` at the atlas root) — edit the source, never the
-output. Layout, opt-in shared MCP servers and collision rules:
-`../atlas/agents/README.md`.
+Tracked: this file, `agents/skills/`, hooks `.claude/settings.json`, `.codex/hooks.json`,
+`.omp/extensions/atlas-sync.js`. `.claude/skills/`, `.agents/skills/`, `.mcp.json`, `.codex/config.toml`
+and the block below are written by `../atlas/scripts/sync-agents.py` at session start or by
+`mise run agents-sync` — edit the source. Details: `../atlas/agents/README.md`.
 
 <!-- atlas:shared:begin -->
 
