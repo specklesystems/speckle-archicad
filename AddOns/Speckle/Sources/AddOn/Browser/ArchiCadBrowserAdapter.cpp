@@ -1,6 +1,7 @@
 #include "ArchiCadBrowserAdapter.h"
 #include "Binding.h"
 #include "BridgeDiagnostics.h"
+#include "BrowserDiagnostics.h"
 #include "RunMethodEventArgs.h"
 
 #include <stdexcept>
@@ -67,7 +68,28 @@ namespace
 
 
 ArchiCadBrowserAdapter::ArchiCadBrowserAdapter(DG::Browser* browser) 
-	: _browser(browser) {}
+	: _browser(browser)
+{
+#ifdef __APPLE__
+	browser->onUrlChanged += [](const DG::BrowserBase&, const DG::BrowserURLChangeArg& event) {
+		BridgeDiagnostics::Write("[DEBUG-ENG10393] url " +
+			BrowserDiagnostics::SanitizeURL(event.newURL.ToCStr().Get()));
+	};
+	browser->onLoadError += [](const DG::BrowserBase&, const DG::BrowserLoadErrorArg& event) {
+		BridgeDiagnostics::Write("[DEBUG-ENG10393] load-error code=" +
+			std::to_string(static_cast<int>(event.errorCode)) + " url=" +
+			BrowserDiagnostics::SanitizeURL(event.url.ToCStr().Get()));
+	};
+	browser->onLoadingStateChange += [browser](const DG::BrowserBase&, const DG::BrowserLoadingStateChangeArg& event) {
+		BridgeDiagnostics::Write("[DEBUG-ENG10393] loading=" + std::string(event.isLoading ? "true" : "false"));
+		if (!event.isLoading)
+		{
+			const bool accepted = browser->ExecuteJS(BrowserDiagnostics::ContextProbe);
+			BridgeDiagnostics::Write("[DEBUG-ENG10393] context-probe accepted=" + std::string(accepted ? "true" : "false"));
+		}
+	};
+#endif
+}
 
 #ifdef __APPLE__
 void ArchiCadBrowserAdapter::RegisterMacCefSharpCompatibilityObject()
@@ -169,5 +191,6 @@ void ArchiCadBrowserAdapter::ExecuteJS(const std::string& command)
 
 void ArchiCadBrowserAdapter::LoadURL(const std::string& url)
 {
+	BridgeDiagnostics::Write("[DEBUG-ENG10393] request-url " + BrowserDiagnostics::SanitizeURL(url));
 	_browser->LoadURL(url.c_str());
 }

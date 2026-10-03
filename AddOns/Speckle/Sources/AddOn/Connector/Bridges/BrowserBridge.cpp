@@ -15,8 +15,6 @@ void BrowserBridge::InitBrowserBridge(IBrowserAdapter* browserAdapter)
 {
 	BridgeDiagnostics::Reset();
 	_browserAdapter = browserAdapter;
-	BridgeDiagnostics::Write("browser-load-ui");
-	LoadUI();
 
 	accountsBridge = std::make_unique<AccountBridge>(browserAdapter);
 	baseBridge = std::make_unique<BaseBridge>(browserAdapter);
@@ -27,10 +25,9 @@ void BrowserBridge::InitBrowserBridge(IBrowserAdapter* browserAdapter)
 	testBridge = std::make_unique<TestBridge>(browserAdapter);	
 	BridgeDiagnostics::Write("browser-bridges-ready");
 
-	// The remote DUI can finish its one-time connector detection before the
-	// asynchronous native objects become visible. Reload once after every
-	// binding has been accepted so the fresh JavaScript context sees them all.
-	BridgeDiagnostics::Write("browser-reload-ui-after-bindings");
+	// ENG-10393: a second LoadURL aborts the pending first navigation. Register
+	// every binding before starting the page's one-time connector detection.
+	BridgeDiagnostics::Write("browser-load-ui-after-bindings");
 	LoadUI();
 }
 
