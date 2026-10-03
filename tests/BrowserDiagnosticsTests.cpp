@@ -1,10 +1,9 @@
 #include "BrowserDiagnostics.h"
 
 #include <cassert>
-#include <fstream>
 #include <iostream>
 
-int main(int argc, char** argv)
+int main()
 {
     assert(BrowserDiagnostics::SanitizeURL("https://user:password@dui.speckle.systems/path?access_code=secret#token")
         == "https://dui.speckle.systems/path");
@@ -17,7 +16,5 @@ int main(int argc, char** argv)
     assert(BrowserDiagnostics::SanitizeURL("data:text/html,private payload") == "<opaque URL>");
     assert(BrowserDiagnostics::SanitizeURL("about:blank") == "<opaque URL>");
     assert(BrowserDiagnostics::SanitizeURL("private payload") == "<invalid URL>");
-    if (argc == 2)
-        std::ofstream(argv[1]) << BrowserDiagnostics::ContextProbe;
     std::cout << "Browser diagnostics URL tests passed\n";
 }

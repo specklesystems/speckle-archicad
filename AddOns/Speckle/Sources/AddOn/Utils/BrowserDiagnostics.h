@@ -27,21 +27,4 @@ namespace BrowserDiagnostics
         return scheme + "://" + authority + path;
     }
 
-    inline constexpr const char* ContextProbe = R"JS((() => {
-        const safeURL = raw => {
-            try { const u = new URL(raw); return u.protocol === 'https:' || u.protocol === 'http:' ? u.protocol + '//' + u.host + u.pathname : '<opaque URL>'; }
-            catch (_) { return '<invalid URL>'; }
-        };
-        console.log('[DEBUG-ENG10393] context ' + JSON.stringify({
-            url: safeURL(location.href),
-            readyState: document.readyState,
-            scripts: Array.from(document.scripts).map(s => safeURL(s.src)),
-            bodyChildren: document.body ? document.body.children.length : 0,
-            nuxtChildren: document.getElementById('__nuxt') ? document.getElementById('__nuxt').children.length : 0,
-            CefSharp: typeof window.CefSharp,
-            baseBinding: typeof window.baseBinding,
-            accountsBinding: typeof window.accountsBinding,
-            resources: performance.getEntriesByType('resource').filter(r => r.initiatorType === 'script' || r.initiatorType === 'link').map(r => ({url: safeURL(r.name), decodedBytes: r.decodedBodySize, transferredBytes: r.transferSize}))
-        }));
-    })())JS";
 }
