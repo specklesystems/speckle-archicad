@@ -8,12 +8,12 @@
 
 #include <stdexcept>
 
-std::shared_ptr<IHttpClient> CreateHttpClient()
+std::shared_ptr<IHttpClient> CreateHttpClient(int postTimeoutSeconds)
 {
 #ifdef _WIN32
-    return std::make_shared<WinHttpClient>();
+    return std::make_shared<WinHttpClient>(postTimeoutSeconds);
 #elif defined(__APPLE__)
-    return std::make_shared<MacHttpClient>();
+    return std::make_shared<MacHttpClient>(postTimeoutSeconds);
 #else
     throw std::runtime_error("This platform has no Speckle HTTP client implementation");
 #endif

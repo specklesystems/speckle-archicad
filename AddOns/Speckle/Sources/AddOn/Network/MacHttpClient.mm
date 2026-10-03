@@ -31,7 +31,7 @@ namespace
         return error != nil ? ToString([error localizedDescription]) : "unknown macOS networking error";
     }
 
-    NSMutableURLRequest* MakeRequest(const std::string& url, NSString* method)
+    NSMutableURLRequest* MakeRequest(const std::string& url, NSString* method, int timeoutSeconds = 600)
     {
         NSURL* nativeUrl = [NSURL URLWithString:ToNSString(url)];
         if (nativeUrl == nil)
@@ -39,15 +39,15 @@ namespace
 
         NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:nativeUrl];
         [request setHTTPMethod:method];
-        [request setTimeoutInterval:600.0];
+        [request setTimeoutInterval:timeoutSeconds];
         return request;
     }
 
-    NSURLSession* MakeSession()
+    NSURLSession* MakeSession(NSTimeInterval timeoutSeconds = 600.0)
     {
         NSURLSessionConfiguration* configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
-        configuration.timeoutIntervalForRequest = 600.0;
-        configuration.timeoutIntervalForResource = 600.0;
+        configuration.timeoutIntervalForRequest = timeoutSeconds;
+        configuration.timeoutIntervalForResource = timeoutSeconds;
         return [NSURLSession sessionWithConfiguration:configuration];
     }
 
@@ -82,7 +82,7 @@ namespace
         __block NSURLResponse* nativeResponse = nil;
         __block NSError* requestError = nil;
         dispatch_semaphore_t completed = dispatch_semaphore_create(0);
-        NSURLSession* session = MakeSession();
+        NSURLSession* session = MakeSession(request.timeoutInterval);
 
         NSURLSessionDataTask* task = [session dataTaskWithRequest:request
             completionHandler:^(NSData* data, NSURLResponse* response, NSError* error)
@@ -115,7 +115,7 @@ HttpResponse MacHttpClient::PostJson(
 {
     @autoreleasepool
     {
-        NSMutableURLRequest* request = MakeRequest(url, @"POST");
+        NSMutableURLRequest* request = MakeRequest(url, @"POST", postTimeoutSeconds);
         [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
         SetBearerToken(request, bearerToken);
         [request setHTTPBody:[NSData dataWithBytes:jsonBody.data() length:jsonBody.size()]];

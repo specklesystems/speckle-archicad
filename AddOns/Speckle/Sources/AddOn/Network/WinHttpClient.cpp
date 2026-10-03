@@ -159,7 +159,7 @@ namespace
         return response;
     }
 
-    HInternet OpenSession()
+    HInternet OpenSession(int timeoutSeconds = 600)
     {
         HInternet session(WinHttpOpen(
             L"Speckle-Archicad",
@@ -169,8 +169,8 @@ namespace
             0));
         if (!session)
             throw std::runtime_error("WinHttpOpen failed, error " + std::to_string(GetLastError()));
-        // Generous timeouts: parquet PUTs of large models can take a while.
-        WinHttpSetTimeouts(session.h, 30000, 30000, 600000, 600000);
+        const int timeoutMs = timeoutSeconds * 1000;
+        WinHttpSetTimeouts(session.h, std::min(30000, timeoutMs), std::min(30000, timeoutMs), timeoutMs, timeoutMs);
         return session;
     }
 }
@@ -181,7 +181,7 @@ HttpResponse WinHttpClient::PostJson(
     const std::string& bearerToken)
 {
     ParsedUrl parsed = ParseUrl(url);
-    HInternet session = OpenSession();
+    HInternet session = OpenSession(postTimeoutSeconds);
 
     HInternet connection(WinHttpConnect(session.h, parsed.host.c_str(), parsed.port, 0));
     if (!connection)

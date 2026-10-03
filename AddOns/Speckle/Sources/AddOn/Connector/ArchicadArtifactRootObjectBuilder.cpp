@@ -10,6 +10,7 @@
 #include "ArchicadObject.h"
 #include "ArtefactSessionLog.h"
 #include "ArtifactUploader.h"
+#include "IngestionProgressWindow.h"
 #include "BundleWriter.h"
 #include "Connector.h"
 #include "ConverterUtils.h"
@@ -274,13 +275,13 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 {
     auto http = CreateHttpClient();
     ArtifactUploader uploader(http, serverUrl, token, projectId);
-    IProcessWindow& processWindow = CONNECTOR.GetProcessWindow();
+    IProcessWindow& nativeProcessWindow = CONNECTOR.GetProcessWindow();
 
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked
     //    into the parquet filenames and used as the commit PK at complete. Failures
     //    propagate as-is (auth, network, old server) — there is no legacy fallback.
     //    The process window was Init'd by SendBridge (phase plan documented there).
-    processWindow.SetNextProcessPhase("Preparing upload", 1);
+    nativeProcessWindow.SetNextProcessPhase("Preparing upload", 1);
     IngestionInfo ingestion = uploader.CreateIngestion(
         modelId,
         "Sending from Archicad",
@@ -297,6 +298,12 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 
     try
     {
+        ArtifactUploader progressUploader(CreateHttpClient(10), serverUrl, token, projectId);
+        IngestionHeartbeat heartbeat([&](const std::string& message)
+        {
+            progressUploader.UpdateProgress(ingestion.ingestionId, message);
+        }, "Converting elements");
+        IngestionProgressWindow processWindow(nativeProcessWindow, heartbeat);
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
 
@@ -400,7 +407,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.BeginPhase("Upload");
         const std::string rootId = "binary-" + ingestion.versionId;
         const std::string versionId = uploader.UploadFiles(
-            ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow);
+            ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow, &heartbeat);
         session.EndPhase();
 
         NativeSendResult result;

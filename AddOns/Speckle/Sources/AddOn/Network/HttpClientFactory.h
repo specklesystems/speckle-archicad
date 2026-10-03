@@ -4,4 +4,4 @@
 
 #include "IHttpClient.h"
 
-std::shared_ptr<IHttpClient> CreateHttpClient();
+std::shared_ptr<IHttpClient> CreateHttpClient(int postTimeoutSeconds = 600);
