@@ -49,6 +49,8 @@ public:
         int totalChildrenCount,
         IProcessWindow* processWindow = nullptr);
 
+    void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage);
+
     void FailWithError(const std::string& ingestionId, const std::string& errorReason);
     void FailWithCancel(const std::string& ingestionId, const std::string& cancellationMessage);
 

@@ -202,6 +202,26 @@ std::string ArtifactUploader::UploadFiles(
     return versionId;
 }
 
+void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std::string& progressMessage)
+{
+    const std::string query =
+        "mutation IngestionProgress($input: ModelIngestionUpdateInput!) { "
+        "data: projectMutations { data: modelIngestionMutations { "
+        "data: updateProgress(input: $input) { id cancellationRequested } } } }";
+    json variables;
+    variables["input"] = {
+        { "ingestionId", ingestionId },
+        { "projectId", _projectId },
+        { "progressMessage", progressMessage },
+    };
+    json data = json::parse(GraphQl(query, variables.dump()));
+    const auto& ingestion = data["data"]["data"]["data"];
+    if (ingestion.at("id").get<std::string>() != ingestionId)
+        throw std::runtime_error("Server updated a different ingestion");
+    if (ingestion.at("cancellationRequested").get<bool>())
+        throw UserCancelledException("The server requested cancellation of the send operation");
+}
+
 void ArtifactUploader::FailWithError(const std::string& ingestionId, const std::string& errorReason)
 {
     const std::string query =

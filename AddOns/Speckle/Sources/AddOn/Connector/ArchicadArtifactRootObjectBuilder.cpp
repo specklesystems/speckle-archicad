@@ -10,6 +10,7 @@
 #include "ArchicadObject.h"
 #include "ArtefactSessionLog.h"
 #include "ArtifactUploader.h"
+#include "IngestionProgressWindow.h"
 #include "BundleWriter.h"
 #include "Connector.h"
 #include "ConverterUtils.h"
@@ -274,13 +275,13 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 {
     auto http = CreateHttpClient();
     ArtifactUploader uploader(http, serverUrl, token, projectId);
-    IProcessWindow& processWindow = CONNECTOR.GetProcessWindow();
+    IProcessWindow& nativeProcessWindow = CONNECTOR.GetProcessWindow();
 
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked
     //    into the parquet filenames and used as the commit PK at complete. Failures
     //    propagate as-is (auth, network, old server) — there is no legacy fallback.
     //    The process window was Init'd by SendBridge (phase plan documented there).
-    processWindow.SetNextProcessPhase("Preparing upload", 1);
+    nativeProcessWindow.SetNextProcessPhase("Preparing upload", 1);
     IngestionInfo ingestion = uploader.CreateIngestion(
         modelId,
         "Sending from Archicad",
@@ -292,6 +293,11 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             "The server did not pre-allocate a version id for this ingestion; "
             "the Speckle 4.0 artefact upload path requires the v2 data endpoints.");
     }
+
+    IngestionProgressWindow processWindow(nativeProcessWindow, [&](const std::string& message)
+    {
+        uploader.UpdateProgress(ingestion.ingestionId, message);
+    });
 
     ArtefactSessionLog session("Archicad", projectId, ingestion.versionId);
 
@@ -405,6 +411,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 
         NativeSendResult result;
         result.versionId = versionId;
+        result.ingestionId = ingestion.ingestionId;
         try
         {
             result.sessionLogBasePath = session.GetBasePath();
