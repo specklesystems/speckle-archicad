@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_DIR="$(mktemp -d "${TMPDIR:-/tmp}/speckle-ingestion-shutdown-test.XXXXXX")"
 trap 'rm -rf "$TEST_DIR"' EXIT
-clang++ -std=c++20 -framework Foundation \
+clang++ -std=c++20 -fobjc-arc -framework Foundation \
   -I "$ROOT_DIR/AddOns/Speckle/Sources/AddOn/Artifacts" \
   -I "$ROOT_DIR/AddOns/Speckle/Sources/AddOn/Network" \
   -I "$ROOT_DIR/AddOns/Speckle/Sources/AddOn/Connector" \
