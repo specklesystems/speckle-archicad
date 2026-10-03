@@ -1,42 +1,69 @@
 #include "IngestionProgressWindow.h"
 #include "ArtifactUploader.h"
-#include "UserCancelledException.h"
 #include "json.hpp"
 
+#include <atomic>
+#include <future>
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
-struct Window : IProcessWindow
-{
-    int value = 0;
-    bool cancelled = false;
-    void Init(const std::string&, int) override {}
-    void SetNextProcessPhase(const std::string&, int) override {}
-    void SetProcessValue(int v) override { value = v; }
-    bool IsProcessCanceled() override { return cancelled; }
-    void Close() override {}
-};
+using nlohmann::json;
 
 void Require(bool value, const char* message)
 {
     if (!value) throw std::runtime_error(message);
 }
 
+struct Window : IProcessWindow
+{
+    std::thread::id owner = std::this_thread::get_id();
+    int value = 0;
+    bool cancelled = false;
+    void Check() { Require(std::this_thread::get_id() == owner, "Native UI called from worker thread"); }
+    void Init(const std::string&, int) override { Check(); }
+    void SetNextProcessPhase(const std::string&, int) override { Check(); }
+    void SetProcessValue(int v) override { Check(); value = v; }
+    bool IsProcessCanceled() override { Check(); return cancelled; }
+    void Close() override { Check(); }
+};
+
 struct Http : IHttpClient
 {
-    IngestionProgressWindow::Clock::time_point* now;
-    IngestionProgressWindow::Clock::time_point updatedAt{};
-    int updates = 0;
-    int statusCode = 200;
-    bool cancelled = false;
-    bool wrongId = false;
-    bool graphqlError = false;
+    std::atomic<int> updates{0};
+    std::atomic<int> statusCode{200};
+    std::atomic<bool> cancelled{false};
+    std::atomic<bool> wrongId{false};
+    std::atomic<bool> graphqlError{false};
+    std::vector<json> states;
+    size_t reads = 0;
+    bool completed = false;
+    int updatesAtComplete = 0;
 
     HttpResponse PostJson(const std::string& url, const std::string& body, const std::string& token) override
     {
-        Require(url == "https://example.invalid/graphql", "Unexpected progress endpoint");
         Require(token == "test-token", "Missing bearer token");
-        const auto request = nlohmann::json::parse(body);
+        if (url.ends_with("/uploads/sign")) return {200, R"({"uploads":{}})", {}};
+        if (url.ends_with("/uploads/complete"))
+        {
+            completed = true;
+            updatesAtComplete = updates;
+            return {202, R"({"versionId":"test-version"})", {}};
+        }
+        Require(url == "https://example.invalid/graphql", "Unexpected progress endpoint");
+        const auto request = json::parse(body);
+        if (request.at("query").get<std::string>().find("IngestionStatus") != std::string::npos)
+        {
+            Require(completed, "Polled server before upload complete");
+            Require(updates == updatesAtComplete, "Client heartbeat continued after server handoff");
+            const auto& variables = request.at("variables");
+            Require(variables.at("ingestionId") == "test-ingestion", "Wrong ingestion query");
+            Require(reads < states.size(), "Unexpected extra server poll");
+            json response;
+            response["data"]["project"]["ingestion"] = {
+                {"id", "test-ingestion"}, {"statusData", states[reads++]}};
+            return {200, response.dump(), {}};
+        }
         const auto& input = request.at("variables").at("input");
         Require(input.at("ingestionId") == "test-ingestion", "Wrong ingestion target");
         Require(input.at("projectId") == "test-project", "Wrong project target");
@@ -44,11 +71,10 @@ struct Http : IHttpClient
         Require(request.at("query").get<std::string>().find("updateProgress(input: $input)") != std::string::npos,
             "Wrong progress mutation");
         ++updates;
-        updatedAt = *now;
         if (graphqlError) return {200, R"({"errors":[{"message":"Test error"}]})", {}};
-        nlohmann::json response;
+        json response;
         response["data"]["data"]["data"]["data"] = {
-            {"id", wrongId ? "different-ingestion" : "test-ingestion"}, {"cancellationRequested", cancelled}};
+            {"id", wrongId ? "different-ingestion" : "test-ingestion"}, {"cancellationRequested", bool(cancelled)}};
         return {statusCode, response.dump(), {}};
     }
     HttpResponse PutFile(const std::string&, const std::string&, const std::map<std::string,std::string>&,
@@ -61,46 +87,49 @@ struct Http : IHttpClient
 void RequireThrows(const std::function<void()>& call)
 {
     try { call(); } catch (const std::exception&) { return; }
-    throw std::runtime_error("Expected progress failure was swallowed");
+    throw std::runtime_error("Expected failure was swallowed");
 }
 
 int main()
 {
-    using Clock = IngestionProgressWindow::Clock;
-    auto now = Clock::time_point{};
     auto http = std::make_shared<Http>();
-    http->now = &now;
     ArtifactUploader uploader(http, "https://example.invalid/", "test-token", "test-project");
     Window window;
-    IngestionProgressWindow progress(window, [&](const std::string& phase)
+    std::promise<void> reported;
+    auto ready = reported.get_future();
+    IngestionHeartbeat heartbeat([&](const std::string& message)
     {
-        Require(!phase.empty(), "Server progress message is missing");
-        uploader.UpdateProgress("test-ingestion", phase);
-    }, [&] { return now; });
-    progress.SetNextProcessPhase("Converting elements", 1800);
-    for (int second = 1; second <= 1800; ++second)
-    {
-        now += std::chrono::seconds(1);
-        progress.SetProcessValue(second);
-        Require(now - http->updatedAt < std::chrono::seconds(600),
-            "FAIL: advancing native conversion exceeded the server's 600-second idle limit");
-    }
-    Require(window.value == 1800, "Native progress was not forwarded");
-    Require(http->updates == 60, "Server updates must be throttled");
-    progress.SetNextProcessPhase("Uploading", 1800);
-    for (int second = 1; second <= 1800; ++second)
-    {
-        now += std::chrono::seconds(1);
-        progress.SetProcessValue(second);
-        Require(now - http->updatedAt < std::chrono::seconds(600), "Upload progress went idle");
-    }
-    Require(http->updates == 120, "Upload updates must be throttled");
+        uploader.UpdateProgress("test-ingestion", message);
+        if (http->updates == 5) reported.set_value();
+    }, "Converting elements", std::chrono::milliseconds(10));
+    IngestionProgressWindow progress(window, heartbeat);
+    progress.SetNextProcessPhase("Converting elements", 1);
+    // No native callbacks until this single long operation ends.
+    Require(ready.wait_for(std::chrono::seconds(2)) == std::future_status::ready,
+        "Long native operation went idle between progress callbacks");
+    Require(window.value == 0, "Heartbeat unexpectedly touched native progress");
+    progress.SetProcessValue(1);
     window.cancelled = true;
-    now += std::chrono::seconds(30);
-    progress.SetProcessValue(1800);
-    Require(http->updates == 120, "Cancelled native progress must not keep an ingestion alive");
     Require(progress.IsProcessCanceled(), "Native cancellation was lost");
     window.cancelled = false;
+    http->states = {{{"__typename", "ModelIngestionProcessingStatus"}},
+        {{"__typename", "ModelIngestionSuccessStatus"}, {"versionId", "test-version"}}};
+    Require(uploader.UploadFiles("test-ingestion", "test-version", {}, "root", 0, &progress, &heartbeat)
+        == "test-version", "Wrong published version");
+    Require(http->reads == 2, "Returned preallocated version before server success");
+    const int stoppedAt = http->updates;
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    Require(http->updates == stoppedAt, "Heartbeat survived server handoff");
+
+    for (const auto& state : std::vector<json>{
+        {{"__typename", "ModelIngestionFailedStatus"}, {"errorReason", "Test timeout"}},
+        {{"__typename", "ModelIngestionInvalidStatus"}, {"validationMessage", "Invalid"}},
+        {{"__typename", "ModelIngestionCancelledStatus"}, {"cancellationMessage", "Cancelled"}},
+        {{"__typename", "ModelIngestionSuccessStatus"}, {"versionId", "wrong-version"}}})
+    {
+        http->states = {state}; http->reads = 0;
+        RequireThrows([&] { uploader.UploadFiles("test-ingestion", "test-version", {}, "root", 0); });
+    }
     http->cancelled = true;
     bool serverCancel = false;
     try { uploader.UpdateProgress("test-ingestion", "Converting"); }
@@ -115,5 +144,17 @@ int main()
     http->graphqlError = false;
     http->wrongId = true;
     RequireThrows([&] { uploader.UpdateProgress("test-ingestion", "Converting"); });
-    std::cout << "PASS: 30-minute advancing native conversion stays alive, throttled updates and cancellation preserved\n";
+    http->wrongId = false;
+    std::promise<void> retried;
+    auto retryReady = retried.get_future();
+    int attempts = 0;
+    IngestionHeartbeat retries([&](const std::string& message)
+    {
+        if (++attempts == 1) throw std::runtime_error("Transient transport failure");
+        if (attempts == 2) { uploader.UpdateProgress("test-ingestion", message); retried.set_value(); }
+    }, "Writing bundle", std::chrono::milliseconds(10));
+    Require(retryReady.wait_for(std::chrono::seconds(2)) == std::future_status::ready,
+        "Transient heartbeat failure stopped reporting");
+    retries.Stop();
+    std::cout << "PASS: heartbeat covers a single long native operation, stops at server handoff, retries transient errors, and waits for exact server success\n";
 }

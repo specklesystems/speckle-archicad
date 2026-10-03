@@ -1,6 +1,9 @@
 #include "ArtifactUploader.h"
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
+#include "IngestionHeartbeat.h"
 #include <cstdint>
 #include <filesystem>
 #include <stdexcept>
@@ -97,7 +100,8 @@ std::string ArtifactUploader::UploadFiles(
     const std::map<std::string, std::string>& files,
     const std::string& rootId,
     int totalChildrenCount,
-    IProcessWindow* processWindow)
+    IProcessWindow* processWindow,
+    IngestionHeartbeat* heartbeat)
 {
     const std::string base = _serverUrl + "/api/v2/projects/" + _projectId + "/modelingestion/" + ingestionId;
 
@@ -179,6 +183,12 @@ std::string ArtifactUploader::UploadFiles(
     if (processWindow)
         processWindow->SetNextProcessPhase("Creating version", 1);
 
+    if (heartbeat)
+    {
+        heartbeat->Stop();
+        heartbeat->CheckCancellation();
+    }
+
     json completeRequest;
     completeRequest["etags"] = etags;
     completeRequest["rootId"] = rootId;
@@ -199,7 +209,47 @@ std::string ArtifactUploader::UploadFiles(
                 throw std::runtime_error("Server completed version '" + echoed + "' but the pre-allocated id was '" + versionId + "'");
         }
     }
+    WaitForCompletion(ingestionId, versionId, processWindow);
     return versionId;
+}
+
+void ArtifactUploader::WaitForCompletion(const std::string& ingestionId, const std::string& versionId,
+    IProcessWindow* processWindow)
+{
+    const std::string query =
+        "query IngestionStatus($projectId: String!, $ingestionId: ID!) { project(id: $projectId) { "
+        "ingestion(id: $ingestionId) { id statusData { __typename "
+        "... on ModelIngestionSuccessStatus { versionId } "
+        "... on ModelIngestionFailedStatus { errorReason } "
+        "... on ModelIngestionInvalidStatus { validationMessage } "
+        "... on ModelIngestionCancelledStatus { cancellationMessage } } } } }";
+    const json variables = { { "projectId", _projectId }, { "ingestionId", ingestionId } };
+    while (true)
+    {
+        if (processWindow && processWindow->IsProcessCanceled())
+            throw UserCancelledException("The user cancelled the send operation");
+        const auto data = json::parse(GraphQl(query, variables.dump()));
+        const auto& ingestion = data.at("project").at("ingestion");
+        if (ingestion.at("id").get<std::string>() != ingestionId)
+            throw std::runtime_error("Server returned a different ingestion");
+        const auto& status = ingestion.at("statusData");
+        const auto type = status.at("__typename").get<std::string>();
+        if (type == "ModelIngestionSuccessStatus")
+        {
+            if (status.at("versionId").get<std::string>() != versionId)
+                throw std::runtime_error("Server published a different version");
+            return;
+        }
+        if (type == "ModelIngestionCancelledStatus")
+            throw UserCancelledException(status.at("cancellationMessage").get<std::string>());
+        if (type == "ModelIngestionFailedStatus")
+            throw std::runtime_error(status.at("errorReason").get<std::string>());
+        if (type == "ModelIngestionInvalidStatus")
+            throw std::runtime_error(status.at("validationMessage").get<std::string>());
+        if (type != "ModelIngestionQueuedStatus" && type != "ModelIngestionProcessingStatus")
+            throw std::runtime_error("Server returned an unknown ingestion status");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 }
 
 void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std::string& progressMessage)

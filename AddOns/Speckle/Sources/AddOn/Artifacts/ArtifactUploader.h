@@ -7,6 +7,7 @@
 #include "IHttpClient.h"
 
 class IProcessWindow;
+class IngestionHeartbeat;
 
 struct IngestionInfo
 {
@@ -47,7 +48,8 @@ public:
         const std::map<std::string, std::string>& files,
         const std::string& rootId,
         int totalChildrenCount,
-        IProcessWindow* processWindow = nullptr);
+        IProcessWindow* processWindow = nullptr,
+        IngestionHeartbeat* heartbeat = nullptr);
 
     void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage);
 
@@ -55,6 +57,7 @@ public:
     void FailWithCancel(const std::string& ingestionId, const std::string& cancellationMessage);
 
 private:
+    void WaitForCompletion(const std::string& ingestionId, const std::string& versionId, IProcessWindow* processWindow);
     std::string GraphQl(const std::string& query, const std::string& variablesJson);
 
     std::shared_ptr<IHttpClient> _http;

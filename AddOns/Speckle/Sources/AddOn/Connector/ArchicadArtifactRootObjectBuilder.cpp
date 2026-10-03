@@ -294,15 +294,16 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             "the Speckle 4.0 artefact upload path requires the v2 data endpoints.");
     }
 
-    IngestionProgressWindow processWindow(nativeProcessWindow, [&](const std::string& message)
-    {
-        uploader.UpdateProgress(ingestion.ingestionId, message);
-    });
-
     ArtefactSessionLog session("Archicad", projectId, ingestion.versionId);
 
     try
     {
+        ArtifactUploader progressUploader(CreateHttpClient(), serverUrl, token, projectId);
+        IngestionHeartbeat heartbeat([&](const std::string& message)
+        {
+            progressUploader.UpdateProgress(ingestion.ingestionId, message);
+        }, "Converting elements");
+        IngestionProgressWindow processWindow(nativeProcessWindow, heartbeat);
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
 
@@ -406,12 +407,11 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.BeginPhase("Upload");
         const std::string rootId = "binary-" + ingestion.versionId;
         const std::string versionId = uploader.UploadFiles(
-            ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow);
+            ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow, &heartbeat);
         session.EndPhase();
 
         NativeSendResult result;
         result.versionId = versionId;
-        result.ingestionId = ingestion.ingestionId;
         try
         {
             result.sessionLogBasePath = session.GetBasePath();
