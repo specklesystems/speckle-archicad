@@ -7,6 +7,8 @@
 class MacHttpClient : public IHttpClient
 {
 public:
+    explicit MacHttpClient(int postTimeoutSeconds = 600) : postTimeoutSeconds(postTimeoutSeconds) {}
+
     HttpResponse PostJson(
         const std::string& url,
         const std::string& jsonBody,
@@ -26,4 +28,6 @@ public:
         const std::string& url,
         const std::string& bearerToken,
         const std::string& filePath) override;
+private:
+    int postTimeoutSeconds;
 };

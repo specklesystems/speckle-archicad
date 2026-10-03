@@ -298,7 +298,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 
     try
     {
-        ArtifactUploader progressUploader(CreateHttpClient(), serverUrl, token, projectId);
+        ArtifactUploader progressUploader(CreateHttpClient(10), serverUrl, token, projectId);
         IngestionHeartbeat heartbeat([&](const std::string& message)
         {
             progressUploader.UpdateProgress(ingestion.ingestionId, message);
