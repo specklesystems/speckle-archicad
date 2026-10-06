@@ -40,6 +40,7 @@ struct Http : IHttpClient
     std::vector<json> states;
     size_t reads = 0;
     int checks = 0;
+    int pollFailures = 0;
     json heartbeatState = {{"id", "test-ingestion"}, {"cancellationRequested", false},
         {"statusData", {{"__typename", "ModelIngestionProcessingStatus"}}}};
     bool completed = false;
@@ -69,6 +70,7 @@ struct Http : IHttpClient
                 return {200, response.dump(), {}};
             }
             Require(updates == updatesAtComplete, "Client heartbeat continued after server handoff");
+            if (pollFailures > 0) { --pollFailures; return {503, "Service Unavailable", {}}; }
             Require(reads < states.size(), "Unexpected extra server poll");
             response["data"]["project"]["ingestion"] = {
                 {"id", "test-ingestion"}, {"cancellationRequested", false}, {"statusData", states[reads++]}};
@@ -110,6 +112,8 @@ std::string RequireServerStop(const std::function<void()>& call)
 
 int main()
 {
+    const CompletionPolling fast{std::chrono::milliseconds(1), std::chrono::milliseconds(4),
+        std::chrono::milliseconds(200), 3};
     auto http = std::make_shared<Http>();
     ArtifactUploader uploader(http, "https://example.invalid/", "test-token", "test-project");
     Window window;
@@ -135,7 +139,8 @@ int main()
     Require(uploader.UploadFiles("test-ingestion", "test-version", {}, "root", 0, &progress, &heartbeat)
         == "test-version", "Wrong published version");
     Require(http->reads == 0, "UploadFiles polled the server it just handed the ingestion to");
-    uploader.WaitForCompletion("test-ingestion", "test-version", &window);
+    Require(uploader.WaitForCompletion("test-ingestion", "test-version", &window, fast) == IngestionOutcome::Published,
+        "Server success was not reported as published");
     Require(http->reads == 2, "Returned preallocated version before server success");
     const int stoppedAt = http->updates;
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -147,11 +152,32 @@ int main()
         {{"__typename", "ModelIngestionCancelledStatus"}, {"cancellationMessage", nullptr}}})
     {
         http->states = {state}; http->reads = 0;
-        RequireServerStop([&] { uploader.WaitForCompletion("test-ingestion", "test-version", nullptr); });
+        RequireServerStop([&] { uploader.WaitForCompletion("test-ingestion", "test-version", nullptr, fast); });
     }
     http->states = {{{"__typename", "ModelIngestionSuccessStatus"}, {"versionId", "wrong-version"}}};
     http->reads = 0;
-    RequireThrows([&] { uploader.WaitForCompletion("test-ingestion", "test-version", nullptr); });
+    RequireThrows([&] { uploader.WaitForCompletion("test-ingestion", "test-version", nullptr, fast); });
+
+    const json processing = {{"__typename", "ModelIngestionProcessingStatus"}};
+    const json success = {{"__typename", "ModelIngestionSuccessStatus"}, {"versionId", "test-version"}};
+    http->states = {processing, success}; http->reads = 0; http->pollFailures = 2;
+    Require(uploader.WaitForCompletion("test-ingestion", "test-version", nullptr, fast) == IngestionOutcome::Published,
+        "A transient poll failure ended the wait");
+    http->states = {success}; http->reads = 0; http->pollFailures = 3;
+    Require(uploader.WaitForCompletion("test-ingestion", "test-version", nullptr, fast)
+        == IngestionOutcome::StillProcessing, "Persistent poll failures were not reported as unknown");
+    Require(http->reads == 0, "Kept polling past the failure budget");
+    http->pollFailures = 0;
+    http->states = std::vector<json>(1000, processing); http->reads = 0;
+    Require(uploader.WaitForCompletion("test-ingestion", "test-version", nullptr, fast)
+        == IngestionOutcome::StillProcessing, "Wait ignored its deadline");
+    Require(http->reads < 1000, "Wait ignored its deadline");
+    http->states = {success}; http->reads = 0;
+    window.cancelled = true;
+    Require(uploader.WaitForCompletion("test-ingestion", "test-version", &window, fast)
+        == IngestionOutcome::StillProcessing, "Cancel during the wait was not a detach");
+    Require(http->reads == 0, "Polled after the user stopped waiting");
+    window.cancelled = false;
 
     http->completed = false;
     http->cancelled = true;

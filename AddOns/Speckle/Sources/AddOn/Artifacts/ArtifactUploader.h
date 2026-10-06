@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <memory>
 #include <string>
@@ -14,6 +15,22 @@ struct IngestionInfo
 {
     std::string ingestionId;
     std::string versionId; // pre-allocated by the server; empty = server has no v2 data endpoints
+};
+
+enum class IngestionOutcome
+{
+    Published,
+    StillProcessing, // the server still owns it; the outcome is not known here
+};
+
+struct CompletionPolling
+{
+    std::chrono::milliseconds firstInterval = std::chrono::seconds(1);
+    std::chrono::milliseconds maxInterval = std::chrono::seconds(10);
+    // Covers datgen's worst case: 3 attempts x DATGEN_JOB_DEADLINE_SECONDS (1800s) plus
+    // pod scheduling (ENG-10394).
+    std::chrono::milliseconds deadline = std::chrono::minutes(100);
+    int maxConsecutiveFailures = 5;
 };
 
 // The C++ mirror of the SDK's ArtifactPipeline + the ingestion bracket from
@@ -54,8 +71,10 @@ public:
 
     // After a successful complete the server owns the ingestion (it builds the viewer
     // .dat and only then creates the version), so callers must not fail or cancel it
-    // from here on (ENG-10394).
-    void WaitForCompletion(const std::string& ingestionId, const std::string& versionId, IProcessWindow* processWindow);
+    // from here on (ENG-10394). Cancelling, the deadline, or repeated poll failures stop
+    // the wait, not the ingestion, and return StillProcessing.
+    IngestionOutcome WaitForCompletion(const std::string& ingestionId, const std::string& versionId,
+        IProcessWindow* processWindow, const CompletionPolling& polling = {});
 
     // Throws IngestionStoppedByServerException when the server has cancelled, failed or
     // timed out the ingestion; nothing is written to it in that case.

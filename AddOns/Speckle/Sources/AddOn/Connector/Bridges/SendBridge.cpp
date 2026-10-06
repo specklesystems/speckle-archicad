@@ -159,7 +159,10 @@ void SendBridge::SendViaArtifacts(const RunMethodEventArgs& args, SenderModelCar
 
         nlohmann::json res{};
         res["modelCardId"] = modelCard.modelCardId;
-        res["versionId"] = result.versionId;
+        if (result.ingestionId.empty())
+            res["versionId"] = result.versionId;
+        else
+            res["ingestionId"] = result.ingestionId;
         res["sendConversionResults"] = conversionResults;
         ArtefactSessionLog::WriteSetModelSendResult(result.sessionLogBasePath, res);
         args.eventSource->Send("setModelSendResult", res);

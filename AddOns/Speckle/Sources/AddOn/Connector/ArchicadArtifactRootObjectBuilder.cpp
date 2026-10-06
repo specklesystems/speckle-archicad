@@ -408,7 +408,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         //    "Creating version" phases itself.
         session.BeginPhase("Upload");
         const std::string rootId = "binary-" + ingestion.versionId;
-        result.versionId = uploader.UploadFiles(
+        uploader.UploadFiles(
             ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow, &heartbeat);
         session.EndPhase();
         result.objectCount = objectCount;
@@ -437,11 +437,13 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     // failure while waiting is reported to the user but never written to the ingestion.
     try
     {
-        uploader.WaitForCompletion(ingestion.ingestionId, result.versionId, &nativeProcessWindow);
-    }
-    catch (const UserCancelledException&)
-    {
-        throw;
+        const IngestionOutcome outcome =
+            uploader.WaitForCompletion(ingestion.ingestionId, ingestion.versionId, &nativeProcessWindow);
+        // A reserved id is never reported as published; the UI follows the ingestion instead.
+        if (outcome == IngestionOutcome::Published)
+            result.versionId = ingestion.versionId;
+        else
+            result.ingestionId = ingestion.ingestionId;
     }
     catch (const std::exception& e)
     {

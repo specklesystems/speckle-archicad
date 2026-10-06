@@ -8,7 +8,8 @@
 
 struct NativeSendResult
 {
-    std::string versionId;
+    std::string versionId;   // set only once the server reports Success
+    std::string ingestionId; // set instead when the server is still processing
     std::string sessionLogBasePath;
     int objectCount = 0;
 };

@@ -257,26 +257,57 @@ json ArtifactUploader::QueryIngestion(const std::string& ingestionId)
     return ingestion;
 }
 
-void ArtifactUploader::WaitForCompletion(const std::string& ingestionId, const std::string& versionId,
-    IProcessWindow* processWindow)
+IngestionOutcome ArtifactUploader::WaitForCompletion(const std::string& ingestionId, const std::string& versionId,
+    IProcessWindow* processWindow, const CompletionPolling& polling)
 {
+    using Clock = std::chrono::steady_clock;
+    const auto deadline = Clock::now() + polling.deadline;
+    const auto canceled = [&] { return processWindow && processWindow->IsProcessCanceled(); };
+    auto interval = polling.firstInterval;
+    int failures = 0;
     while (true)
     {
-        if (processWindow && processWindow->IsProcessCanceled())
-            throw UserCancelledException("The user cancelled the send operation");
-        const json ingestion = QueryIngestion(ingestionId);
-        const auto& status = ingestion.at("statusData");
-        const auto type = status.at("__typename").get<std::string>();
-        if (type == "ModelIngestionSuccessStatus")
+        if (canceled())
+            return IngestionOutcome::StillProcessing;
+
+        json ingestion;
+        try
         {
-            if (status.at("versionId").get<std::string>() != versionId)
-                throw std::runtime_error("Server published a different version");
-            return;
+            ingestion = QueryIngestion(ingestionId);
+            failures = 0;
         }
-        ThrowIfStoppedByServer(status);
-        if (type != "ModelIngestionQueuedStatus" && type != "ModelIngestionProcessingStatus")
-            throw std::runtime_error("Server returned an unknown ingestion status");
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        catch (const std::exception&)
+        {
+            if (++failures >= polling.maxConsecutiveFailures)
+                return IngestionOutcome::StillProcessing;
+        }
+
+        if (!ingestion.is_null())
+        {
+            const auto& status = ingestion.at("statusData");
+            const auto type = status.at("__typename").get<std::string>();
+            if (type == "ModelIngestionSuccessStatus")
+            {
+                if (status.at("versionId").get<std::string>() != versionId)
+                    throw std::runtime_error("Server published a different version");
+                return IngestionOutcome::Published;
+            }
+            ThrowIfStoppedByServer(status);
+            if (type != "ModelIngestionQueuedStatus" && type != "ModelIngestionProcessingStatus")
+                throw std::runtime_error("Server returned an unknown ingestion status");
+        }
+
+        const auto wakeAt = (std::min)(Clock::now() + interval, deadline);
+        while (Clock::now() < wakeAt)
+        {
+            if (canceled())
+                return IngestionOutcome::StillProcessing;
+            std::this_thread::sleep_for((std::min)(std::chrono::duration_cast<std::chrono::milliseconds>(
+                wakeAt - Clock::now()), std::chrono::milliseconds(200)));
+        }
+        if (Clock::now() >= deadline)
+            return IngestionOutcome::StillProcessing;
+        interval = (std::min)(interval * 2, polling.maxInterval);
     }
 }
 
