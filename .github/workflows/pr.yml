@@ -26,3 +26,19 @@ jobs:
 
       - name: Build
         run: ./build.ps1
+
+      - name: Set up Python for ingestion HTTP tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Test ingestion progress and WinHTTP lifecycle
+        shell: pwsh
+        run: |
+          cmake -S tests -B build/ingestion-tests -G "Visual Studio 18 2026" -A x64 -T v143
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/ingestion-tests --config Release --target IngestionProgressTests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/ingestion-tests -C Release -R '^IngestionProgress$' --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/test_ingestion_runtime.ps1

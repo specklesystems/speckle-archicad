@@ -1,4 +1,42 @@
-# Element type regression tests
+# Component tests
+
+## Ingestion lifecycle
+
+`IngestionProgressTests` runs the production uploader and heartbeat against
+fake HTTP responses and a process window that rejects worker-thread calls.
+It checks silent-operation heartbeats, worker shutdown before complete,
+matching publication identity, server stops, and cancellation as detach
+after handoff. It requires a C++20 compiler and CMake, without an Archicad
+installation or SDK runtime.
+
+Run from the repository root with the Visual Studio generator used by the
+add-on build:
+
+```powershell
+cmake -S tests -B build/ingestion-tests -G "Visual Studio 18 2026" -A x64 -T v143
+cmake --build build/ingestion-tests --config Release --target IngestionProgressTests
+ctest --test-dir build/ingestion-tests -C Release -R '^IngestionProgress$' --output-on-failure
+```
+
+The separate runtime script compiles the production `ArtifactUploader` and
+`WinHttpClient`, then starts a Python standard-library HTTP server on
+loopback. It requires Visual Studio C++ tools with the developer shell and
+Python 3 on PATH. Run it in PowerShell 7 (`pwsh`). No third-party Python packages are needed. The script
+records compile, server and runtime logs under `.audit/runtime-fixed-*`.
+
+```powershell
+./scripts/test_ingestion_runtime.ps1
+./scripts/test_ingestion_runtime.ps1 -ProductionWindow
+```
+
+The default run uses short timing fixtures. `-ProductionWindow` adds a
+650-second silent operation against a 600-second server idle timeout,
+using the production 30-second heartbeat interval and default completion
+polling. These runs exercise actual WinHTTP components. They do not open
+Archicad or publish to a live Speckle server. A send from Archicad still
+verifies the native process window and DUI result handling.
+
+## Element type regression tests
 
 The Windows test executable compiles the production converter against the
 selected Archicad SDK. It supplies distinct MEP class IDs because the MEP

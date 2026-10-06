@@ -10,6 +10,9 @@
 #include "ArchicadObject.h"
 #include "ArtefactSessionLog.h"
 #include "ArtifactUploader.h"
+#include "IngestionCompleteUnconfirmedException.h"
+#include "IngestionProgressWindow.h"
+#include "IngestionStoppedByServerException.h"
 #include "BundleWriter.h"
 #include "Connector.h"
 #include "ConverterUtils.h"
@@ -274,13 +277,13 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 {
     auto http = std::make_shared<WinHttpClient>();
     ArtifactUploader uploader(http, serverUrl, token, projectId);
-    IProcessWindow& processWindow = CONNECTOR.GetProcessWindow();
+    IProcessWindow& nativeProcessWindow = CONNECTOR.GetProcessWindow();
 
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked
     //    into the parquet filenames and used as the commit PK at complete. Failures
     //    propagate as-is (auth, network, old server) — there is no legacy fallback.
     //    The process window was Init'd by SendBridge (phase plan documented there).
-    processWindow.SetNextProcessPhase("Preparing upload", 1);
+    nativeProcessWindow.SetNextProcessPhase("Preparing upload", 1);
     IngestionInfo ingestion = uploader.CreateIngestion(
         modelId,
         "Sending from Archicad",
@@ -294,9 +297,17 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     }
 
     ArtefactSessionLog session("Archicad", projectId, ingestion.versionId);
+    ArtifactUploader controlUploader(std::make_shared<WinHttpClient>(10), serverUrl, token, projectId);
+    NativeSendResult result;
+    int objectCount = 0;
 
     try
     {
+        IngestionHeartbeat heartbeat([&](const std::string& message)
+        {
+            controlUploader.UpdateProgress(ingestion.ingestionId, message);
+        }, "Converting elements");
+        IngestionProgressWindow processWindow(nativeProcessWindow, heartbeat);
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
 
@@ -378,7 +389,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
             { "eav", "type" },
         });
 
-        const int objectCount = writer.ObjectCount();
+        objectCount = writer.ObjectCount();
         session.SetStat("objects", objectCount);
         session.EndPhase();
 
@@ -394,23 +405,23 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.SetStat("files", static_cast<long long>(files.size()));
         session.EndPhase();
 
-        // 6. Upload: sign -> presigned PUT per file -> complete (creates the version).
-        //    UploadFiles drives the "Uploading" (KiB-granular, cancellable) and
-        //    "Creating version" phases itself.
         session.BeginPhase("Upload");
         const std::string rootId = "binary-" + ingestion.versionId;
-        const std::string versionId = uploader.UploadFiles(
-            ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow);
-        session.EndPhase();
-
-        NativeSendResult result;
-        result.versionId = versionId;
-        result.objectCount = objectCount;
-        return result;
+        uploader.UploadFiles(
+            ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow, &heartbeat);
+    }
+    catch (const IngestionCompleteUnconfirmedException&)
+    {
+        // ENG-10394: a lost complete reply may follow server handoff; status polling resolves ownership.
     }
     catch (const UserCancelledException&)
     {
         uploader.FailWithCancel(ingestion.ingestionId, "User cancelled the send");
+        throw;
+    }
+    catch (const IngestionStoppedByServerException& e)
+    {
+        session.Fail(e.what());
         throw;
     }
     catch (const std::exception& e)
@@ -419,4 +430,22 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         uploader.FailWithError(ingestion.ingestionId, e.what());
         throw;
     }
+
+    try
+    {
+        session.EndPhase();
+        result.objectCount = objectCount;
+        const IngestionOutcome outcome =
+            controlUploader.WaitForCompletion(ingestion.ingestionId, ingestion.versionId, &nativeProcessWindow);
+        if (outcome == IngestionOutcome::Published)
+            result.versionId = ingestion.versionId;
+        else
+            result.ingestionId = ingestion.ingestionId;
+    }
+    catch (const std::exception& e)
+    {
+        session.Fail(e.what());
+        throw;
+    }
+    return result;
 }

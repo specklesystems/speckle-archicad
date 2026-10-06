@@ -1,6 +1,9 @@
 #include "ArtifactUploader.h"
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
+#include "IngestionHeartbeat.h"
 #include <cstdint>
 #include <filesystem>
 #include <stdexcept>
@@ -8,6 +11,8 @@
 #include "json.hpp"
 
 #include "IProcessWindow.h"
+#include "IngestionCompleteUnconfirmedException.h"
+#include "IngestionStoppedByServerException.h"
 #include "UserCancelledException.h"
 #include "Utf8Path.h"
 
@@ -25,6 +30,31 @@ namespace
 
     // The ModelIngestion GraphQL selection shared by every mutation we call.
     constexpr const char* INGESTION_FIELDS = "id modelId projectId versionId cancellationRequested";
+
+    constexpr const char* SERVER_CANCEL_MESSAGE =
+        "The Speckle server stopped this send: cancellation was requested on the server.";
+
+    std::string StatusMessage(const json& status, const char* key)
+    {
+        const auto it = status.find(key);
+        if (it != status.end() && it->is_string() && !it->get<std::string>().empty())
+            return it->get<std::string>();
+        return "no reason was given.";
+    }
+
+    void ThrowIfStoppedByServer(const json& status)
+    {
+        const auto type = status.at("__typename").get<std::string>();
+        if (type == "ModelIngestionCancelledStatus")
+            throw IngestionStoppedByServerException(
+                "The Speckle server cancelled this send: " + StatusMessage(status, "cancellationMessage"));
+        if (type == "ModelIngestionFailedStatus")
+            throw IngestionStoppedByServerException(
+                "The Speckle server stopped this send: " + StatusMessage(status, "errorReason"));
+        if (type == "ModelIngestionInvalidStatus")
+            throw IngestionStoppedByServerException(
+                "The Speckle server rejected this send: " + StatusMessage(status, "validationMessage"));
+    }
 }
 
 ArtifactUploader::ArtifactUploader(
@@ -97,7 +127,8 @@ std::string ArtifactUploader::UploadFiles(
     const std::map<std::string, std::string>& files,
     const std::string& rootId,
     int totalChildrenCount,
-    IProcessWindow* processWindow)
+    IProcessWindow* processWindow,
+    IngestionHeartbeat* heartbeat)
 {
     const std::string base = _serverUrl + "/api/v2/projects/" + _projectId + "/modelingestion/" + ingestionId;
 
@@ -175,31 +206,131 @@ std::string ArtifactUploader::UploadFiles(
         etags[kv.first] = etagIt->second;
     }
 
-    // 3. complete: verifies the etags and creates the version (commit PK = the pre-allocated versionId)
     if (processWindow)
         processWindow->SetNextProcessPhase("Creating version", 1);
+
+    if (heartbeat)
+    {
+        heartbeat->Stop();
+        heartbeat->CheckCancellation();
+    }
 
     json completeRequest;
     completeRequest["etags"] = etags;
     completeRequest["rootId"] = rootId;
     completeRequest["totalChildrenCount"] = totalChildrenCount;
 
-    HttpResponse completeResponse = _http->PostJson(base + "/uploads/complete", completeRequest.dump(), _token);
+    HttpResponse completeResponse;
+    try
+    {
+        completeResponse = _http->PostJson(base + "/uploads/complete", completeRequest.dump(), _token);
+    }
+    catch (const std::exception& e)
+    {
+        throw IngestionCompleteUnconfirmedException(e.what());
+    }
     if (!completeResponse.IsSuccess())
         throw std::runtime_error("artifacts complete failed with HTTP " + std::to_string(completeResponse.statusCode) + ": " + completeResponse.body);
 
-    // The pre-allocated id is authoritative; if the server echoes one it must match.
-    if (!completeResponse.body.empty())
-    {
-        json completed = json::parse(completeResponse.body, nullptr, false);
-        if (!completed.is_discarded() && completed.contains("versionId") && completed["versionId"].is_string())
-        {
-            const std::string echoed = completed["versionId"].get<std::string>();
-            if (!echoed.empty() && echoed != versionId)
-                throw std::runtime_error("Server completed version '" + echoed + "' but the pre-allocated id was '" + versionId + "'");
-        }
-    }
+    // ENG-10394: complete acknowledges handoff; only polled Success identifies the published version.
     return versionId;
+}
+
+json ArtifactUploader::QueryIngestion(const std::string& ingestionId)
+{
+    const std::string query =
+        "query IngestionStatus($projectId: String!, $ingestionId: ID!) { project(id: $projectId) { "
+        "ingestion(id: $ingestionId) { id cancellationRequested statusData { __typename "
+        "... on ModelIngestionSuccessStatus { versionId } "
+        "... on ModelIngestionFailedStatus { errorReason } "
+        "... on ModelIngestionInvalidStatus { validationMessage } "
+        "... on ModelIngestionCancelledStatus { cancellationMessage } } } } }";
+    const json variables = { { "projectId", _projectId }, { "ingestionId", ingestionId } };
+    json data = json::parse(GraphQl(query, variables.dump()));
+    json ingestion = data.at("project").at("ingestion");
+    if (ingestion.at("id").get<std::string>() != ingestionId)
+        throw std::runtime_error("Server returned a different ingestion");
+    return ingestion;
+}
+
+IngestionOutcome ArtifactUploader::WaitForCompletion(const std::string& ingestionId, const std::string& versionId,
+    IProcessWindow* processWindow, const CompletionPolling& polling)
+{
+    using Clock = std::chrono::steady_clock;
+    const auto deadline = Clock::now() + polling.deadline;
+    const auto canceled = [&] { return processWindow && processWindow->IsProcessCanceled(); };
+    auto interval = polling.firstInterval;
+    int failures = 0;
+    while (true)
+    {
+        if (canceled())
+            return IngestionOutcome::StillProcessing;
+
+        json ingestion;
+        try
+        {
+            ingestion = QueryIngestion(ingestionId);
+            failures = 0;
+        }
+        catch (const std::exception&)
+        {
+            if (++failures >= polling.maxConsecutiveFailures)
+                return IngestionOutcome::StillProcessing;
+        }
+
+        if (!ingestion.is_null())
+        {
+            const auto& status = ingestion.at("statusData");
+            const auto type = status.at("__typename").get<std::string>();
+            if (type == "ModelIngestionSuccessStatus")
+            {
+                if (status.at("versionId").get<std::string>() != versionId)
+                    throw std::runtime_error("Server published a different version");
+                return IngestionOutcome::Published;
+            }
+            ThrowIfStoppedByServer(status);
+            if (type != "ModelIngestionQueuedStatus" && type != "ModelIngestionProcessingStatus")
+                throw std::runtime_error("Server returned an unknown ingestion status");
+        }
+
+        const auto wakeAt = (std::min)(Clock::now() + interval, deadline);
+        while (Clock::now() < wakeAt)
+        {
+            if (canceled())
+                return IngestionOutcome::StillProcessing;
+            std::this_thread::sleep_for((std::min)(std::chrono::duration_cast<std::chrono::milliseconds>(
+                wakeAt - Clock::now()), std::chrono::milliseconds(200)));
+        }
+        if (Clock::now() >= deadline)
+            return IngestionOutcome::StillProcessing;
+        interval = (std::min)(interval * 2, polling.maxInterval);
+    }
+}
+
+void ArtifactUploader::UpdateProgress(const std::string& ingestionId, const std::string& progressMessage)
+{
+    // ENG-10394: updateProgress can revive a timed-out ingestion and erase its error reason.
+    const json current = QueryIngestion(ingestionId);
+    ThrowIfStoppedByServer(current.at("statusData"));
+    if (current.at("cancellationRequested").get<bool>())
+        throw IngestionStoppedByServerException(SERVER_CANCEL_MESSAGE);
+
+    const std::string query =
+        "mutation IngestionProgress($input: ModelIngestionUpdateInput!) { "
+        "data: projectMutations { data: modelIngestionMutations { "
+        "data: updateProgress(input: $input) { id cancellationRequested } } } }";
+    json variables;
+    variables["input"] = {
+        { "ingestionId", ingestionId },
+        { "projectId", _projectId },
+        { "progressMessage", progressMessage },
+    };
+    json data = json::parse(GraphQl(query, variables.dump()));
+    const auto& ingestion = data.at("data").at("data").at("data");
+    if (ingestion.at("id").get<std::string>() != ingestionId)
+        throw std::runtime_error("Server updated a different ingestion");
+    if (ingestion.at("cancellationRequested").get<bool>())
+        throw IngestionStoppedByServerException(SERVER_CANCEL_MESSAGE);
 }
 
 void ArtifactUploader::FailWithError(const std::string& ingestionId, const std::string& errorReason)
