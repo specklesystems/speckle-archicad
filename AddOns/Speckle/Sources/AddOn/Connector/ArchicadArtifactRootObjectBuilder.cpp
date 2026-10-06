@@ -296,6 +296,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 
     ArtefactSessionLog session("Archicad", projectId, ingestion.versionId);
 
+    NativeSendResult result;
     try
     {
         ArtifactUploader progressUploader(CreateHttpClient(10), serverUrl, token, projectId);
@@ -401,28 +402,15 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         session.SetStat("files", static_cast<long long>(files.size()));
         session.EndPhase();
 
-        // 6. Upload: sign -> presigned PUT per file -> complete (creates the version).
+        // 6. Upload: sign -> presigned PUT per file -> complete (hands the ingestion to the server).
         //    UploadFiles drives the "Uploading" (KiB-granular, cancellable) and
         //    "Creating version" phases itself.
         session.BeginPhase("Upload");
         const std::string rootId = "binary-" + ingestion.versionId;
-        const std::string versionId = uploader.UploadFiles(
+        result.versionId = uploader.UploadFiles(
             ingestion.ingestionId, ingestion.versionId, files, rootId, objectCount, &processWindow, &heartbeat);
         session.EndPhase();
-
-        NativeSendResult result;
-        result.versionId = versionId;
-        try
-        {
-            result.sessionLogBasePath = session.GetBasePath();
-        }
-        catch (...)
-        {
-            // Diagnostics must never fail an otherwise completed upload.
-            result.sessionLogBasePath.clear();
-        }
         result.objectCount = objectCount;
-        return result;
     }
     catch (const UserCancelledException&)
     {
@@ -435,4 +423,32 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         uploader.FailWithError(ingestion.ingestionId, e.what());
         throw;
     }
+
+    // ENG-10394: past complete the server owns the ingestion. failWithCancel would make
+    // datgen discard a valid build and failWithError is overwritten by Success, so a
+    // failure while waiting is reported to the user but never written to the ingestion.
+    try
+    {
+        uploader.WaitForCompletion(ingestion.ingestionId, result.versionId, &nativeProcessWindow);
+    }
+    catch (const UserCancelledException&)
+    {
+        throw;
+    }
+    catch (const std::exception& e)
+    {
+        session.Fail(e.what());
+        throw;
+    }
+
+    try
+    {
+        result.sessionLogBasePath = session.GetBasePath();
+    }
+    catch (...)
+    {
+        // Diagnostics must never fail an otherwise completed upload.
+        result.sessionLogBasePath.clear();
+    }
+    return result;
 }

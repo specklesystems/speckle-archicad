@@ -18,7 +18,7 @@ struct IngestionInfo
 // The C++ mirror of the SDK's ArtifactPipeline + the ingestion bracket from
 // SendOperation.SendViaArtifacts: create ingestion (GraphQL, which pre-allocates
 // the versionId baked into the parquet filenames) -> sign -> presigned PUT per
-// file -> complete (which creates the version). failWithError / failWithCancel
+// file -> complete (which hands the ingestion to the server). failWithError / failWithCancel
 // close the ingestion on the failure paths.
 class ArtifactUploader
 {
@@ -51,13 +51,17 @@ public:
         IProcessWindow* processWindow = nullptr,
         IngestionHeartbeat* heartbeat = nullptr);
 
+    // After a successful complete the server owns the ingestion (it builds the viewer
+    // .dat and only then creates the version), so callers must not fail or cancel it
+    // from here on (ENG-10394).
+    void WaitForCompletion(const std::string& ingestionId, const std::string& versionId, IProcessWindow* processWindow);
+
     void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage);
 
     void FailWithError(const std::string& ingestionId, const std::string& errorReason);
     void FailWithCancel(const std::string& ingestionId, const std::string& cancellationMessage);
 
 private:
-    void WaitForCompletion(const std::string& ingestionId, const std::string& versionId, IProcessWindow* processWindow);
     std::string GraphQl(const std::string& query, const std::string& variablesJson);
 
     std::shared_ptr<IHttpClient> _http;

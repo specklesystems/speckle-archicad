@@ -209,7 +209,6 @@ std::string ArtifactUploader::UploadFiles(
                 throw std::runtime_error("Server completed version '" + echoed + "' but the pre-allocated id was '" + versionId + "'");
         }
     }
-    WaitForCompletion(ingestionId, versionId, processWindow);
     return versionId;
 }
 

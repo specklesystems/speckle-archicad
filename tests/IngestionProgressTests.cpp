@@ -116,6 +116,8 @@ int main()
         {{"__typename", "ModelIngestionSuccessStatus"}, {"versionId", "test-version"}}};
     Require(uploader.UploadFiles("test-ingestion", "test-version", {}, "root", 0, &progress, &heartbeat)
         == "test-version", "Wrong published version");
+    Require(http->reads == 0, "UploadFiles polled the server it just handed the ingestion to");
+    uploader.WaitForCompletion("test-ingestion", "test-version", &window);
     Require(http->reads == 2, "Returned preallocated version before server success");
     const int stoppedAt = http->updates;
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -128,7 +130,7 @@ int main()
         {{"__typename", "ModelIngestionSuccessStatus"}, {"versionId", "wrong-version"}}})
     {
         http->states = {state}; http->reads = 0;
-        RequireThrows([&] { uploader.UploadFiles("test-ingestion", "test-version", {}, "root", 0); });
+        RequireThrows([&] { uploader.WaitForCompletion("test-ingestion", "test-version", nullptr); });
     }
     http->cancelled = true;
     bool serverCancel = false;
