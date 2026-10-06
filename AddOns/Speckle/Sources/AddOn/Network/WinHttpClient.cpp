@@ -170,7 +170,7 @@ namespace
         if (!session)
             throw std::runtime_error("WinHttpOpen failed, error " + std::to_string(GetLastError()));
         const int timeoutMs = timeoutSeconds * 1000;
-        WinHttpSetTimeouts(session.h, std::min(30000, timeoutMs), std::min(30000, timeoutMs), timeoutMs, timeoutMs);
+        WinHttpSetTimeouts(session.h, (std::min)(30000, timeoutMs), (std::min)(30000, timeoutMs), timeoutMs, timeoutMs);
         return session;
     }
 }
