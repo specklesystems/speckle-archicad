@@ -13,6 +13,7 @@
 #include "BundleWriter.h"
 #include "Connector.h"
 #include "ConverterUtils.h"
+#include "IngestionProgressWindow.h"
 #include "SgeoEncoder.h"
 #include "SpeckleConversionException.h"
 #include "UserCancelledException.h"
@@ -21,6 +22,8 @@
 
 namespace
 {
+    constexpr std::chrono::seconds INGESTION_HEARTBEAT_INTERVAL{ 5 };
+
     // Mutable state threaded through the emit walk.
     //
     // Beyond the interning caches it collects the object->object edges that CANNOT be
@@ -274,24 +277,35 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 {
     auto http = std::make_shared<WinHttpClient>();
     ArtifactUploader uploader(http, serverUrl, token, projectId);
-    IProcessWindow& processWindow = CONNECTOR.GetProcessWindow();
+    IProcessWindow& hostProcessWindow = CONNECTOR.GetProcessWindow();
+
+    // CI substitutes the real version into STR# 5010 at build time; in a local build the
+    // placeholder survives, and a placeholder is worse than no answer, so it is left out.
+    std::string connectorVersion = CONNECTOR.GetHostToSpeckleConverter().GetResourceString(5010);
+    if (connectorVersion == "connector_build_num")
+        connectorVersion.clear();
 
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked
     //    into the parquet filenames and used as the commit PK at complete. Failures
     //    propagate as-is (auth, network, old server) — there is no legacy fallback.
     //    The process window was Init'd by SendBridge (phase plan documented there).
-    processWindow.SetNextProcessPhase("Preparing upload", 1);
+    hostProcessWindow.SetNextProcessPhase("Preparing upload", 1);
     IngestionInfo ingestion = uploader.CreateIngestion(
         modelId,
         "Sending from Archicad",
         "archicad",
-        CONNECTOR.GetHostToSpeckleConverter().GetHostAppReleaseInfo());
+        CONNECTOR.GetHostToSpeckleConverter().GetHostAppReleaseInfo(),
+        connectorVersion);
     if (ingestion.versionId.empty())
     {
         throw std::runtime_error(
             "The server did not pre-allocate a version id for this ingestion; "
             "the Speckle 4.0 artefact upload path requires the v2 data endpoints.");
     }
+
+    // The server reaps an ingestion that goes idle past its timeout, so every phase from
+    // here on also heartbeats it (ENG-10294).
+    IngestionProgressWindow processWindow(hostProcessWindow, uploader, ingestion.ingestionId, INGESTION_HEARTBEAT_INTERVAL);
 
     ArtefactSessionLog session("Archicad", projectId, ingestion.versionId);
 
@@ -300,15 +314,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
 
-        // Connector version for envelope.meta.producer_version — the same STR# 5010
-        // resource BaseBridge::GetConnectorVersion reports to the UI. CI substitutes
-        // the real version at build time; in a local build the placeholder survives,
-        // and a placeholder is worse than no answer, so it becomes NULL.
-        std::string producerVersion = CONNECTOR.GetHostToSpeckleConverter().GetResourceString(5010);
-        if (producerVersion == "connector_build_num")
-            producerVersion.clear();
-
-        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId, producerVersion);
+        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId, connectorVersion);
 
         // 2. Collect + emit in one pass (ACAPI main thread). The SendCacheScope
         //    keeps per-send invariants (3D model + GUID index, stories, attribute
@@ -405,6 +411,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
 
         NativeSendResult result;
         result.versionId = versionId;
+        result.ingestionId = ingestion.ingestionId;
         result.objectCount = objectCount;
         return result;
     }
