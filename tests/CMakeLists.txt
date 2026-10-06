@@ -38,3 +38,15 @@ target_sources(ElementTypeTests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/MepClassIds
 
 enable_testing()
 add_test(NAME ElementTypeNames COMMAND ElementTypeTests)
+
+add_executable(IngestionProgressTests
+    IngestionProgressTests.cpp
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Artifacts/ArtifactUploader.cpp")
+target_include_directories(IngestionProgressTests PRIVATE
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Artifacts"
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Converter"
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Network"
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Connector"
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Utils"
+    "${REPO}/Libs/json/include")
+add_test(NAME IngestionProgress COMMAND IngestionProgressTests)

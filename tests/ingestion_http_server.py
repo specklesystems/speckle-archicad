@@ -1,5 +1,6 @@
 import argparse
 import json
+import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -35,7 +36,8 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def refresh(self, state):
-        if not state["complete"] and time.monotonic() - state["lastUpdate"] > 0.65:
+        idle_seconds = 600 if state["scenario"] == "production-heartbeat" else 0.65
+        if not state["complete"] and time.monotonic() - state["lastUpdate"] > idle_seconds:
             state["type"] = "ModelIngestionFailedStatus"
             state["cancellationRequested"] = True
 
@@ -88,12 +90,23 @@ class Handler(BaseHTTPRequestHandler):
                 }
                 self.respond({"uploads": uploads})
             elif self.path.endswith("/complete"):
-                state["complete"] = True
-                state["completeAt"] = time.monotonic()
-                state["updatesAtComplete"] = state["updates"]
-                if state["type"] != "ModelIngestionFailedStatus":
-                    state["type"] = "ModelIngestionProcessingStatus"
-                if state["scenario"] == "complete-malformed":
+                state["completeRequests"] += 1
+                if not state["complete"]:
+                    state["complete"] = True
+                    state["completeAcceptances"] += 1
+                    state["completeAt"] = time.monotonic()
+                    state["updatesAtComplete"] = state["updates"]
+                    if state["type"] != "ModelIngestionFailedStatus":
+                        state["type"] = "ModelIngestionProcessingStatus"
+                if state["scenario"] == "complete-lost":
+                    self.close_connection = True
+                    try:
+                        self.connection.shutdown(socket.SHUT_RDWR)
+                    except OSError:
+                        pass
+                    finally:
+                        self.connection.close()
+                elif state["scenario"] == "complete-malformed":
                     self.respond(b"not-json")
                 elif state["scenario"] == "complete-mismatch":
                     self.respond({"versionId": "wrong-complete-echo"})
@@ -113,7 +126,8 @@ class Handler(BaseHTTPRequestHandler):
                 "scenario": variables["input"]["modelId"], "type": "ModelIngestionProcessingStatus",
                 "lastUpdate": time.monotonic(), "updates": 0, "polls": 0, "completionPolls": 0,
                 "progressAttempts": 0,
-                "complete": False, "versionExists": False, "cancellationRequested": False,
+                "complete": False, "completeRequests": 0, "completeAcceptances": 0,
+                "versionExists": False, "cancellationRequested": False,
                 "failMutations": 0, "cancelMutations": 0, "uploadedBytes": 0,
             }
             self.server.states[ingestion_id] = state
@@ -129,9 +143,10 @@ class Handler(BaseHTTPRequestHandler):
                 state["stalledReceived"] = True
                 self.server.lock.release()
                 try:
-                    time.sleep(4)
+                    time.sleep(12)
                 finally:
                     self.server.lock.acquire()
+                state["stalledResponded"] = True
             if state["complete"]:
                 state["completionPolls"] += 1
                 poll = state["completionPolls"]
@@ -141,7 +156,7 @@ class Handler(BaseHTTPRequestHandler):
                 if scenario == "failure-budget":
                     self.respond({}, 503)
                     return
-                if (scenario in ("publish", "complete-malformed", "complete-mismatch") and poll >= 3) or (scenario == "retry" and poll >= 6):
+                if (scenario in ("publish", "complete-malformed", "complete-mismatch", "complete-lost", "production-heartbeat") and poll >= 3) or (scenario == "retry" and poll >= 6):
                     state["type"] = "ModelIngestionSuccessStatus"
                     state["versionExists"] = True
                 elif scenario == "mismatch":

@@ -154,12 +154,14 @@ void SendBridge::SendViaArtifacts(const RunMethodEventArgs& args, SenderModelCar
             modelCard.modelId,
             conversionResults);
 
-        // Resolve the UI's Send() call and report the created version + conversion results.
         args.eventSource->SetResult(args.methodId, nlohmann::json::object());
 
         nlohmann::json res{};
         res["modelCardId"] = modelCard.modelCardId;
-        res["versionId"] = result.versionId;
+        if (result.ingestionId.empty())
+            res["versionId"] = result.versionId;
+        else
+            res["ingestionId"] = result.ingestionId;
         res["sendConversionResults"] = conversionResults;
         args.eventSource->Send("setModelSendResult", res);
     }

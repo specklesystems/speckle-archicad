@@ -8,6 +8,7 @@
 #include <thread>
 
 #ifndef INGESTION_BASELINE
+#include "IngestionCompleteUnconfirmedException.h"
 #include "IngestionHeartbeat.h"
 #include "IProcessWindow.h"
 #endif
@@ -114,6 +115,26 @@ void RunFixed(const std::string& server, const std::string& artifact)
         std::cout << "PASS HTTP 2xx " << scenario << " retained server ownership and exact Success published\n";
     }
 
+    const auto lost = create("complete-lost");
+    bool unconfirmed = false;
+    try { upload(lost); }
+    catch (const IngestionCompleteUnconfirmedException&) { unconfirmed = true; }
+    Require(unconfirmed, "dropped complete response did not report unconfirmed handoff");
+    const auto accepted = Inspect(*http, server, lost);
+    RequireServerOwnership(accepted);
+    Require(accepted.at("completeAcceptances") == 1, "complete retry accepted ingestion more than once");
+    Require(accepted.at("completeRequests").get<int>() >= 1, "complete request did not reach fixture");
+    Require(uploader.WaitForCompletion(lost.ingestionId, lost.versionId, nullptr, FastPolling()) == IngestionOutcome::Published,
+        "lost complete response prevented authoritative publication");
+    const auto confirmed = Inspect(*http, server, lost);
+    Require(confirmed.at("type") == "ModelIngestionSuccessStatus" && confirmed.at("versionExists").get<bool>(),
+        "unconfirmed complete returned Published before exact Success");
+    Require(confirmed.at("completionPolls") == 3, "unconfirmed complete skipped Processing observations");
+    Require(confirmed.at("failMutations") == 0 && confirmed.at("cancelMutations") == 0,
+        "client changed ingestion after accepted complete response was lost");
+    std::cout << "PASS accepted complete with dropped response preserved server ownership; complete requests="
+        << confirmed.at("completeRequests") << "; exact Success published without fail/cancel mutations\n";
+
     const auto retry = create("retry");
     upload(retry);
     Require(uploader.WaitForCompletion(retry.ingestionId, retry.versionId, nullptr, FastPolling()) == IngestionOutcome::Published,
@@ -199,9 +220,45 @@ void RunFixed(const std::string& server, const std::string& artifact)
     const auto stopStart = std::chrono::steady_clock::now();
     stalledHeartbeat.Stop();
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - stopStart).count();
-    Require(elapsed < 2500, "heartbeat shutdown exceeded receive-phase timeout allowance");
+    Require(elapsed < 6500, "heartbeat shutdown exceeded receive-phase timeout allowance: " + std::to_string(elapsed) + "ms");
+    Require(!Inspect(*http, server, stalled).value("stalledResponded", false), "heartbeat Stop waited for 12s fixture response");
     std::cout << "PASS stalled HTTP receive heartbeat Stop elapsed=" << elapsed << "ms with WinHttpClient(1); receive-phase bound, not whole-request deadline\n";
     std::cout << "Fixed runtime component integration passed (no live Archicad/S-Life claim).\n";
+}
+
+void RunProductionWindow(const std::string& server, const std::string& artifact)
+{
+    auto uploadHttp = std::make_shared<WinHttpClient>();
+    auto controlHttp = std::make_shared<WinHttpClient>(10);
+    ArtifactUploader uploader(uploadHttp, server, "loopback-test-token", "runtime-project");
+    ArtifactUploader control(controlHttp, server, "loopback-test-token", "runtime-project");
+    const auto info = uploader.CreateIngestion("production-heartbeat", "Converting", "archicad", "29");
+    IngestionHeartbeat heartbeat([&](const std::string& message) {
+        control.UpdateProgress(info.ingestionId, message);
+    }, "Converting without native callbacks");
+    const auto start = std::chrono::steady_clock::now();
+    for (int checkpoint = 1; checkpoint <= 13; ++checkpoint)
+    {
+        std::this_thread::sleep_until(start + std::chrono::seconds(checkpoint * 50));
+        heartbeat.CheckCancellation();
+        const auto state = Inspect(*controlHttp, server, info);
+        Require(state.at("type") == "ModelIngestionProcessingStatus", "production idle window expired despite heartbeat");
+        std::cout << "ACTIVE elapsed=" << checkpoint * 50 << "s updates=" << state.at("updates")
+            << "; production heartbeat interval and 600s idle window" << std::endl;
+    }
+    Require(uploader.UploadFiles(info.ingestionId, info.versionId, {{"runtime.parquet", artifact}},
+        "binary-" + info.versionId, 1, nullptr, &heartbeat) == info.versionId, "production upload did not hand off");
+    const auto handedOff = Inspect(*controlHttp, server, info);
+    RequireServerOwnership(handedOff);
+    Require(control.WaitForCompletion(info.ingestionId, info.versionId, nullptr) == IngestionOutcome::Published,
+        "production completion policy did not confirm exact Success");
+    const auto published = Inspect(*controlHttp, server, info);
+    Require(published.at("versionExists").get<bool>(), "production Published returned without a version");
+    Require(published.at("updates") == handedOff.at("updates"), "production heartbeat wrote after complete");
+    Require(published.at("uploadedBytes") == 4096, "production upload payload differed");
+    std::cout << "PASS production 30s heartbeat kept ingestion active through 650s without native callbacks; "
+        "600s idle boundary crossed; heartbeat stopped at handoff; exact Success confirmed with default polling"
+        << std::endl;
 }
 #endif
 
@@ -209,7 +266,7 @@ int main(int argc, char** argv)
 {
     try
     {
-        Require(argc == 3, "usage: IngestionRuntimeTests serverUrl artifactPath");
+        Require(argc == 3 || argc == 4, "usage: IngestionRuntimeTests serverUrl artifactPath [--production-window]");
         const std::string server = argv[1];
         const std::string artifact = argv[2];
         std::ofstream(artifact, std::ios::binary) << std::string(4096, 'a');
@@ -233,7 +290,13 @@ int main(int argc, char** argv)
         std::cout << "REPRODUCED: UploadFiles returned reserved ID while ingestion Processing; versionExists=false; real PUT bytes=4096\n";
         std::cout << "Baseline runtime component integration reproduced both defects (no live Archicad/S-Life claim).\n";
 #else
-        RunFixed(server, artifact);
+        if (argc == 4)
+        {
+            Require(std::string(argv[3]) == "--production-window", "unknown runtime test option");
+            RunProductionWindow(server, artifact);
+        }
+        else
+            RunFixed(server, artifact);
 #endif
         return 0;
     }

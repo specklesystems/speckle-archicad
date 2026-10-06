@@ -9,6 +9,7 @@
 struct NativeSendResult
 {
     std::string versionId;
+    std::string ingestionId;
     int objectCount = 0;
 };
 
@@ -26,10 +27,7 @@ struct NativeSendResult
 //   default scene view    -> [Rel(ON_LEVEL), Eav("type")]  (Story -> Element type)
 //
 // The parquet bundle lands in %TEMP%\Speckle\artifacts\{versionId}\ and is
-// uploaded sign -> presigned PUT -> complete (complete creates the version).
-// Everything runs synchronously on the ACAPI main thread: minipq and WinHTTP
-// are synchronous APIs, so the C# worker-thread requirement (sync-over-async
-// parquet IO) does not apply here.
+// uploaded sign -> presigned PUT -> complete, then polled for publication.
 class ArchicadArtifactRootObjectBuilder
 {
 public:

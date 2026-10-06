@@ -1,11 +1,11 @@
-param([switch]$Baseline)
+param([switch]$Baseline, [switch]$ProductionWindow)
 $ErrorActionPreference = 'Stop'
 trap {
     [Console]::Error.WriteLine($_.ToString())
     exit 1
 }
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$mode = if ($Baseline) { 'baseline' } else { 'fixed' }
+$mode = if ($Baseline) { 'baseline' } elseif ($ProductionWindow) { 'production-window' } else { 'fixed' }
 $audit = Join-Path $repo ('.audit/runtime-' + $mode + '-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Path $audit -Force | Out-Null
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
@@ -36,7 +36,9 @@ try {
         Start-Sleep -Milliseconds 50
     }
     $port = (Get-Content -LiteralPath $ready -Raw).Trim()
-    & $executable ('http://127.0.0.1:' + $port) (Join-Path $audit 'runtime.parquet') 2>&1 | Tee-Object -FilePath (Join-Path $audit 'runtime.log')
+    $runtimeArguments = @(('http://127.0.0.1:' + $port), (Join-Path $audit 'runtime.parquet'))
+    if ($ProductionWindow) { $runtimeArguments += '--production-window' }
+    & $executable @runtimeArguments 2>&1 | Tee-Object -FilePath (Join-Path $audit 'runtime.log')
     if ($LASTEXITCODE -ne 0) { throw "Runtime integration failed; see $audit" }
     Write-Host "Runtime component integration evidence: $audit"
 }
