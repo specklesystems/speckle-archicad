@@ -1,5 +1,7 @@
 #include "IngestionProgressWindow.h"
 #include "ArtifactUploader.h"
+#include "IngestionStoppedByServerException.h"
+#include "UserCancelledException.h"
 #include "json.hpp"
 
 #include <atomic>
@@ -37,6 +39,9 @@ struct Http : IHttpClient
     std::atomic<bool> graphqlError{false};
     std::vector<json> states;
     size_t reads = 0;
+    int checks = 0;
+    json heartbeatState = {{"id", "test-ingestion"}, {"cancellationRequested", false},
+        {"statusData", {{"__typename", "ModelIngestionProcessingStatus"}}}};
     bool completed = false;
     int updatesAtComplete = 0;
 
@@ -54,14 +59,19 @@ struct Http : IHttpClient
         const auto request = json::parse(body);
         if (request.at("query").get<std::string>().find("IngestionStatus") != std::string::npos)
         {
-            Require(completed, "Polled server before upload complete");
-            Require(updates == updatesAtComplete, "Client heartbeat continued after server handoff");
             const auto& variables = request.at("variables");
             Require(variables.at("ingestionId") == "test-ingestion", "Wrong ingestion query");
-            Require(reads < states.size(), "Unexpected extra server poll");
             json response;
+            if (!completed)
+            {
+                ++checks;
+                response["data"]["project"]["ingestion"] = heartbeatState;
+                return {200, response.dump(), {}};
+            }
+            Require(updates == updatesAtComplete, "Client heartbeat continued after server handoff");
+            Require(reads < states.size(), "Unexpected extra server poll");
             response["data"]["project"]["ingestion"] = {
-                {"id", "test-ingestion"}, {"statusData", states[reads++]}};
+                {"id", "test-ingestion"}, {"cancellationRequested", false}, {"statusData", states[reads++]}};
             return {200, response.dump(), {}};
         }
         const auto& input = request.at("variables").at("input");
@@ -88,6 +98,14 @@ void RequireThrows(const std::function<void()>& call)
 {
     try { call(); } catch (const std::exception&) { return; }
     throw std::runtime_error("Expected failure was swallowed");
+}
+
+std::string RequireServerStop(const std::function<void()>& call)
+{
+    try { call(); }
+    catch (const IngestionStoppedByServerException& e) { return e.what(); }
+    catch (const UserCancelledException&) { throw std::runtime_error("Server stop reported as a user cancel"); }
+    throw std::runtime_error("Server stop was swallowed");
 }
 
 int main()
@@ -126,18 +144,46 @@ int main()
     for (const auto& state : std::vector<json>{
         {{"__typename", "ModelIngestionFailedStatus"}, {"errorReason", "Test timeout"}},
         {{"__typename", "ModelIngestionInvalidStatus"}, {"validationMessage", "Invalid"}},
-        {{"__typename", "ModelIngestionCancelledStatus"}, {"cancellationMessage", "Cancelled"}},
-        {{"__typename", "ModelIngestionSuccessStatus"}, {"versionId", "wrong-version"}}})
+        {{"__typename", "ModelIngestionCancelledStatus"}, {"cancellationMessage", nullptr}}})
     {
         http->states = {state}; http->reads = 0;
-        RequireThrows([&] { uploader.WaitForCompletion("test-ingestion", "test-version", nullptr); });
+        RequireServerStop([&] { uploader.WaitForCompletion("test-ingestion", "test-version", nullptr); });
     }
+    http->states = {{{"__typename", "ModelIngestionSuccessStatus"}, {"versionId", "wrong-version"}}};
+    http->reads = 0;
+    RequireThrows([&] { uploader.WaitForCompletion("test-ingestion", "test-version", nullptr); });
+
+    http->completed = false;
     http->cancelled = true;
-    bool serverCancel = false;
-    try { uploader.UpdateProgress("test-ingestion", "Converting"); }
-    catch (const UserCancelledException&) { serverCancel = true; }
-    Require(serverCancel, "Server cancellation was not propagated");
+    RequireServerStop([&] { uploader.UpdateProgress("test-ingestion", "Converting"); });
     http->cancelled = false;
+
+    // The server's idle-timeout sweep: progress must not revive the ingestion or hide the reason.
+    http->heartbeatState["cancellationRequested"] = true;
+    http->heartbeatState["statusData"] = {{"__typename", "ModelIngestionFailedStatus"},
+        {"errorReason", "The job failed due to handler being unresponsive for 600 seconds."}};
+    int writes = http->updates;
+    Require(RequireServerStop([&] { uploader.UpdateProgress("test-ingestion", "Converting"); })
+        .find("unresponsive") != std::string::npos, "Server timeout reason was lost");
+    Require(http->updates == writes, "Progress was written over a timed-out ingestion");
+    // A cancellation requested from the web while the ingestion is still Processing.
+    http->heartbeatState["statusData"] = {{"__typename", "ModelIngestionProcessingStatus"}};
+    RequireServerStop([&] { uploader.UpdateProgress("test-ingestion", "Converting"); });
+    Require(http->updates == writes, "Progress was written over a cancelled ingestion");
+    http->heartbeatState["cancellationRequested"] = false;
+
+    std::promise<void> stopped;
+    auto stopReady = stopped.get_future();
+    IngestionHeartbeat stopping([&](const std::string&)
+    {
+        stopped.set_value();
+        throw IngestionStoppedByServerException("Stopped by server");
+    }, "Converting elements", std::chrono::milliseconds(10));
+    IngestionProgressWindow stoppingProgress(window, stopping);
+    Require(stopReady.wait_for(std::chrono::seconds(2)) == std::future_status::ready, "Heartbeat never reported");
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    RequireServerStop([&] { stoppingProgress.SetProcessValue(2); });
+    stopping.Stop();
     http->statusCode = 503;
     RequireThrows([&] { uploader.UpdateProgress("test-ingestion", "Converting"); });
     http->statusCode = 200;

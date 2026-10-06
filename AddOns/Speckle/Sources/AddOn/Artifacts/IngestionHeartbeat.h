@@ -10,7 +10,7 @@
 #include <thread>
 #include <utility>
 
-#include "UserCancelledException.h"
+#include "IngestionStoppedByServerException.h"
 
 class IngestionHeartbeat
 {
@@ -62,7 +62,7 @@ private:
             {
                 report(currentMessage);
             }
-            catch (const UserCancelledException&)
+            catch (const IngestionStoppedByServerException&)
             {
                 lock.lock();
                 cancellation = std::current_exception();

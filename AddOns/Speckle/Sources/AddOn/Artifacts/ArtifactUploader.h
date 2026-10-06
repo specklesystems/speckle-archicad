@@ -5,6 +5,7 @@
 #include <string>
 
 #include "IHttpClient.h"
+#include "json.hpp"
 
 class IProcessWindow;
 class IngestionHeartbeat;
@@ -56,12 +57,15 @@ public:
     // from here on (ENG-10394).
     void WaitForCompletion(const std::string& ingestionId, const std::string& versionId, IProcessWindow* processWindow);
 
+    // Throws IngestionStoppedByServerException when the server has cancelled, failed or
+    // timed out the ingestion; nothing is written to it in that case.
     void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage);
 
     void FailWithError(const std::string& ingestionId, const std::string& errorReason);
     void FailWithCancel(const std::string& ingestionId, const std::string& cancellationMessage);
 
 private:
+    nlohmann::json QueryIngestion(const std::string& ingestionId);
     std::string GraphQl(const std::string& query, const std::string& variablesJson);
 
     std::shared_ptr<IHttpClient> _http;

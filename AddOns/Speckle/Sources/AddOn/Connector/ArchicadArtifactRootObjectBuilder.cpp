@@ -11,6 +11,7 @@
 #include "ArtefactSessionLog.h"
 #include "ArtifactUploader.h"
 #include "IngestionProgressWindow.h"
+#include "IngestionStoppedByServerException.h"
 #include "BundleWriter.h"
 #include "Connector.h"
 #include "ConverterUtils.h"
@@ -415,6 +416,13 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     catch (const UserCancelledException&)
     {
         uploader.FailWithCancel(ingestion.ingestionId, "User cancelled the send");
+        throw;
+    }
+    catch (const IngestionStoppedByServerException& e)
+    {
+        // The server already holds the terminal state and its reason; overwriting it
+        // would erase the timeout diagnosis (ENG-10394).
+        session.Fail(e.what());
         throw;
     }
     catch (const std::exception& e)
