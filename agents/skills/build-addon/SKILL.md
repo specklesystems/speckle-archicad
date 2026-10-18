@@ -8,16 +8,16 @@ description: Build the Archicad add-on (.apx) — single-version Debug via the g
 Two routes. Both need CMake ≥ 3.16, Visual Studio 2026 with the **v142 and v143** toolsets, the
 .NET SDK (build orchestrator) and Python (Archicad resource-compilation tools). The Archicad API
 DevKit comes from `AC_API_DEVKIT_DIR`; the vendored ones are `Libs/acapi27`, `Libs/acapi28`,
-`Libs/acapi29`. `CMakeLists.txt` reads the major version out of the DevKit's `ACAPinc.h` and
-defines `AC27`/`AC28`/`AC29` — version-specific code branches on those macros.
+`Libs/acapi29`, `Libs/acapi30`. `CMakeLists.txt` reads the major version out of the DevKit's `ACAPinc.h` and
+defines `AC27`/`AC28`/`AC29`/`AC30` — version-specific code branches on those macros.
 
 ## Local development: one version, Debug
 
 ```
-generate_project_27.bat   # or _28 / _29 → build_27/ (build_28/, build_29/)
+generate_project_27.bat   # or _28 / _29 / _30 → build_27/ (build_28/, build_29/, build_30/)
 ```
 
-The generator is `cmake -G "Visual Studio 18 2026"` with `-T v142` for 27/28 and `-T v143` for 29
+The generator is `cmake -G "Visual Studio 18 2026"` with `-T v142` for 27/28 and `-T v143` for 29/30
 (see the `.bat` files), so it emits **`build_27/archicad-speckle.slnx`** — the `.slnx` solution
 format, not `.sln`. Open it in Visual Studio 2026 and build, or debug with Archicad as the startup
 project (README § Debugging — the README still describes the older VS 2019/2022 + `.sln` setup).
