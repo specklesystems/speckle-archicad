@@ -3,6 +3,7 @@
 #include <iostream>
 #include <windows.h>
 #include <shlobj.h>
+#include <filesystem>
 
 static const int ACCOUNT_ID_COLUMN = 0;
 static const int ACCOUNT_DATA_COLUMN = 1;
@@ -29,6 +30,7 @@ namespace
         wchar_t appDataPath[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) 
         {
+            std::filesystem::create_directories(std::filesystem::path(appDataPath) / L"Speckle");
             std::wstring wideDbPath = std::wstring(appDataPath) + L"\\Speckle\\Accounts.db";
             std::string dbPath = WideStringToString(wideDbPath);
             strncpy_s(resultPath, dbPath.c_str(), MAX_PATH - 1);
@@ -92,6 +94,8 @@ void AccountDatabase::LoadAccountsFromDB()
     if (rc != SQLITE_OK)
     {
         std::cerr << "Error opening database: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_close(db);
+        return;
     }
 
     // SQL query to execute
@@ -103,6 +107,7 @@ void AccountDatabase::LoadAccountsFromDB()
     {
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_close(db);
+        return;
     }
 
     // Execute the query and collect results

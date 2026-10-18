@@ -3,6 +3,7 @@
 #include <iostream>
 #include <windows.h>
 #include <shlobj.h>
+#include <filesystem>
 
 static const int HASH_COLUMN = 0;
 static const int DATA_COLUMN = 1;
@@ -27,6 +28,7 @@ namespace
         wchar_t appDataPath[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath)))
         {
+            std::filesystem::create_directories(std::filesystem::path(appDataPath) / L"Speckle");
             std::wstring wideDbPath = std::wstring(appDataPath) + L"\\Speckle\\DUI3Config.db";
             std::string dbPath = WideStringToString(wideDbPath);
             strncpy_s(resultPath, dbPath.c_str(), MAX_PATH - 1);
@@ -52,7 +54,10 @@ void SqliteJsonObjectDatabase::Init()
     const char* dbPath = GetDUI3ConfigDatabasePath();
     if (sqlite3_open(dbPath, &db) != SQLITE_OK)
     {
-        throw std::runtime_error("Failed to open database");
+        std::string error = sqlite3_errmsg(db);
+        sqlite3_close(db);
+        db = nullptr;
+        throw std::runtime_error("Failed to open configuration database: " + error);
     }
 
     const char* createTableSQL = R"(

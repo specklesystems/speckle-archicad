@@ -32,5 +32,6 @@ void Logger::Warn(const std::string_view& message)
 void Logger::Error(const std::string_view& message)
 {
 	logger->error(message);
+	logger->flush();
 }
 
