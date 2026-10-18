@@ -125,7 +125,7 @@ const std::map<API_Guid, std::string>& ElementTypeToStringConverter::GetMepEleme
         {VentilationRigidSegmentID, "DuctSegment"},
         {PipingRigidSegmentID, "PipeSegment"},
         {CableCarrierRigidSegmentID, "CableCarrierSegment"},
-#if defined(AC29)
+#if defined(AC29) || defined(AC30)
         {VentilationElbowID, "DuctElbow"},
         {PipingElbowID, "PipeElbow"},
         {CableCarrierElbowID, "CableCarrierElbow"},

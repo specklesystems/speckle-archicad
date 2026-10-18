@@ -1,6 +1,6 @@
 #pragma warning(disable : 4996) // Disable warning C4996
 
-#if defined(AC29)
+#if defined(AC29) || defined(AC30)
 #include "HostToSpeckleConverter.h"
 #include "APIEnvir.h"
 #include "ACAPinc.h"

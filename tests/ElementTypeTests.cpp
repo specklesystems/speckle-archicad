@@ -19,7 +19,7 @@ int main()
         {VentilationRoutingSegmentID, "DuctRoutingSegment"}, {PipingRoutingSegmentID, "PipeRoutingSegment"}, {CableCarrierRoutingSegmentID, "CableCarrierRoutingSegment"},
         {VentilationRoutingNodeID, "DuctRoutingNode"}, {PipingRoutingNodeID, "PipeRoutingNode"}, {CableCarrierRoutingNodeID, "CableCarrierRoutingNode"},
         {VentilationRigidSegmentID, "DuctSegment"}, {PipingRigidSegmentID, "PipeSegment"}, {CableCarrierRigidSegmentID, "CableCarrierSegment"},
-#if defined(AC29)
+#if defined(AC29) || defined(AC30)
         {VentilationElbowID, "DuctElbow"}, {PipingElbowID, "PipeElbow"}, {CableCarrierElbowID, "CableCarrierElbow"},
 #else
         {VentilationBendID, "DuctElbow"}, {PipingBendID, "PipeElbow"}, {CableCarrierBendID, "CableCarrierElbow"},
