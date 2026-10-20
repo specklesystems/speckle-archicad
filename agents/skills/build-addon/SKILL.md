@@ -51,8 +51,6 @@ tracked `AddOn.grc` in place** — `git checkout` it afterwards.
 
 - `build.sh` runs `dotnet run --project Build/Build.csproj`, which does not exist; the active
   project is `ci-build/`. `build.sh` is dead — use `build.ps1`.
-- `ci-build/Consts.cs` has a `Solutions` array with stale paths (`build_27/speckle-archicad.slnx`)
-  that nothing references; the real msbuild invocation is in `Program.cs`.
 - There is no C++ unit-test suite: `enable_testing()` is set in CMake but no tests are registered.
   `Connector/Bridges/TestBridge.cpp` (`SayHi`, `GetComplexType`, `TriggerEvent`) exercises the
   JS↔C++ bridge round-trip from the UI; it is not a test runner.

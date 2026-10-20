@@ -3,14 +3,6 @@
 public static class Consts
 {
     public static readonly string[] SupportedVersions = new string[] { "27", "28", "29", "30" };
-    public static readonly string[] Solutions =
-    [
-        "build_27/speckle-archicad.slnx",
-        "build_28/speckle-archicad.slnx",
-        "build_29/speckle-archicad.slnx",
-        "build_30/speckle-archicad.slnx",
-    ];
-
     public static readonly InstallerProject[] InstallerManifests =
     {
         new(
