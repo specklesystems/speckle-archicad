@@ -142,6 +142,11 @@ const std::map<API_Guid, std::string>& ElementTypeToStringConverter::GetMepEleme
         {PipingFlexibleSegmentID, "PipeFlexibleSegment"},
         {VentilationTakeOffID, "DuctTakeOff"},
 #endif
+#if defined(AC30)
+        {ElectricalPanelID, "ElectricalPanel"},
+        {ElectricalDeviceID, "ElectricalDevice"},
+        {ElectricalCircuitID, "ElectricalCircuit"},
+#endif
     };
     return types;
 }

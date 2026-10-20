@@ -27,7 +27,10 @@ int main()
         {VentilationTransitionID, "DuctTransition"}, {PipingTransitionID, "PipeTransition"}, {CableCarrierTransitionID, "CableCarrierTransition"},
         {VentilationFlexibleSegmentID, "DuctFlexibleSegment"},
 #if !defined(AC27)
-        {PipingFlexibleSegmentID, "PipeFlexibleSegment"}, {VentilationTakeOffID, "DuctTakeOff"}
+        {PipingFlexibleSegmentID, "PipeFlexibleSegment"}, {VentilationTakeOffID, "DuctTakeOff"},
+#endif
+#if defined(AC30)
+        {ElectricalPanelID, "ElectricalPanel"}, {ElectricalDeviceID, "ElectricalDevice"}, {ElectricalCircuitID, "ElectricalCircuit"},
 #endif
     };
     auto check = [](const API_ElemType& type, const std::string& expectedName) {
