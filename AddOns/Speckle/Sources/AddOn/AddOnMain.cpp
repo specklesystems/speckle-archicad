@@ -84,14 +84,30 @@ GSErrCode ACENV Initialize(void)
 	try
 	{
 		CONNECTOR.InitConnector();
+
+		CONNECTOR.GetHostAppEvents().ProjectOpened += []() {
+			CONNECTOR.GetModelCardDatabase().LoadModelsFromStorage();
+			BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
+		};
+
+		CONNECTOR.GetHostAppEvents().ProjectClosed += []() {
+			CONNECTOR.GetModelCardDatabase().ClearModels();
+			BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
+		};
+
+		CONNECTOR.GetHostAppEvents().SelectionChanged += []() {
+			BROWSERBRIDGE.GetSelectionBridge().OnSelectionChanged();
+		};
 	}
 	catch (const std::exception& ex)
 	{
 		GET_LOGGER("Connector")->Error(std::string("Connector initialization failed: ") + ex.what());
+		return APIERR_GENERAL;
 	}
 	catch (...)
 	{
 		GET_LOGGER("Connector")->Error("Connector initialization failed: unknown exception");
+		return APIERR_GENERAL;
 	}
 
 	GSErrCode err = NoError;
@@ -125,31 +141,6 @@ GSErrCode ACENV Initialize(void)
 	catch (...)
 	{
 		GET_LOGGER("Connector")->Error("BrowserBridge initialization failed: unknown exception");
-	}
-
-	try
-	{
-		CONNECTOR.GetHostAppEvents().ProjectOpened += []() {
-			CONNECTOR.GetModelCardDatabase().LoadModelsFromStorage();
-			BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
-		};
-
-		CONNECTOR.GetHostAppEvents().ProjectClosed += []() {
-			CONNECTOR.GetModelCardDatabase().ClearModels();
-			BROWSERBRIDGE.GetBaseBridge().OnDocumentChanged();
-		};
-
-		CONNECTOR.GetHostAppEvents().SelectionChanged += []() {
-			BROWSERBRIDGE.GetSelectionBridge().OnSelectionChanged();
-		};
-	}
-	catch (const std::exception& ex)
-	{
-		GET_LOGGER("Connector")->Error(std::string("Connector event handler initialization failed: ") + ex.what());
-	}
-	catch (...)
-	{
-		GET_LOGGER("Connector")->Error("Connector event handler initialization failed: unknown exception");
 	}
 
 	return NoError;
