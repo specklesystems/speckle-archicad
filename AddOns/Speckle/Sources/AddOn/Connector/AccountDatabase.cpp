@@ -23,7 +23,6 @@ namespace
         return narrowString;
     }
 
-    // Function to get the dynamic DB path
     const char* GetAccountsDatabasePath() 
     {
         static char resultPath[MAX_PATH];
@@ -34,7 +33,7 @@ namespace
             std::wstring wideDbPath = std::wstring(appDataPath) + L"\\Speckle\\Accounts.db";
             std::string dbPath = WideStringToString(wideDbPath);
             strncpy_s(resultPath, dbPath.c_str(), MAX_PATH - 1);
-            resultPath[MAX_PATH - 1] = '\0'; // Ensure null-termination
+            resultPath[MAX_PATH - 1] = '\0';
             return resultPath;
         }
         else 
@@ -89,7 +88,6 @@ void AccountDatabase::LoadAccountsFromDB()
     sqlite3_stmt* stmt;
     int rc;
 
-    // Open the database (or create it if it doesn�t exist)
     rc = sqlite3_open(GetAccountsDatabasePath(), &db);
     if (rc != SQLITE_OK)
     {
@@ -98,10 +96,8 @@ void AccountDatabase::LoadAccountsFromDB()
         return;
     }
 
-    // SQL query to execute
     const char* sql = "SELECT * FROM objects";
 
-    // Prepare the SQL statement
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK)
     {
@@ -110,7 +106,6 @@ void AccountDatabase::LoadAccountsFromDB()
         return;
     }
 
-    // Execute the query and collect results
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         try
@@ -121,11 +116,9 @@ void AccountDatabase::LoadAccountsFromDB()
         }
         catch (...)
         {
-            // TODO
         }
     }
 
-    // Finalize the statement and close the database
     sqlite3_finalize(stmt);
     sqlite3_close(db);
 }
