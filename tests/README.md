@@ -36,6 +36,18 @@ polling. These runs exercise actual WinHTTP components. They do not open
 Archicad or publish to a live Speckle server. A send from Archicad still
 verifies the native process window and DUI result handling.
 
+## Logging
+
+`LoggerTests` logs to a file that cannot be opened and requires the call to
+return normally. The add-on logs from catch handlers in Archicad entry points,
+so a throwing logger would take Archicad down. It needs no Archicad
+installation or SDK runtime.
+
+```powershell
+cmake --build build/ingestion-tests --config Release --target LoggerTests
+ctest --test-dir build/ingestion-tests -C Release -R '^Logger$' --output-on-failure
+```
+
 ## Element type regression tests
 
 The Windows test executable compiles the production converter against the

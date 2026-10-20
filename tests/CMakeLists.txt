@@ -50,3 +50,12 @@ target_include_directories(IngestionProgressTests PRIVATE
     "${REPO}/AddOns/Speckle/Sources/AddOn/Utils"
     "${REPO}/Libs/json/include")
 add_test(NAME IngestionProgress COMMAND IngestionProgressTests)
+
+add_executable(LoggerTests
+    LoggerTests.cpp
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Utils/LoggerFactory.cpp"
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Utils/Logger.cpp")
+target_include_directories(LoggerTests PRIVATE
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Utils"
+    "${REPO}/Libs/spdlog/include")
+add_test(NAME Logger COMMAND LoggerTests)
