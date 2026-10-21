@@ -1,4 +1,5 @@
 #include "BrowserBridge.h"
+#include "GlobalConfig.h"
 
 std::unique_ptr<BrowserBridge> BrowserBridge::instance = nullptr;
 
@@ -28,7 +29,7 @@ void BrowserBridge::LoadUI()
     if (_browserAdapter == nullptr)
         return;
 
-	_browserAdapter->LoadURL("https://dui.speckle.systems/");
+	_browserAdapter->LoadURL(GlobalConfig::GetDuiUrl());
 }
 
 AccountBridge& BrowserBridge::GetAccountBridge()

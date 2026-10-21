@@ -3,6 +3,7 @@
 #include "ArchiCadApiException.h"
 #include "Connector.h"
 #include "ConnectorConfig.h"
+#include "GlobalConfig.h"
 #include "AccountsConfig.h"
 #include "UrlLauncher.h"
 #include "WorkspacesConfig.h"
@@ -12,7 +13,7 @@ ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
 {
     configBinding = std::make_unique<Binding>(
         "configBinding",
-        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl", "GetUserSelectedAccountId", "SetUserSelectedAccountId", "GetWorkspacesConfig", "SetUserSelectedWorkspaceId" },
+        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl", "GetUserSelectedAccountId", "SetUserSelectedAccountId", "GetWorkspacesConfig", "SetUserSelectedWorkspaceId", "GetGlobalConfig" },
         browser,
         this
     );
@@ -52,6 +53,10 @@ void ConfigBridge::RunMethod(const RunMethodEventArgs& args)
     {
         SetUserSelectedWorkspaceId(args);
     }
+    else if (args.methodName == "GetGlobalConfig")
+    {
+        GetGlobalConfig(args);
+    }
     else
     {
         throw InvalidMethodNameException(args.methodName);
@@ -65,6 +70,11 @@ void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
 #else
     args.eventSource->SetResult(args.methodId, false);
 #endif
+}
+
+void ConfigBridge::GetGlobalConfig(const RunMethodEventArgs& args)
+{
+    args.eventSource->SetResult(args.methodId, GlobalConfig::ToJson());
 }
 
 static void SeedConfig()
