@@ -16,9 +16,9 @@ community forum, and `gh`/`curl` recipes for downloading a DevKit release zip an
 1. Read `ARCHICAD_API_RESOURCES.md`; note its "Last verified" date and latest-release note.
 2. Ground truth for "does the API support X": the release zip's `Examples/<Area>_Test/` add-on and
    the `ACAPI::<Area>` namespace on the doc site. Download the zip with the recipes in that file —
-   the vendored DevKits under `Libs/acapi27|28|29/` contain only `Support/` (headers/libs), not the
+   the vendored DevKits under `Libs/acapi27|28|29|30/` contain only `Support/` (headers/libs), not the
    examples.
-3. Check the behaviour on every supported version (27, 28, 29): gate differences on the
-   `AC27`/`AC28`/`AC29` compile definitions.
+3. Check the behaviour on every supported version (27, 28, 29, 30): gate differences on the
+   `AC27`/`AC28`/`AC29`/`AC30` compile definitions.
 4. If you re-checked the sources, update the "Last verified" date and the latest-release note in
    `ARCHICAD_API_RESOURCES.md` so the next session can trust it.

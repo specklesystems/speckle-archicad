@@ -3,7 +3,7 @@
 Speckle connector for Archicad: a native C++20 Archicad Add-On (`.apx`) that embeds Speckle's shared
 DUI3 web UI (loaded from `https://dui.speckle.systems/`) in an Archicad palette and bridges that
 JavaScript UI to Archicad API calls that read/write model geometry, properties and metadata.
-Supported Archicad versions: **27, 28, 29** (`ci-build/Consts.cs`). Windows is the primary and only
+Supported Archicad versions: **27, 28, 29, 30** (`ci-build/Consts.cs`). Windows is the primary and only
 CI-built platform; the code has mac branches.
 
 ```
@@ -18,13 +18,13 @@ AddOns/Speckle/Sources/
     Network/ Storage/ DataTypes/ Diagnostics/ Utils/
   AddOnResources/   .grc/.rc2 resources, images, Tools/*.py compilers; RINT/AddOn.grc = name + injected version
 ci-build/           Bullseye build orchestrator (Program.cs, Consts.cs) run by build.ps1 and CI
-Libs/               acapi27|28|29 DevKits (Support/ only), json, spdlog, sqlite, sha, md5, zstd, minipq, bundlespec
+Libs/               acapi27|28|29|30 DevKits (Support/ only), json, spdlog, sqlite, sha, md5, zstd, minipq, bundlespec
 ```
 
 ## Procedures (skills)
 
 - `/build-addon` — one-version Debug build (`generate_project_NN.bat` → `build_NN/archicad-speckle.slnx`,
-  VS 2026, v142 for 27/28, v143 for 29) or the CI-style `./build.ps1`; toolchain; gotchas.
+  VS 2026, v142 for 27/28, v143 for 29/30) or the CI-style `./build.ps1`; toolchain; gotchas.
 - `/cut-installer` — test installer via an `installer-test/<name>` push, public release via an
   unprefixed CalVer tag (`2026.9.0`); how `SEMVER`/`FILE_VERSION` reach the `.apx`.
 - `/research-archicad-api` — before using an Archicad API new to this codebase: primary sources only
@@ -93,14 +93,14 @@ depending on Speckle Manager.
   `AddOnResources/RINT/AddOn.grc` (`STR# 5010`) — the version the UI shows and the
   `envelope.meta.producer_version` of every bundle, so a wrong value is visible server-side. Running
   `build.ps1` locally rewrites that tracked file; `git checkout` it afterwards.
-- `CMakeLists.txt` detects the DevKit major from `ACAPinc.h` and defines `AC27`/`AC28`/`AC29`.
+- `CMakeLists.txt` detects the DevKit major from `ACAPinc.h` and defines `AC27`/`AC28`/`AC29`/`AC30`.
 
 ## Conventions
 
 - Interfaces are header-only `I*.h` abstract classes; singleton getters throw `std::runtime_error` if
   a dependency was not initialized. New backend services follow the interface +
   `Connector`-owned-`unique_ptr` pattern so they can be swapped/mocked.
-- Version-specific Archicad API differences are gated on `AC27`/`AC28`/`AC29`.
+- Version-specific Archicad API differences are gated on `AC27`/`AC28`/`AC29`/`AC30`.
 - Bundled third-party libs are CMake subdirectories grouped under a `Libs` solution folder; don't
   vendor duplicates. `minipq` (in-tree parquet writer/reader, zstd-only dependency) and `zstd` compile
   statically into the `.apx`; `Libs/minipq/README.md` documents provenance and local modifications.

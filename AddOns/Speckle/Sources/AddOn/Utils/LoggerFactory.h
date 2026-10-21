@@ -6,6 +6,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
 
+#include <filesystem>
 #include <memory>
 #include <string>
 
@@ -28,5 +29,5 @@ public:
 	static void Disable();
 
 private:
-	static std::shared_ptr<spdlog::logger> GetOrCreateLogger(std::string loggerName, std::wstring logFile);
+	static std::shared_ptr<spdlog::logger> GetOrCreateLogger(std::string loggerName, std::filesystem::path logFile);
 };

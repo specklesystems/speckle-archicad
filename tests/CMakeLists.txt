@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 project(ElementTypeTests LANGUAGES CXX)
 
 set(ARCHICAD_VERSION 29 CACHE STRING "Archicad SDK version to test")
-if(NOT ARCHICAD_VERSION MATCHES "^(27|28|29)$")
-    message(FATAL_ERROR "ARCHICAD_VERSION must be 27, 28 or 29")
+if(NOT ARCHICAD_VERSION MATCHES "^(27|28|29|30)$")
+    message(FATAL_ERROR "ARCHICAD_VERSION must be 27, 28, 29 or 30")
 endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
@@ -50,3 +50,12 @@ target_include_directories(IngestionProgressTests PRIVATE
     "${REPO}/AddOns/Speckle/Sources/AddOn/Utils"
     "${REPO}/Libs/json/include")
 add_test(NAME IngestionProgress COMMAND IngestionProgressTests)
+
+add_executable(LoggerTests
+    LoggerTests.cpp
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Utils/LoggerFactory.cpp"
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Utils/Logger.cpp")
+target_include_directories(LoggerTests PRIVATE
+    "${REPO}/AddOns/Speckle/Sources/AddOn/Utils"
+    "${REPO}/Libs/spdlog/include")
+add_test(NAME Logger COMMAND LoggerTests)
