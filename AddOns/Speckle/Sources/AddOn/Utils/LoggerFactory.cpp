@@ -27,7 +27,7 @@ std::shared_ptr<ILogger> LoggerFactory::GetLogger(std::string loggerName, std::w
 {
 	if (logFile.empty())
 	{
-		return std::make_shared<Logger>(GetOrCreateLogger(loggerName, L"C:\\logs\\log.txt"));
+		return std::make_shared<Logger>(GetOrCreateLogger(loggerName, DefaultLogFile()));
 	}
 
 	return std::make_shared<Logger>(GetOrCreateLogger(loggerName, logFile));
