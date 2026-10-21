@@ -28,7 +28,8 @@ namespace
         wchar_t appDataPath[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath)))
         {
-            std::filesystem::create_directories(std::filesystem::path(appDataPath) / L"Speckle");
+            std::error_code ignored;
+            std::filesystem::create_directories(std::filesystem::path(appDataPath) / L"Speckle", ignored);
             std::wstring wideDbPath = std::wstring(appDataPath) + L"\\Speckle\\DUI3Config.db";
             std::string dbPath = WideStringToString(wideDbPath);
             strncpy_s(resultPath, dbPath.c_str(), MAX_PATH - 1);
