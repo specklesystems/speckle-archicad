@@ -291,7 +291,7 @@ add_dependencies (${SPECKLE_ADDON_LIB} ${SPECKLE_ADDON_RESOURCES})
 # group to folder
 set_target_properties(${SPECKLE_ADDON_RESOURCES} PROPERTIES FOLDER Resources)
 
-set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT_INT\\Archicad 29\\Archicad.exe")
+set_target_properties (${SPECKLE_ADDON_LIB} PROPERTIES VS_DEBUGGER_COMMAND "C:\\Program Files\\GRAPHISOFT_INT\\Archicad ${ARCHICAD_VERSION}\\Archicad.exe")
 
 # other libs (minipq/zstd are statically compiled in — the .apx is self-contained)
 target_link_libraries(${SPECKLE_ADDON_LIB} json sqlite sha md5 minipq)

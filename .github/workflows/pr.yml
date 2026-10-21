@@ -42,3 +42,11 @@ jobs:
           ctest --test-dir build/ingestion-tests -C Release -R '^IngestionProgress$' --output-on-failure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./scripts/test_ingestion_runtime.ps1
+
+      - name: Test logging never throws
+        shell: pwsh
+        run: |
+          cmake --build build/ingestion-tests --config Release --target LoggerTests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/ingestion-tests -C Release -R '^Logger$' --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

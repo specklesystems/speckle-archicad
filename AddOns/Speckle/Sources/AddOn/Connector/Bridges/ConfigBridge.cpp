@@ -77,18 +77,19 @@ void ConfigBridge::GetGlobalConfig(const RunMethodEventArgs& args)
     args.eventSource->SetResult(args.methodId, GlobalConfig::ToJson());
 }
 
-static void SeedConfig()
+static ConnectorConfig SeedConfig()
 {
+    ConnectorConfig config;
+    config.darkTheme = true;
     try
     {
-        ConnectorConfig config;
-        config.darkTheme = true;
         CONNECTOR.GetJsonObjectDatabase().CreateOrUpdate("Archicad", config);
     }
     catch (const std::exception&)
     {
         std::cout << "Failed to update connector config";
     }
+    return config;
 }
 
 void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
@@ -100,7 +101,7 @@ void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
     }
     catch (...)
     {
-        SeedConfig();
+        args.eventSource->SetResult(args.methodId, SeedConfig());
     }
 }
 

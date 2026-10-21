@@ -36,6 +36,18 @@ polling. These runs exercise actual WinHTTP components. They do not open
 Archicad or publish to a live Speckle server. A send from Archicad still
 verifies the native process window and DUI result handling.
 
+## Logging
+
+`LoggerTests` logs to a file that cannot be opened and requires the call to
+return normally. The add-on logs from catch handlers in Archicad entry points,
+so a throwing logger would take Archicad down. It needs no Archicad
+installation or SDK runtime.
+
+```powershell
+cmake --build build/ingestion-tests --config Release --target LoggerTests
+ctest --test-dir build/ingestion-tests -C Release -R '^Logger$' --output-on-failure
+```
+
 ## Element type regression tests
 
 The Windows test executable compiles the production converter against the
@@ -45,7 +57,7 @@ stable type names across SDK versions, unknown external classes, and all
 non-MEP enum types.
 
 Run from the repository root with CMake that supports your Visual Studio
-installation. Use v142 for SDK 27/28 and v143 for SDK 29:
+installation. Use v142 for SDK 27/28 and v143 for SDK 29/30:
 
 ```powershell
 cmake -S tests -B build_29/tests -G "Visual Studio 18 2026" -A x64 -T v143 -DARCHICAD_VERSION=29

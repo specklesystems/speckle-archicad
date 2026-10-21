@@ -2,23 +2,16 @@
 
 public static class Consts
 {
-    public static readonly string[] SupportedVersions = new string[] { "27", "28", "29" };
-    public static readonly string[] Solutions =
-    [
-        "build_27/speckle-archicad.slnx",
-        "build_28/speckle-archicad.slnx",
-        "build_29/speckle-archicad.slnx",
-    ];
-
+    public static readonly string[] SupportedVersions = new string[] { "27", "28", "29", "30" };
     public static readonly InstallerProject[] InstallerManifests =
     {
         new(
             "archicad",
             [
-                // The .apx is self-contained (parquet IO via the statically linked Libs/minipq + Libs/zstd).
                 new("archicad27", "build/27/INT/Release", "*.apx"),
                 new("archicad28", "build/28/INT/Release", "*.apx"),
                 new("archicad29", "build/29/INT/Release", "*.apx"),
+                new("archicad30", "build/30/INT/Release", "*.apx"),
             ]
         ),
     };

@@ -125,7 +125,7 @@ const std::map<API_Guid, std::string>& ElementTypeToStringConverter::GetMepEleme
         {VentilationRigidSegmentID, "DuctSegment"},
         {PipingRigidSegmentID, "PipeSegment"},
         {CableCarrierRigidSegmentID, "CableCarrierSegment"},
-#if defined(AC29)
+#if defined(AC29) || defined(AC30)
         {VentilationElbowID, "DuctElbow"},
         {PipingElbowID, "PipeElbow"},
         {CableCarrierElbowID, "CableCarrierElbow"},
@@ -141,6 +141,11 @@ const std::map<API_Guid, std::string>& ElementTypeToStringConverter::GetMepEleme
 #if !defined(AC27)
         {PipingFlexibleSegmentID, "PipeFlexibleSegment"},
         {VentilationTakeOffID, "DuctTakeOff"},
+#endif
+#if defined(AC30)
+        {ElectricalPanelID, "ElectricalPanel"},
+        {ElectricalDeviceID, "ElectricalDevice"},
+        {ElectricalCircuitID, "ElectricalCircuit"},
 #endif
     };
     return types;

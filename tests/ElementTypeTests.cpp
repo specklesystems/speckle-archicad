@@ -19,7 +19,7 @@ int main()
         {VentilationRoutingSegmentID, "DuctRoutingSegment"}, {PipingRoutingSegmentID, "PipeRoutingSegment"}, {CableCarrierRoutingSegmentID, "CableCarrierRoutingSegment"},
         {VentilationRoutingNodeID, "DuctRoutingNode"}, {PipingRoutingNodeID, "PipeRoutingNode"}, {CableCarrierRoutingNodeID, "CableCarrierRoutingNode"},
         {VentilationRigidSegmentID, "DuctSegment"}, {PipingRigidSegmentID, "PipeSegment"}, {CableCarrierRigidSegmentID, "CableCarrierSegment"},
-#if defined(AC29)
+#if defined(AC29) || defined(AC30)
         {VentilationElbowID, "DuctElbow"}, {PipingElbowID, "PipeElbow"}, {CableCarrierElbowID, "CableCarrierElbow"},
 #else
         {VentilationBendID, "DuctElbow"}, {PipingBendID, "PipeElbow"}, {CableCarrierBendID, "CableCarrierElbow"},
@@ -27,7 +27,10 @@ int main()
         {VentilationTransitionID, "DuctTransition"}, {PipingTransitionID, "PipeTransition"}, {CableCarrierTransitionID, "CableCarrierTransition"},
         {VentilationFlexibleSegmentID, "DuctFlexibleSegment"},
 #if !defined(AC27)
-        {PipingFlexibleSegmentID, "PipeFlexibleSegment"}, {VentilationTakeOffID, "DuctTakeOff"}
+        {PipingFlexibleSegmentID, "PipeFlexibleSegment"}, {VentilationTakeOffID, "DuctTakeOff"},
+#endif
+#if defined(AC30)
+        {ElectricalPanelID, "ElectricalPanel"}, {ElectricalDeviceID, "ElectricalDevice"}, {ElectricalCircuitID, "ElectricalCircuit"},
 #endif
     };
     auto check = [](const API_ElemType& type, const std::string& expectedName) {

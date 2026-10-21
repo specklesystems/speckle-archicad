@@ -50,7 +50,7 @@ Target(
     Consts.SupportedVersions,
     s =>
     {
-        var toolset = s == "29" ? "v143" : "v142";
+        var toolset = int.Parse(s) >= 29 ? "v143" : "v142";
         Run(
             "cmake",
             $"-G \"Visual Studio 18 2026\" -T {toolset} -A \"x64\" -DAC_ADDON_LANGUAGE=\"INT\" -DAC_API_DEVKIT_DIR=\"Libs\\acapi{s}\" -B build\\{s} -DCMAKE_BUILD_TYPE=Release"
