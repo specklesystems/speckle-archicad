@@ -22,4 +22,5 @@ private:
     void SetUserSelectedAccountId(const RunMethodEventArgs& args);
     void GetWorkspacesConfig(const RunMethodEventArgs& args);
     void SetUserSelectedWorkspaceId(const RunMethodEventArgs& args);
+    void GetGlobalConfig(const RunMethodEventArgs& args);
 };

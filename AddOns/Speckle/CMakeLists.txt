@@ -263,6 +263,7 @@ target_include_directories (${SPECKLE_ADDON_LIB} PUBLIC
 if (WIN32)
 	target_link_libraries (${SPECKLE_ADDON_LIB}
 		"${AC_API_DEVKIT_DIR}/Support/Lib/Win/ACAP_STAT.lib"
+		advapi32
 	)
 else ()
 	find_library (CocoaFramework Cocoa)
