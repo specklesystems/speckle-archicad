@@ -3,6 +3,7 @@
 #include "ArchiCadApiException.h"
 #include "Connector.h"
 #include "ConnectorConfig.h"
+#include "GlobalConfig.h"
 #include "AccountsConfig.h"
 #include "UrlLauncher.h"
 #include "WorkspacesConfig.h"
@@ -12,7 +13,7 @@ ConfigBridge::ConfigBridge(IBrowserAdapter* browser)
 {
     configBinding = std::make_unique<Binding>(
         "configBinding",
-        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl", "GetUserSelectedAccountId", "SetUserSelectedAccountId", "GetWorkspacesConfig", "SetUserSelectedWorkspaceId" },
+        std::vector<std::string>{ "GetConfig", "GetIsDevMode", "UpdateConfig", "OpenUrl", "GetUserSelectedAccountId", "SetUserSelectedAccountId", "GetWorkspacesConfig", "SetUserSelectedWorkspaceId", "GetGlobalConfig" },
         browser,
         this
     );
@@ -52,6 +53,10 @@ void ConfigBridge::RunMethod(const RunMethodEventArgs& args)
     {
         SetUserSelectedWorkspaceId(args);
     }
+    else if (args.methodName == "GetGlobalConfig")
+    {
+        GetGlobalConfig(args);
+    }
     else
     {
         throw InvalidMethodNameException(args.methodName);
@@ -67,18 +72,24 @@ void ConfigBridge::GetIsDevMode(const RunMethodEventArgs& args)
 #endif
 }
 
-static void SeedConfig()
+void ConfigBridge::GetGlobalConfig(const RunMethodEventArgs& args)
 {
+    args.eventSource->SetResult(args.methodId, GlobalConfig::ToJson());
+}
+
+static ConnectorConfig SeedConfig()
+{
+    ConnectorConfig config;
+    config.darkTheme = true;
     try
     {
-        ConnectorConfig config;
-        config.darkTheme = true;
         CONNECTOR.GetJsonObjectDatabase().CreateOrUpdate("Archicad", config);
     }
     catch (const std::exception&)
     {
         std::cout << "Failed to update connector config";
     }
+    return config;
 }
 
 void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
@@ -90,7 +101,7 @@ void ConfigBridge::GetConfig(const RunMethodEventArgs& args)
     }
     catch (...)
     {
-        SeedConfig();
+        args.eventSource->SetResult(args.methodId, SeedConfig());
     }
 }
 

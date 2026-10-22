@@ -1,0 +1,1 @@
+cmake -G "Visual Studio 18 2026" -T v143 -A "x64" -DAC_ADDON_LANGUAGE="INT" -DAC_API_DEVKIT_DIR="Libs\acapi30" -B build_30 -DCMAKE_BUILD_TYPE=Debug

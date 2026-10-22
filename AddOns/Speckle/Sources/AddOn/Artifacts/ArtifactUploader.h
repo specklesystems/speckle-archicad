@@ -1,13 +1,15 @@
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
 
 #include "IHttpClient.h"
+#include "json.hpp"
 
 class IProcessWindow;
+class IngestionHeartbeat;
 
 struct IngestionInfo
 {
@@ -15,11 +17,21 @@ struct IngestionInfo
     std::string versionId; // pre-allocated by the server; empty = server has no v2 data endpoints
 };
 
-// The C++ mirror of the SDK's ArtifactPipeline + the ingestion bracket from
-// SendOperation.SendViaArtifacts: create ingestion (GraphQL, which pre-allocates
-// the versionId baked into the parquet filenames) -> sign -> presigned PUT per
-// file -> complete (which creates the version). failWithError / failWithCancel
-// close the ingestion on the failure paths.
+enum class IngestionOutcome
+{
+    Published,
+    StillProcessing,
+};
+
+struct CompletionPolling
+{
+    std::chrono::milliseconds firstInterval = std::chrono::seconds(1);
+    std::chrono::milliseconds maxInterval = std::chrono::seconds(10);
+    // ENG-10394: allow three 1800-second datgen attempts and pod scheduling.
+    std::chrono::milliseconds deadline = std::chrono::minutes(100);
+    int maxConsecutiveFailures = 5;
+};
+
 class ArtifactUploader
 {
 public:
@@ -34,12 +46,7 @@ public:
         const std::string& modelId,
         const std::string& progressMessage,
         const std::string& sourceApplicationSlug,
-        const std::string& sourceApplicationVersion,
-        const std::string& connectorVersion);
-
-    // GraphQL IngestionUpdateProgress. Best-effort: a failed update never fails the send.
-    // progress is a 0..1 fraction.
-    void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage, std::optional<double> progress);
+        const std::string& sourceApplicationVersion);
 
     // sign -> PUT each file (collecting ETags) -> complete. files maps basename -> local path.
     // rootId is the synthetic "binary-{versionId}". Returns the (authoritative) versionId.
@@ -53,14 +60,21 @@ public:
         const std::map<std::string, std::string>& files,
         const std::string& rootId,
         int totalChildrenCount,
-        IProcessWindow* processWindow = nullptr);
+        IProcessWindow* processWindow = nullptr,
+        IngestionHeartbeat* heartbeat = nullptr);
+
+    // ENG-10394: the server owns the ingestion after complete, so stopping this wait must not cancel it.
+    IngestionOutcome WaitForCompletion(const std::string& ingestionId, const std::string& versionId,
+        IProcessWindow* processWindow, const CompletionPolling& polling = {});
+
+    void UpdateProgress(const std::string& ingestionId, const std::string& progressMessage);
 
     void FailWithError(const std::string& ingestionId, const std::string& errorReason);
     void FailWithCancel(const std::string& ingestionId, const std::string& cancellationMessage);
 
 private:
+    nlohmann::json QueryIngestion(const std::string& ingestionId);
     std::string GraphQl(const std::string& query, const std::string& variablesJson);
-    void GraphQlBestEffort(const std::string& query, const std::string& variablesJson) noexcept;
 
     std::shared_ptr<IHttpClient> _http;
     std::string _serverUrl; // no trailing slash
