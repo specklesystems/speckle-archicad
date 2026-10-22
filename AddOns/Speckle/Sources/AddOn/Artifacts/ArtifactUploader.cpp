@@ -86,7 +86,8 @@ IngestionInfo ArtifactUploader::CreateIngestion(
     const std::string& modelId,
     const std::string& progressMessage,
     const std::string& sourceApplicationSlug,
-    const std::string& sourceApplicationVersion)
+    const std::string& sourceApplicationVersion,
+    const std::string& connectorVersion)
 {
     // Mirrors Speckle.Sdk ModelIngestionResource.Create (mutation IngestionCreate).
     const std::string query =
@@ -104,12 +105,29 @@ IngestionInfo ArtifactUploader::CreateIngestion(
         { "fileName", nullptr },
         { "fileSizeBytes", nullptr },
     };
+    if (!connectorVersion.empty())
+        input["sourceData"]["connectorVersion"] = connectorVersion;
     input["maxIdleTimeoutSeconds"] = 600;
 
     json variables;
     variables["input"] = input;
 
-    json data = json::parse(GraphQl(query, variables.dump()));
+    std::string response;
+    try
+    {
+        response = GraphQl(query, variables.dump());
+    }
+    catch (const std::runtime_error& e)
+    {
+        // Servers before 2026.9.8 reject SourceDataInput.connectorVersion. The version is
+        // telemetry, so the send goes ahead without it, as the sharp connectors do (ENG-10294).
+        if (connectorVersion.empty() || std::string(e.what()).find("connectorVersion") == std::string::npos)
+            throw;
+        variables["input"]["sourceData"].erase("connectorVersion");
+        response = GraphQl(query, variables.dump());
+    }
+
+    json data = json::parse(response);
     json ingestion = data["data"]["data"]["data"];
 
     IngestionInfo info;

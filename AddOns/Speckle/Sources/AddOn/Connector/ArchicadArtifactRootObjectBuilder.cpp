@@ -279,6 +279,12 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
     ArtifactUploader uploader(http, serverUrl, token, projectId);
     IProcessWindow& nativeProcessWindow = CONNECTOR.GetProcessWindow();
 
+    // CI substitutes the real version into STR# 5010 at build time; in a local build the
+    // placeholder survives, and a placeholder is worse than no answer, so it is left out.
+    std::string connectorVersion = CONNECTOR.GetHostToSpeckleConverter().GetResourceString(5010);
+    if (connectorVersion == "connector_build_num")
+        connectorVersion.clear();
+
     // 1. Create the ingestion. The server MUST pre-allocate the versionId — it is baked
     //    into the parquet filenames and used as the commit PK at complete. Failures
     //    propagate as-is (auth, network, old server) — there is no legacy fallback.
@@ -288,7 +294,8 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         modelId,
         "Sending from Archicad",
         "archicad",
-        CONNECTOR.GetHostToSpeckleConverter().GetHostAppReleaseInfo());
+        CONNECTOR.GetHostToSpeckleConverter().GetHostAppReleaseInfo(),
+        connectorVersion);
     if (ingestion.versionId.empty())
     {
         throw std::runtime_error(
@@ -311,15 +318,7 @@ NativeSendResult ArchicadArtifactRootObjectBuilder::BuildAndUpload(
         const std::filesystem::path outputDir =
             std::filesystem::temp_directory_path() / "Speckle" / "artifacts" / ingestion.versionId;
 
-        // Connector version for envelope.meta.producer_version — the same STR# 5010
-        // resource BaseBridge::GetConnectorVersion reports to the UI. CI substitutes
-        // the real version at build time; in a local build the placeholder survives,
-        // and a placeholder is worse than no answer, so it becomes NULL.
-        std::string producerVersion = CONNECTOR.GetHostToSpeckleConverter().GetResourceString(5010);
-        if (producerVersion == "connector_build_num")
-            producerVersion.clear();
-
-        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId, producerVersion);
+        BundleWriter writer(Utf8Path::ToUtf8(outputDir), ingestion.versionId, connectorVersion);
 
         // 2. Collect + emit in one pass (ACAPI main thread). The SendCacheScope
         //    keeps per-send invariants (3D model + GUID index, stories, attribute

@@ -46,6 +46,8 @@ struct Http : IHttpClient
     bool completed = false;
     std::string completeBody = R"({"versionId":"test-version"})";
     int updatesAtComplete = 0;
+    bool rejectConnectorVersion = false;
+    std::vector<json> createdSourceData;
 
     HttpResponse PostJson(const std::string& url, const std::string& body, const std::string& token) override
     {
@@ -59,6 +61,18 @@ struct Http : IHttpClient
         }
         Require(url == "https://example.invalid/graphql", "Unexpected progress endpoint");
         const auto request = json::parse(body);
+        if (request.at("query").get<std::string>().find("IngestionCreate") != std::string::npos)
+        {
+            const auto& input = request.at("variables").at("input");
+            Require(input.at("projectId") == "test-project", "Wrong create project");
+            createdSourceData.push_back(input.at("sourceData"));
+            if (rejectConnectorVersion && input.at("sourceData").contains("connectorVersion"))
+                return {400, R"({"errors":[{"message":"Variable \"$input\" got invalid value at \"input.sourceData\"; "
+                    R"(Field \"connectorVersion\" is not defined by type \"SourceDataInput\".","extensions":{"code":"BAD_USER_INPUT"}}]})", {}};
+            json response;
+            response["data"]["data"]["data"]["data"] = {{"id", "test-ingestion"}, {"versionId", "test-version"}};
+            return {200, response.dump(), {}};
+        }
         if (request.at("query").get<std::string>().find("IngestionStatus") != std::string::npos)
         {
             const auto& variables = request.at("variables");
@@ -117,6 +131,20 @@ int main()
         std::chrono::milliseconds(200), 3};
     auto http = std::make_shared<Http>();
     ArtifactUploader uploader(http, "https://example.invalid/", "test-token", "test-project");
+    const IngestionInfo created = uploader.CreateIngestion("test-model", "Sending", "archicad", "29", "2026.10.0");
+    Require(created.ingestionId == "test-ingestion" && created.versionId == "test-version", "Create lost the server ids");
+    Require(http->createdSourceData.size() == 1 && http->createdSourceData[0].at("connectorVersion") == "2026.10.0",
+        "Create did not report the connector version");
+    http->rejectConnectorVersion = true;
+    http->createdSourceData.clear();
+    uploader.CreateIngestion("test-model", "Sending", "archicad", "29", "2026.10.0");
+    Require(http->createdSourceData.size() == 2 && !http->createdSourceData[1].contains("connectorVersion"),
+        "Create was not retried without the connector version an older server rejects");
+    http->createdSourceData.clear();
+    uploader.CreateIngestion("test-model", "Sending", "archicad", "29", "");
+    Require(http->createdSourceData.size() == 1 && !http->createdSourceData[0].contains("connectorVersion"),
+        "A build without a version reported one");
+    http->rejectConnectorVersion = false;
     Window window;
     std::promise<void> reported;
     auto ready = reported.get_future();
@@ -247,5 +275,5 @@ int main()
     Require(retryReady.wait_for(std::chrono::seconds(2)) == std::future_status::ready,
         "Transient heartbeat failure stopped reporting");
     retries.Stop();
-    std::cout << "PASS: heartbeat covers a single long native operation, stops at server handoff, retries transient errors, and waits for exact server success\n";
+    std::cout << "PASS: heartbeat covers a single long native operation, stops at server handoff, retries transient errors, waits for exact server success, and reports the connector version only to servers that accept it\n";
 }
