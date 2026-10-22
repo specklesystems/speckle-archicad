@@ -72,7 +72,7 @@ void RunFixed(const std::string& server, const std::string& artifact)
     auto http = std::make_shared<WinHttpClient>(1);
     ArtifactUploader uploader(http, server, "loopback-test-token", "runtime-project");
     const auto create = [&](const std::string& scenario) {
-        return uploader.CreateIngestion(scenario, "Converting", "archicad", "29");
+        return uploader.CreateIngestion(scenario, "Converting", "archicad", "29", "");
     };
     const auto upload = [&](const IngestionInfo& info, IngestionHeartbeat* heartbeat = nullptr) {
         return uploader.UploadFiles(info.ingestionId, info.versionId,
@@ -232,7 +232,7 @@ void RunProductionWindow(const std::string& server, const std::string& artifact)
     auto controlHttp = std::make_shared<WinHttpClient>(10);
     ArtifactUploader uploader(uploadHttp, server, "loopback-test-token", "runtime-project");
     ArtifactUploader control(controlHttp, server, "loopback-test-token", "runtime-project");
-    const auto info = uploader.CreateIngestion("production-heartbeat", "Converting", "archicad", "29");
+    const auto info = uploader.CreateIngestion("production-heartbeat", "Converting", "archicad", "29", "");
     IngestionHeartbeat heartbeat([&](const std::string& message) {
         control.UpdateProgress(info.ingestionId, message);
     }, "Converting without native callbacks");
@@ -273,13 +273,13 @@ int main(int argc, char** argv)
 #ifdef INGESTION_BASELINE
         auto http = std::make_shared<WinHttpClient>();
         ArtifactUploader uploader(http, server, "loopback-test-token", "runtime-project");
-        const auto idle = uploader.CreateIngestion("idle", "Converting", "archicad", "29");
+        const auto idle = uploader.CreateIngestion("idle", "Converting", "archicad", "29", "");
         std::this_thread::sleep_for(1100ms);
         const auto idleState = Inspect(*http, server, idle);
         Require(idleState.at("type") == "ModelIngestionFailedStatus", "baseline did not reproduce idle timeout");
         Require(idleState.at("updates") == 0, "baseline unexpectedly sent heartbeat updates");
         std::cout << "REPRODUCED: no-callback conversion exceeded 650ms idle window; ingestion Failed; updates=0\n";
-        const auto early = uploader.CreateIngestion("deadline", "Uploading", "archicad", "29");
+        const auto early = uploader.CreateIngestion("deadline", "Uploading", "archicad", "29", "");
         const auto returned = uploader.UploadFiles(early.ingestionId, early.versionId,
             {{"runtime.parquet", artifact}}, "binary-" + early.versionId, 1);
         const auto state = Inspect(*http, server, early);

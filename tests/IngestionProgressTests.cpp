@@ -47,6 +47,7 @@ struct Http : IHttpClient
     std::string completeBody = R"({"versionId":"test-version"})";
     int updatesAtComplete = 0;
     bool rejectConnectorVersion = false;
+    std::string createError;
     std::vector<json> createdSourceData;
 
     HttpResponse PostJson(const std::string& url, const std::string& body, const std::string& token) override
@@ -66,9 +67,15 @@ struct Http : IHttpClient
             const auto& input = request.at("variables").at("input");
             Require(input.at("projectId") == "test-project", "Wrong create project");
             createdSourceData.push_back(input.at("sourceData"));
-            if (rejectConnectorVersion && input.at("sourceData").contains("connectorVersion"))
-                return {400, R"({"errors":[{"message":"Variable \"$input\" got invalid value at \"input.sourceData\"; "
-                    R"(Field \"connectorVersion\" is not defined by type \"SourceDataInput\".","extensions":{"code":"BAD_USER_INPUT"}}]})", {}};
+            if (!createError.empty() || (rejectConnectorVersion && input.at("sourceData").contains("connectorVersion")))
+            {
+                json error;
+                error["errors"][0]["message"] = createError.empty()
+                    ? "Variable \"$input\" got invalid value at \"input.sourceData\"; Field \"connectorVersion\" is not defined by type \"SourceDataInput\"."
+                    : createError;
+                error["errors"][0]["extensions"]["code"] = createError.empty() ? "BAD_USER_INPUT" : "FORBIDDEN";
+                return {400, error.dump(), {}};
+            }
             json response;
             response["data"]["data"]["data"]["data"] = {{"id", "test-ingestion"}, {"versionId", "test-version"}};
             return {200, response.dump(), {}};
@@ -145,6 +152,11 @@ int main()
     Require(http->createdSourceData.size() == 1 && !http->createdSourceData[0].contains("connectorVersion"),
         "A build without a version reported one");
     http->rejectConnectorVersion = false;
+    http->createError = "You do not have access to this project";
+    http->createdSourceData.clear();
+    RequireThrows([&] { uploader.CreateIngestion("test-model", "Sending", "archicad", "29", "2026.10.0"); });
+    Require(http->createdSourceData.size() == 1, "An unrelated rejection was retried without the connector version");
+    http->createError.clear();
     Window window;
     std::promise<void> reported;
     auto ready = reported.get_future();

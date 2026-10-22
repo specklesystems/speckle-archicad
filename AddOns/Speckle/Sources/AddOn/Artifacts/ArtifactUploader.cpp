@@ -119,8 +119,9 @@ IngestionInfo ArtifactUploader::CreateIngestion(
     }
     catch (const std::runtime_error& e)
     {
-        // Servers before 2026.9.8 reject SourceDataInput.connectorVersion. The version is
-        // telemetry, so the send goes ahead without it, as the sharp connectors do (ENG-10294).
+        // Servers before 2026.9.8 reject SourceDataInput.connectorVersion as bad input and name
+        // the field in the message. The version is telemetry, so the create is retried once
+        // without it, the fallback the sharp connectors use (ENG-10524, ENG-10294).
         if (connectorVersion.empty() || std::string(e.what()).find("connectorVersion") == std::string::npos)
             throw;
         variables["input"]["sourceData"].erase("connectorVersion");
