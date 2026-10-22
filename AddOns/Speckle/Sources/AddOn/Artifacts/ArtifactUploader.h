@@ -42,11 +42,13 @@ public:
         const std::string& projectId);
 
     // GraphQL IngestionCreate. Returns the ingestion id + the server-pre-allocated versionId.
+    // connectorVersion is the add-on's own release; empty when the build has none to report.
     IngestionInfo CreateIngestion(
         const std::string& modelId,
         const std::string& progressMessage,
         const std::string& sourceApplicationSlug,
-        const std::string& sourceApplicationVersion);
+        const std::string& sourceApplicationVersion,
+        const std::string& connectorVersion);
 
     // sign -> PUT each file (collecting ETags) -> complete. files maps basename -> local path.
     // rootId is the synthetic "binary-{versionId}". Returns the (authoritative) versionId.
