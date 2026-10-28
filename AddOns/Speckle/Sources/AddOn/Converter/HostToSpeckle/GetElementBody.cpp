@@ -6,6 +6,15 @@
 #include "ConverterUtils.h"
 #include "SpeckleConversionException.h"
 
+// The AC27 DevKit's ACAPI/Result.hpp declares `namespace concept`, which does not compile
+// as C++20, so AC27 routes keep no body (ENG-10755).
+#if !defined(AC27)
+#include "ACAPI/MEPAdapter.hpp"
+#include "ACAPI/MEPRoutingElement.hpp"
+#include "ACAPI/MEPRoutingNode.hpp"
+#include "ACAPI/MEPRoutingSegment.hpp"
+#endif
+
 #include <AttributeIndex.hpp>
 #include <ConvexPolygon.hpp>
 #include <CoordinateSystem.hpp>
@@ -60,10 +69,61 @@ namespace
 		}
 	}
 
-	std::set<API_Guid> CollectPartIDs(const API_Guid& elemId, API_ElemTypeID typeID)
+#if !defined(AC27)
+	void InsertMepIDs(const std::vector<ACAPI::MEP::UniqueID>& ids, std::set<API_Guid>& partIDs)
+	{
+		for (const auto& id : ids)
+			partIDs.insert(GSGuid2APIGuid(id.GetGuid()));
+	}
+
+	// A route has no 3D body of its own: Archicad models it on the route's segments and nodes
+	// and the rigid segments, elbows and transitions they hold (ENG-10755).
+	void CollectRoutePartIDs(const API_Guid& routeId, std::set<API_Guid>& partIDs)
+	{
+		using namespace ACAPI::MEP;
+		const auto route = RoutingElement::Get(Adapter::UniqueID(routeId));
+		if (route.IsErr())
+			return;
+
+		const std::vector<UniqueID> segmentIds = route->GetRoutingSegmentIds();
+		InsertMepIDs(segmentIds, partIDs);
+		for (const auto& segmentId : segmentIds)
+		{
+			const auto segment = RoutingSegment::Get(segmentId);
+			if (segment.IsOk())
+				InsertMepIDs(segment->GetRigidSegmentIds(), partIDs);
+		}
+
+		const std::vector<UniqueID> nodeIds = route->GetRoutingNodeIds();
+		InsertMepIDs(nodeIds, partIDs);
+		for (const auto& nodeId : nodeIds)
+		{
+			const auto node = RoutingNode::Get(nodeId);
+			if (node.IsErr())
+				continue;
+#if defined(AC28)
+			InsertMepIDs(node->GetBendIds(), partIDs);
+#else
+			InsertMepIDs(node->GetElbowIds(), partIDs);
+#endif
+			InsertMepIDs(node->GetTransitionIds(), partIDs);
+		}
+	}
+#endif
+
+	std::set<API_Guid> CollectPartIDs(const API_Guid& elemId, const API_ElemType& elemType)
 	{
 		std::set<API_Guid> partIDs{};
 		partIDs.insert(elemId);
+
+		const API_ElemTypeID typeID = elemType.typeID;
+#if !defined(AC27)
+		if (typeID == API_ExternalElemID && ACAPI::MEP::IsRoutingElement(elemType.classID))
+		{
+			CollectRoutePartIDs(elemId, partIDs);
+			return partIDs;
+		}
+#endif
 
 		const UInt64 memoMask = PartMemoMask(typeID);
 		if (memoMask == 0)
@@ -258,7 +318,7 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 	auto acModel = ConverterUtils::GetArchiCadModel();
 	auto apiElem = ConverterUtils::GetElement(elemId);
 	auto elemType = apiElem.header.type.typeID;
-	auto partIDs = CollectPartIDs(apiElem.header.guid, elemType);
+	auto partIDs = CollectPartIDs(apiElem.header.guid, apiElem.header.type);
 
 	// the body to return
 	ElementBody elementBody{};
@@ -305,7 +365,7 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 		return instance; // grid elements are not converted (mirrors GetElementBody)
 
 	auto acModel = ConverterUtils::GetArchiCadModel();
-	auto partIDs = CollectPartIDs(apiElem.header.guid, API_ObjectID);
+	auto partIDs = CollectPartIDs(apiElem.header.guid, apiElem.header.type);
 
 	ElementBody localBody{};
 	bool haveTransform = false;
