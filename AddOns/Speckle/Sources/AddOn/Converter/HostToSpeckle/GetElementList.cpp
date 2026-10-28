@@ -40,6 +40,8 @@ static const std::vector<ElementTypeCategory>& GetElementTypeCategories()
             API_RailingToprailConnectionID, API_RailingHandrailConnectionID, API_RailingRailConnectionID, API_RailingEndFinishID}},
         {"Opening", {API_OpeningID}},
         };
+        // Route segments, nodes, elbows and transitions publish inside their route, so only
+        // route-level MEP classes get a category (ENG-9470, ENG-10287).
         const std::vector<std::string> mepCategories = {
             "DuctRoute", "PipeRoute", "CableCarrierRoute",
             "DuctFitting", "PipeFitting", "CableCarrierFitting",
