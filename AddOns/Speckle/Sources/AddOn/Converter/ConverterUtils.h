@@ -26,6 +26,11 @@ public:
     // ACAPI_ProjectSetting_GetStorySettings + name conversions) is cached per send.
     static ArchicadLevel GetStoryLevel(short floorInd);
 
+    // Archicad measures every API and Modeler coordinate from a virtual origin it sets when it
+    // opens a far-from-origin file; adding this x/y offset gives the world coordinates the GUI
+    // shows (ENG-11371). Cached per send.
+    static API_Coord GetVirtualOriginOffset();
+
     // Per-send cache scope (RAII). While one is active, the accessors above plus
     // GetElement (last-element memo) and GetAttributeName reuse per-send caches
     // instead of re-fetching invariant state per element. The converters run on
