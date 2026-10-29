@@ -66,6 +66,9 @@ namespace
     bool g_storiesValid = false;
     std::vector<StoryRecord> g_stories;
 
+    bool g_virtualOriginOffsetValid = false;
+    API_Coord g_virtualOriginOffset{};
+
     void ClearSendCaches()
     {
         g_modelValid = false;
@@ -77,6 +80,8 @@ namespace
         g_attributeNames.clear();
         g_storiesValid = false;
         g_stories.clear();
+        g_virtualOriginOffsetValid = false;
+        g_virtualOriginOffset = API_Coord{};
     }
 
 #pragma warning(push)
@@ -111,6 +116,13 @@ namespace
             BMKillHandle(reinterpret_cast<GSHandle*>(&storyInfo.data));
         }
         return stories;
+    }
+
+    API_Coord FetchVirtualOriginOffset()
+    {
+        API_Coord offset{};
+        CHECK_ERROR(ACAPI_ProjectSetting_GetOffset(&offset));
+        return offset;
     }
 }
 
@@ -252,6 +264,19 @@ ArchicadLevel ConverterUtils::GetStoryLevel(short floorInd)
 
     level.name = std::to_string(floorInd) + ". " + (floorName.empty() ? "Story" : floorName);
     return level;
+}
+
+API_Coord ConverterUtils::GetVirtualOriginOffset()
+{
+    if (!g_cacheActive)
+        return FetchVirtualOriginOffset();
+
+    if (!g_virtualOriginOffsetValid)
+    {
+        g_virtualOriginOffset = FetchVirtualOriginOffset();
+        g_virtualOriginOffsetValid = true;
+    }
+    return g_virtualOriginOffset;
 }
 
 std::string ConverterUtils::GetAttributeName(API_AttributeIndex attributeIndex, API_AttrTypeID attributeType)

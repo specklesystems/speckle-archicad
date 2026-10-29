@@ -192,6 +192,7 @@ namespace
 		ModelerAPI::MeshBody& body,
 		bool softEdges,
 		ModelerAPI::CoordinateSystem coordinateSystem,
+		const API_Coord& planarOffset,
 		ElementBody& elementBody)
 	{
 		struct MeshAccum
@@ -206,7 +207,11 @@ namespace
 		{
 			auto [it, isNew] = vertexCache.try_emplace(bodyVertexIndex);
 			if (isNew)
+			{
 				body.GetVertex(bodyVertexIndex, &it->second, coordinateSystem);
+				it->second.x += planarOffset.x;
+				it->second.y += planarOffset.y;
+			}
 			return it->second;
 		};
 
@@ -267,11 +272,11 @@ namespace
 
 	// Modeler's 3x4 local->world matrix -> the bundle's row-major 4x4 (last row 0 0 0 1).
 	// Column 3 of each row is the translation, matching Speckle's Matrix4x4 (M14/M24/M34).
-	std::array<double, 16> ToRowMajor4x4(const ModelerAPI::Transformation& tr)
+	std::array<double, 16> ToRowMajor4x4(const ModelerAPI::Transformation& tr, const API_Coord& planarOffset)
 	{
 		return {
-			tr.matrix[0][0], tr.matrix[0][1], tr.matrix[0][2], tr.matrix[0][3],
-			tr.matrix[1][0], tr.matrix[1][1], tr.matrix[1][2], tr.matrix[1][3],
+			tr.matrix[0][0], tr.matrix[0][1], tr.matrix[0][2], tr.matrix[0][3] + planarOffset.x,
+			tr.matrix[1][0], tr.matrix[1][1], tr.matrix[1][2], tr.matrix[1][3] + planarOffset.y,
 			tr.matrix[2][0], tr.matrix[2][1], tr.matrix[2][2], tr.matrix[2][3],
 			0.0,             0.0,             0.0,             1.0
 		};
@@ -319,6 +324,7 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 	auto apiElem = ConverterUtils::GetElement(elemId);
 	auto elemType = apiElem.header.type.typeID;
 	auto partIDs = CollectPartIDs(apiElem.header.guid, apiElem.header.type);
+	const API_Coord planarOffset = ConverterUtils::GetVirtualOriginOffset();
 
 	// the body to return
 	ElementBody elementBody{};
@@ -343,7 +349,7 @@ ElementBody HostToSpeckleConverter::GetElementBody(const std::string& elemId)
 			// This logic is potentially buggy
 			// We need to find a better way to decide if an edge is soft or hard
 			const bool softEdges = (elemType == API_ObjectID) && !body.HasSharpEdge();
-			AppendBodyMeshes(body, softEdges, ModelerAPI::CoordinateSystem::World, elementBody);
+			AppendBodyMeshes(body, softEdges, ModelerAPI::CoordinateSystem::World, planarOffset, elementBody);
 		}
 	}
 
@@ -390,14 +396,14 @@ ObjectInstance HostToSpeckleConverter::GetObjectInstance(const std::string& elem
 
 			// Untransformed geometry, straight from the Modeler.
 			const bool softEdges = !body.HasSharpEdge();
-			AppendBodyMeshes(body, softEdges, ModelerAPI::CoordinateSystem::ElemLocal, localBody);
+			AppendBodyMeshes(body, softEdges, ModelerAPI::CoordinateSystem::ElemLocal, API_Coord{}, localBody);
 		}
 	}
 
 	if (!haveTransform || localBody.meshes.empty())
 		return instance; // nothing instanceable -> caller bakes world geometry
 
-	instance.transform = ToRowMajor4x4(transform);
+	instance.transform = ToRowMajor4x4(transform, ConverterUtils::GetVirtualOriginOffset());
 	instance.definitionId = ComputeDefinitionId(localBody);
 	instance.localBody = std::move(localBody);
 	instance.valid = true;
