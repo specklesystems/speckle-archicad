@@ -13,18 +13,22 @@ yellow:
   - '**/.claude/**'
   - '**/.codex/**'
   - '**/.omp/**'
-  # Authentication and secrets code: the OAuth flow, and where accounts and
-  # their tokens are stored and handed to the UI
+  # Authentication and secrets code: the OAuth flow, where accounts and their
+  # tokens are stored and handed to the UI, and the HTTP client that sends them
   - AddOns/Speckle/Sources/AddOn/Auth/**
   - AddOns/Speckle/Sources/AddOn/Connector/AccountDatabase.*
   - AddOns/Speckle/Sources/AddOn/Connector/IAccountDatabase.h
   - AddOns/Speckle/Sources/AddOn/Connector/Bridges/AccountBridge.*
+  - AddOns/Speckle/Sources/AddOn/Network/WinHttpClient.*
   # Betterleaks exceptions
   - '**/.betterleaks.toml'
   - '**/.betterleaksignore'
   - '**/.gitleaksignore'
-  # Release: the Archicad versions and the files that each installer ships
-  - ci-build/Consts.cs
+  # Release: the build that makes the installer zip, which goes to the
+  # installer feed
+  - ci-build/**
+  - build.ps1
+  - .config/dotnet-tools.json
 red:
   - .github/**
 # Machine accounts with write access: their color reviews and approvals never count.
