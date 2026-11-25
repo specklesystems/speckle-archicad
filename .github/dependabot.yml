@@ -1,24 +1,12 @@
 version: 2
 updates:
-  # Pin updates of the shared workflows in specklesystems/.github, one pull
-  # request per new tag there, with no cooldown. Another repo of the org takes
-  # a new pin first; this repo merges its update after the changed workflows
-  # worked there.
-  # Dependabot security updates are on in this repo, so the entry has no
-  # `allow`, which would stop them for the other actions; those get their own
-  # group.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: daily
     groups:
-      dot-github:
-        patterns:
-          - specklesystems/.github/*
       github-actions:
         patterns:
           - "*"
     cooldown:
       default-days: 7
-      exclude:
-        - specklesystems/.github/*
